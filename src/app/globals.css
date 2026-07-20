@@ -1,1 +1,204 @@
 @import "tailwindcss";
+
+:root {
+  /* Core surfaces */
+  --ds-background-100: #fafafa;
+  --ds-background-200: #f2f2f2;
+  --ds-background-elevated: #ffffff;
+  --ds-gray-100: #ebebeb;
+
+  /* Text */
+  --ds-gray-1000: #171717;
+  --ds-gray-900: #4d4d4d;
+  --ds-gray-700: #8f8f8f;
+
+  /* Interactive */
+  --ds-focus-color: #0072f5;
+  --ds-focus-input: #005fcc;
+
+  /* FinOS financial meaning colors */
+  --finos-success: #16a34a;
+  --finos-warning: #f59e0b;
+  --finos-danger: #dc2626;
+  --finos-investment: #7c3aed;
+  --finos-cash: #10b981;
+  --finos-expense: #f97316;
+  --finos-income: #22c55e;
+
+  /* Status indicators (dots only) */
+  --ds-status-blue: #0062d1;
+  --ds-status-cyan: #52aeff;
+  --ds-status-teal: #45dec5;
+  --ds-status-teal-dark: #067a6e;
+  --ds-status-green: #16a34a;
+  --ds-status-green-dark: #15803d;
+  --ds-status-green-light: #4ade80;
+  --ds-status-orange: #f97316;
+  --ds-status-red: #dc2626;
+  --ds-status-pink: #ea3e83;
+  --ds-status-purple: #7c3aed;
+  --ds-status-purple-light: #a78bfa;
+
+  /* Shadows — border technique */
+  --ds-shadow-border-base: 0 0 0 1px rgba(0, 0, 0, 0.08);
+  --ds-shadow-border: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--ds-background-200);
+  --ds-shadow-border-small: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 2px 2px rgba(0, 0, 0, 0.04);
+  --ds-shadow-border-medium: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 2px 2px rgba(0, 0, 0, 0.04),
+    0 8px 8px -8px rgba(0, 0, 0, 0.04);
+  --ds-shadow-menu: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 1px 1px rgba(0, 0, 0, 0.02),
+    0 4px 8px -4px rgba(0, 0, 0, 0.04), 0 16px 24px -8px rgba(0, 0, 0, 0.06);
+  --ds-shadow-modal: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 1px 1px rgba(0, 0, 0, 0.02),
+    0 8px 16px -4px rgba(0, 0, 0, 0.04), 0 24px 32px -8px rgba(0, 0, 0, 0.06);
+  --ds-focus-ring-inner: #ffffff;
+  --ds-primary-hover: #000000;
+  --ds-primary-foreground: #ffffff;
+  --ds-danger-hover: #fff5f5;
+  --ds-selection-bg: rgba(0, 114, 245, 0.15);
+  --ds-focus-ring: 0 0 0 2px var(--ds-focus-ring-inner), 0 0 0 4px var(--ds-focus-color);
+  --header-border-bottom: 0 1px 0 0 rgba(0, 0, 0, 0.1);
+
+  /* Layout */
+  --geist-page-width: 1200px;
+  --ds-page-width: 1400px;
+  --geist-page-margin: 24px;
+  --header-height: 64px;
+  --sidebar-width: 220px;
+
+  /* Radius */
+  --geist-radius: 6px;
+  --geist-card-radius: 12px;
+
+  /* Form */
+  --geist-form-height: 40px;
+  --geist-form-font: 0.875rem;
+
+  /* Motion */
+  --ds-motion-timing-swift: cubic-bezier(0.175, 0.885, 0.32, 1.1);
+  --ds-motion-popover-duration: 0.2s;
+  --ds-motion-overlay-duration: 0.3s;
+  --ds-motion-overlay-scale: 0.96;
+}
+
+@theme inline {
+  --color-background: var(--ds-background-100);
+  --color-foreground: var(--ds-gray-1000);
+  --color-muted: var(--ds-gray-900);
+  --color-subtle: var(--ds-gray-700);
+  --color-surface: var(--ds-background-elevated);
+  --color-recessed: var(--ds-background-200);
+  --color-hover: var(--ds-gray-100);
+  --color-accent: var(--ds-focus-color);
+  --color-danger: var(--ds-status-red);
+  --color-success: var(--ds-status-green);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  background: var(--ds-background-100);
+  color: var(--ds-gray-1000);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 {
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 48px;
+  letter-spacing: -2.28px;
+  margin: 0;
+}
+
+h2 {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: -0.28px;
+  margin: 0;
+}
+
+h3 {
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 40px;
+  letter-spacing: -1.28px;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a.link-accent {
+  color: var(--ds-focus-color);
+}
+
+a.link-accent:focus-visible {
+  outline: 2px auto var(--ds-focus-color);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+::selection {
+  background: var(--ds-selection-bg);
+}
+
+/* Utility classes matching design tokens */
+.ds-border {
+  box-shadow: var(--ds-shadow-border-base);
+}
+
+.ds-border-medium {
+  box-shadow: var(--ds-shadow-border-medium);
+}
+
+.ds-border-menu {
+  box-shadow: var(--ds-shadow-menu);
+}
+
+.ds-border-modal {
+  box-shadow: var(--ds-shadow-modal);
+}
+
+.ds-focus:focus-visible {
+  outline: none;
+  box-shadow: var(--ds-focus-ring);
+}
+
+.ds-header-rule {
+  box-shadow: var(--header-border-bottom);
+}
+
+@keyframes ds-overlay-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--ds-motion-overlay-scale));
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ds-overlay-enter {
+  animation: ds-overlay-in var(--ds-motion-overlay-duration) var(--ds-motion-timing-swift);
+}
