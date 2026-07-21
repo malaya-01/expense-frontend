@@ -20,7 +20,7 @@ export function ProposalConfirmModal({
       open={Boolean(proposal)}
       onClose={onClose}
       title={proposal?.title || "Confirm action"}
-      className="max-w-lg"
+      className="max-w-xl"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

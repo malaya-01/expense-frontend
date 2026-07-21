@@ -444,7 +444,7 @@ export function AiProvidersSection() {
         open={promptOpen}
         onClose={() => setPromptOpen(false)}
         title="Master prompt"
-        className="max-w-2xl"
+        className="max-w-3xl"
         footer={
           <>
             <Button
@@ -619,7 +619,7 @@ function ProviderConfigureModal({
       open
       onClose={onClose}
       title={`Configure ${PROVIDER_LABEL[provider]}`}
-      className="max-w-lg"
+      className="max-w-2xl"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

@@ -95,7 +95,7 @@ export function GoalFormModal({
       open={open}
       onClose={onClose}
       title={initial ? "Edit goal" : "New goal"}
-      className="max-w-lg"
+      className="max-w-2xl"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

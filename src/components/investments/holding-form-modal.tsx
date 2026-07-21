@@ -97,7 +97,7 @@ export function HoldingFormModal({
       open={open}
       onClose={onClose}
       title={initial ? "Edit holding" : "New holding"}
-      className="max-w-lg"
+      className="max-w-3xl"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

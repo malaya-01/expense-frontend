@@ -28,7 +28,7 @@ export function ConfirmDialog({
       open={open}
       onClose={onClose}
       title={title}
-      className="max-w-sm"
+      className="max-w-md"
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={busy}>

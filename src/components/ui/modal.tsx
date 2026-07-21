@@ -66,7 +66,7 @@ export function Modal({
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-5">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-5 lg:p-8">
       <button
         type="button"
         aria-label="Close dialog"
@@ -79,11 +79,11 @@ export function Modal({
         aria-modal
         aria-labelledby={titleId}
         className={cn(
-          "relative z-10 flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-[18px] bg-[var(--ds-background-elevated)] ds-border-modal ds-strong-border ds-overlay-enter sm:rounded-[16px]",
+          "relative z-10 flex max-h-[94dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-[20px] bg-[var(--ds-background-elevated)] ds-border-modal ds-strong-border ds-overlay-enter sm:max-h-[min(90dvh,900px)] sm:w-[calc(100%-2.5rem)] sm:rounded-[18px]",
           className,
         )}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] px-5 py-4 sm:px-6">
+        <div className="flex shrink-0 items-center justify-between border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] px-5 py-4 sm:px-7 sm:py-5">
           <h2 id={titleId} className="text-base font-semibold text-[var(--ds-gray-1000)]">
             {title}
           </h2>
@@ -99,12 +99,12 @@ export function Modal({
         </div>
         <div
           data-modal-body
-          className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6"
+          className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6"
         >
           {children}
         </div>
         {footer ? (
-          <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] bg-[var(--ds-background-elevated)] px-5 py-4 sm:px-6">
+          <div className="flex shrink-0 flex-wrap justify-end gap-2.5 border-t border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] bg-[var(--ds-background-elevated)] px-5 py-4 sm:px-7 sm:py-5">
             {footer}
           </div>
         ) : null}

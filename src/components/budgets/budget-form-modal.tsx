@@ -81,7 +81,7 @@ export function BudgetFormModal({
       open={open}
       onClose={onClose}
       title={initial ? "Edit budget" : "New budget"}
-      className="max-w-lg"
+      className="max-w-2xl"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

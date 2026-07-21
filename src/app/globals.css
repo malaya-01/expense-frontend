@@ -102,6 +102,25 @@
   scrollbar-color: transparent transparent;
 }
 
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+input[type="button"]:not(:disabled),
+input[type="submit"]:not(:disabled),
+input[type="reset"]:not(:disabled),
+summary,
+label[for],
+select:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+}
+
 *:hover {
   scrollbar-color:
     color-mix(in srgb, var(--ds-gray-1000) 24%, transparent)
@@ -368,6 +387,28 @@ select {
   to {
     transform: scaleX(0);
   }
+}
+
+@keyframes api-loader-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  55% {
+    transform: translateX(140%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.api-loader-track {
+  background: color-mix(in srgb, var(--ds-focus-color) 12%, transparent);
+}
+
+.api-loader-bar {
+  animation: api-loader-slide 1.15s ease-in-out infinite;
+  box-shadow: 0 0 10px
+    color-mix(in srgb, var(--ds-focus-color) 65%, transparent);
 }
 
 .ds-drawer-enter,

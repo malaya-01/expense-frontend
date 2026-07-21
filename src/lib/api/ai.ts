@@ -1,4 +1,5 @@
 import { api, getAccessToken, unwrap } from "./client";
+import { beginApiActivity, endApiActivity } from "./activity";
 import type {
   AiChatResponse,
   AiConversation,
@@ -194,6 +195,8 @@ export async function streamAiChat(
     signal?: AbortSignal;
   },
 ): Promise<void> {
+  beginApiActivity();
+  try {
   const base =
     process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:9000/api";
   const token = getAccessToken();
@@ -272,6 +275,9 @@ export async function streamAiChat(
     if (pendingText) {
       await emitStreamingText(pendingText, handlers.onEvent);
     }
+  }
+  } finally {
+    endApiActivity();
   }
 }
 

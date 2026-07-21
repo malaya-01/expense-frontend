@@ -90,7 +90,8 @@ function fuzzyMatch(value: string, query: string) {
 
 export function CommandPalette() {
   const router = useRouter();
-  const { openTransactionModal } = useTransactionModal();
+  const { openTransactionModal, openEditTransactionModal } =
+    useTransactionModal();
   const dispatch = useAppDispatch();
   const { user } = useAuth();
   const open = useAppSelector((state) => state.ui.commandPaletteOpen);
@@ -174,7 +175,7 @@ export function CommandPalette() {
           subtitle: `${transaction.type} · ${transaction.merchant || transaction.category_name || transaction.date}`,
           keywords: `${transaction.type} ${transaction.merchant || ""} ${transaction.category_name || ""} ${transaction.notes || ""}`,
           icon: CirclePlus,
-          run: () => router.push(`/expenses/${transaction.id}`),
+          run: () => openEditTransactionModal(transaction),
         })),
         ...accounts.map((account) => ({
           id: `account-${account.id}`,
@@ -213,7 +214,14 @@ export function CommandPalette() {
       setIndexLoaded(true);
       setIndexing(false);
     });
-  }, [open, indexLoaded, indexing, router, user?.id]);
+  }, [
+    open,
+    indexLoaded,
+    indexing,
+    openEditTransactionModal,
+    router,
+    user?.id,
+  ]);
 
   const closeAndRun = (run: () => void) => {
     dispatch(closeCommandPalette());

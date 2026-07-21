@@ -335,7 +335,7 @@ export default function RecurringPage() {
         open={open}
         onClose={() => setOpen(false)}
         title="New recurring schedule"
-        className="max-w-2xl"
+        className="max-w-3xl"
         footer={
           <>
             <Button variant="secondary" onClick={() => setOpen(false)}>

@@ -32,6 +32,9 @@ type TransactionFormProps = {
   mode?: "create" | "edit";
   onSuccess?: () => void;
   onCancel?: () => void;
+  formId?: string;
+  hideActions?: boolean;
+  onBusyChange?: (busy: boolean) => void;
 };
 
 export function TransactionForm({
@@ -39,6 +42,9 @@ export function TransactionForm({
   mode = "create",
   onSuccess,
   onCancel,
+  formId = "transaction-form",
+  hideActions = false,
+  onBusyChange,
 }: TransactionFormProps) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -151,6 +157,7 @@ export function TransactionForm({
     }
 
     setLoading(true);
+    onBusyChange?.(true);
     try {
       const payload: CreateTransactionInput = {
         type: form.type,
@@ -193,11 +200,12 @@ export function TransactionForm({
       });
     } finally {
       setLoading(false);
+      onBusyChange?.(false);
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="mx-auto max-w-xl space-y-5">
+    <form id={formId} onSubmit={onSubmit} className="w-full space-y-5">
       <div>
         <Label htmlFor="type">Type</Label>
         <Select
@@ -384,18 +392,20 @@ export function TransactionForm({
         <p className="text-sm text-[var(--ds-status-red)]">{error}</p>
       ) : null}
 
-      <div className="flex items-center gap-2 pt-2">
-        <Button type="submit" loading={loading}>
-          {mode === "edit" ? "Save changes" : "Record transaction"}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => (onCancel ? onCancel() : router.push("/expenses"))}
-        >
-          Cancel
-        </Button>
-      </div>
+      {!hideActions ? (
+        <div className="flex items-center gap-2 pt-2">
+          <Button type="submit" loading={loading}>
+            {mode === "edit" ? "Save changes" : "Record transaction"}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => (onCancel ? onCancel() : router.push("/expenses"))}
+          >
+            Cancel
+          </Button>
+        </div>
+      ) : null}
     </form>
   );
 }

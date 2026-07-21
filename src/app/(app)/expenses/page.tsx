@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { PageHeader, EmptyState } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -26,8 +25,8 @@ import { getErrorMessage } from "@/lib/api/client";
 import type { LedgerTransaction } from "@/types";
 
 export default function ExpensesPage() {
-  const router = useRouter();
-  const { openTransactionModal } = useTransactionModal();
+  const { openTransactionModal, openEditTransactionModal } =
+    useTransactionModal();
   const { user } = useAuth();
   const { showToast } = useToast();
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
@@ -244,6 +243,7 @@ export default function ExpensesPage() {
         <TransactionTable
           transactions={filtered}
           baseCurrency={baseCurrency}
+          onEdit={openEditTransactionModal}
           onDelete={setDeleteId}
         />
       )}

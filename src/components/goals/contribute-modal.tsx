@@ -47,7 +47,7 @@ export function ContributeModal({
       open={open}
       onClose={onClose}
       title={goal ? `Contribute to ${goal.name}` : "Contribute"}
-      className="max-w-md"
+      className="max-w-xl"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

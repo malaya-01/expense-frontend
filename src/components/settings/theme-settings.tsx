@@ -176,7 +176,7 @@ export function AppearanceSection() {
         open={browseOpen}
         onClose={() => setBrowseOpen(false)}
         title="Themes"
-        className="max-w-2xl"
+        className="max-w-3xl"
         footer={
           <>
             <Button variant="ghost" onClick={() => setBrowseOpen(false)}>
@@ -238,7 +238,7 @@ export function AppearanceSection() {
         open={editorOpen}
         onClose={() => setEditorOpen(false)}
         title={editingId ? "Edit theme" : "Create theme"}
-        className="max-w-lg"
+        className="max-w-2xl"
         footer={
           <>
             <Button variant="ghost" onClick={() => setEditorOpen(false)}>

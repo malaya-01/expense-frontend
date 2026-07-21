@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Inter, Geist_Mono } from "next/font/google";
 import { StoreProvider } from "@/lib/store/provider";
 import { ToastViewport } from "@/components/ui/toast";
+import { ApiActivityIndicator } from "@/components/ui/api-activity-indicator";
 import { getThemeBootstrapScript } from "@/lib/themes/bootstrap";
 import "./globals.css";
 
@@ -48,6 +49,7 @@ export default function RootLayout({
       >
         <StoreProvider>
           {children}
+          <ApiActivityIndicator />
           <ToastViewport />
         </StoreProvider>
       </body>

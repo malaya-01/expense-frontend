@@ -88,7 +88,7 @@ export function AccountFormModal({
       open={open}
       onClose={onClose}
       title={initial ? "Edit container" : "New financial container"}
-      className="max-w-lg"
+      className="max-w-2xl"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

@@ -4,6 +4,7 @@ import axios, {
   InternalAxiosRequestConfig,
 } from "axios";
 import type { ApiResponse } from "@/types";
+import { beginApiActivity, endApiActivity } from "@/lib/api/activity";
 
 const ACCESS_COOKIE = "access_token";
 const REFRESH_COOKIE = "refresh_token";
@@ -47,6 +48,17 @@ export function clearTokens() {
 type AuthFailureHandler = (() => void) | null;
 let authFailureHandler: AuthFailureHandler = null;
 
+type TrackedRequestConfig = InternalAxiosRequestConfig & {
+  _retry?: boolean;
+  _activityTracked?: boolean;
+};
+
+function finishApiRequest(config?: TrackedRequestConfig) {
+  if (!config?._activityTracked) return;
+  config._activityTracked = false;
+  endApiActivity();
+}
+
 export function registerAuthFailureHandler(handler: AuthFailureHandler) {
   authFailureHandler = handler;
 }
@@ -61,6 +73,11 @@ function createClient(): AxiosInstance {
 
   instance.interceptors.request.use(
     (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
+      const trackedConfig = config as TrackedRequestConfig;
+      if (!trackedConfig._activityTracked) {
+        beginApiActivity();
+        trackedConfig._activityTracked = true;
+      }
       if (!(config.headers instanceof axios.AxiosHeaders)) {
         config.headers = new axios.AxiosHeaders(config.headers);
       }
@@ -73,11 +90,13 @@ function createClient(): AxiosInstance {
   );
 
   instance.interceptors.response.use(
-    (response: AxiosResponse) => response,
+    (response: AxiosResponse) => {
+      finishApiRequest(response.config as TrackedRequestConfig);
+      return response;
+    },
     async (error) => {
-      const original = error.config as
-        | (InternalAxiosRequestConfig & { _retry?: boolean })
-        | undefined;
+      const original = error.config as TrackedRequestConfig | undefined;
+      finishApiRequest(original);
       if (
         error.response?.status !== 401 ||
         !original ||
@@ -88,6 +107,7 @@ function createClient(): AxiosInstance {
       }
 
       original._retry = true;
+      beginApiActivity();
       try {
         const refresh = await axios.post<
           ApiResponse<{ accessToken: string; refreshToken?: string }>
@@ -108,6 +128,8 @@ function createClient(): AxiosInstance {
           window.location.assign("/signin?session=expired");
         }
         return Promise.reject(error);
+      } finally {
+        endApiActivity();
       }
     },
   );

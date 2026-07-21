@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Pencil, Trash2 } from "lucide-react";
 import { StatusDot } from "@/components/ui/status-dot";
 import { Button } from "@/components/ui/button";
@@ -15,10 +14,12 @@ const TYPE_TONE = {
 
 export function TransactionTable({
   transactions,
+  onEdit,
   onDelete,
   baseCurrency = "USD",
 }: {
   transactions: LedgerTransaction[];
+  onEdit: (transaction: LedgerTransaction) => void;
   onDelete: (id: string) => void;
   baseCurrency?: string;
 }) {
@@ -78,13 +79,14 @@ export function TransactionTable({
                   </p>
                 </div>
                 <div className="flex gap-1">
-                  <Link
-                    href={`/expenses/${tx.id}`}
+                  <button
+                    type="button"
+                    onClick={() => onEdit(tx)}
                     aria-label={`Edit ${tx.description}`}
                     className="flex size-9 items-center justify-center rounded-[8px] text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] ds-focus"
                   >
                     <Pencil size={14} />
-                  </Link>
+                  </button>
                   <button
                     type="button"
                     onClick={() => onDelete(tx.id)}
@@ -164,12 +166,13 @@ export function TransactionTable({
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="inline-flex items-center gap-1">
-                    <Link
-                      href={`/expenses/${tx.id}`}
+                    <button
+                      type="button"
+                      onClick={() => onEdit(tx)}
                       className="rounded-[6px] px-2.5 py-1.5 text-sm text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)]"
                     >
                       Edit
-                    </Link>
+                    </button>
                     <Button
                       variant="ghost"
                       size="sm"

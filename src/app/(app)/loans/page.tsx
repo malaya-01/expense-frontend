@@ -360,7 +360,7 @@ export default function LoansPage() {
         open={editorOpen}
         onClose={() => setEditorOpen(false)}
         title={editing ? "Edit debt plan" : "Add debt plan"}
-        className="max-w-xl"
+        className="max-w-2xl"
         footer={
           <>
             <Button variant="secondary" onClick={() => setEditorOpen(false)}>
@@ -621,7 +621,7 @@ export default function LoansPage() {
         open={Boolean(scheduleLoan)}
         onClose={() => setScheduleLoan(null)}
         title={`Amortization${scheduleLoan ? ` · ${scheduleLoan.name}` : ""}`}
-        className="max-w-4xl"
+        className="max-w-5xl"
       >
         {scheduleLoading ? (
           <CardGridSkeleton count={3} />
