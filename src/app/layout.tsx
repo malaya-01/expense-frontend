@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import { Inter, Geist_Mono } from "next/font/google";
-import { AuthProvider } from "@/lib/auth-context";
-import { ThemeProvider } from "@/lib/theme-context";
+import { StoreProvider } from "@/lib/store/provider";
+import { ToastViewport } from "@/components/ui/toast";
 import { getThemeBootstrapScript } from "@/lib/themes/bootstrap";
-import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
 
 const inter = Inter({
@@ -32,6 +31,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      data-scroll-behavior="smooth"
       className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
@@ -46,11 +46,10 @@ export default function RootLayout({
         className="min-h-full font-sans text-[var(--ds-gray-1000)]"
         suppressHydrationWarning
       >
-        <ThemeProvider>
-          <ToastProvider>
-            <AuthProvider>{children}</AuthProvider>
-          </ToastProvider>
-        </ThemeProvider>
+        <StoreProvider>
+          {children}
+          <ToastViewport />
+        </StoreProvider>
       </body>
     </html>
   );

@@ -29,11 +29,15 @@ import { listAccounts } from "@/lib/api/accounts";
 import { listBudgets } from "@/lib/api/budgets";
 import { listGoals } from "@/lib/api/goals";
 import { listInvestments } from "@/lib/api/investments";
-
-const OPEN_EVENT = "finos:open-command-palette";
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
+import { getAppStore } from "@/lib/store/store-ref";
+import {
+  closeCommandPalette,
+  openCommandPalette as openCommandPaletteAction,
+} from "@/lib/store/slices/uiSlice";
 
 export function openCommandPalette() {
-  window.dispatchEvent(new CustomEvent(OPEN_EVENT));
+  getAppStore()?.dispatch(openCommandPaletteAction());
 }
 
 type PaletteItem = {
@@ -85,8 +89,9 @@ function fuzzyMatch(value: string, query: string) {
 
 export function CommandPalette() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const { user } = useAuth();
-  const [open, setOpen] = useState(false);
+  const open = useAppSelector((state) => state.ui.commandPaletteOpen);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -97,37 +102,32 @@ export function CommandPalette() {
   const [indexing, setIndexing] = useState(false);
 
   useEffect(() => {
-    const openPalette = () => {
-      previousFocus.current = document.activeElement as HTMLElement | null;
-      setOpen(true);
-    };
     const onGlobalKey = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        openPalette();
+        previousFocus.current = document.activeElement as HTMLElement | null;
+        dispatch(openCommandPaletteAction());
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
         event.preventDefault();
         router.push("/expenses/new");
       }
     };
-    window.addEventListener(OPEN_EVENT, openPalette);
     window.addEventListener("keydown", onGlobalKey);
-    return () => {
-      window.removeEventListener(OPEN_EVENT, openPalette);
-      window.removeEventListener("keydown", onGlobalKey);
-    };
-  }, [router]);
+    return () => window.removeEventListener("keydown", onGlobalKey);
+  }, [dispatch, router]);
 
   useEffect(() => {
     if (!open) return;
+    previousFocus.current =
+      previousFocus.current || (document.activeElement as HTMLElement | null);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     setQuery("");
     setActiveIndex(0);
     window.requestAnimationFrame(() => inputRef.current?.focus());
     const onEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") dispatch(closeCommandPalette());
       if (event.key === "Tab") {
         const focusable = Array.from(
           paletteRef.current?.querySelectorAll<HTMLElement>(
@@ -151,8 +151,9 @@ export function CommandPalette() {
       window.removeEventListener("keydown", onEscape);
       document.body.style.overflow = previousOverflow;
       previousFocus.current?.focus();
+      previousFocus.current = null;
     };
-  }, [open]);
+  }, [dispatch, open]);
 
   useEffect(() => {
     if (!open || indexLoaded || indexing || !user?.id) return;
@@ -213,7 +214,7 @@ export function CommandPalette() {
   }, [open, indexLoaded, indexing, router, user?.id]);
 
   const closeAndRun = (run: () => void) => {
-    setOpen(false);
+    dispatch(closeCommandPalette());
     run();
   };
 
@@ -294,7 +295,7 @@ export function CommandPalette() {
       <button
         type="button"
         aria-label="Close command palette"
-        onClick={() => setOpen(false)}
+        onClick={() => dispatch(closeCommandPalette())}
         className="absolute inset-0 bg-black/55 backdrop-blur-[3px]"
       />
       <section

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -12,154 +12,39 @@ import {
 } from "lucide-react";
 import { Popover } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { listBudgets } from "@/lib/api/budgets";
-import { listGoals } from "@/lib/api/goals";
-import { listRecurringSchedules } from "@/lib/api/recurring";
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
+import {
+  dismissAllNotifications,
+  fetchNotifications,
+  selectVisibleNotifications,
+  type Notice,
+} from "@/lib/store/slices/notificationsSlice";
 
-type Notice = {
-  id: string;
-  title: string;
-  description: string;
-  href: string;
-  tone: "warning" | "danger" | "success";
-  icon: typeof Bell;
-};
-
-const DISMISSED_KEY = "finos:dismissed-notifications";
-
-function readDismissed(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem(DISMISSED_KEY) || "[]");
-  } catch {
-    return [];
-  }
+function iconFor(notice: Notice) {
+  if (notice.kind === "goal") return Target;
+  if (notice.tone === "danger") return CircleAlert;
+  return Flag;
 }
 
 export function NotificationCenter() {
   const router = useRouter();
-  const [notices, setNotices] = useState<Notice[]>([]);
-  const [dismissed, setDismissed] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const dispatch = useAppDispatch();
+  const loading = useAppSelector((state) => state.notifications.loading);
+  const loaded = useAppSelector((state) => state.notifications.loaded);
+  const visible = useAppSelector(selectVisibleNotifications);
 
   useEffect(() => {
-    setDismissed(readDismissed());
-  }, []);
-
-  const load = useCallback(async () => {
-    if (loading) return;
-    setLoading(true);
-    try {
-      const [budgets, goals, schedules] = await Promise.all([
-        listBudgets().catch(() => []),
-        listGoals().catch(() => []),
-        listRecurringSchedules().catch(() => []),
-      ]);
-      const next: Notice[] = [];
-      for (const budget of budgets) {
-        if (budget.status === "over") {
-          next.push({
-            id: `budget-over-${budget.id}`,
-            title: `${budget.name} is over budget`,
-            description: `Spending reached ${budget.percent.toFixed(0)}% of the planned amount.`,
-            href: "/budgets",
-            tone: "danger",
-            icon: CircleAlert,
-          });
-        } else if (budget.status === "warning") {
-          next.push({
-            id: `budget-warning-${budget.id}`,
-            title: `${budget.name} is near its limit`,
-            description: `${budget.percent.toFixed(0)}% used — review spending before the period ends.`,
-            href: "/budgets",
-            tone: "warning",
-            icon: Flag,
-          });
-        }
-      }
-      for (const goal of goals) {
-        if (goal.status === "behind" || goal.status === "at_risk") {
-          next.push({
-            id: `goal-risk-${goal.id}`,
-            title: `${goal.name} needs attention`,
-            description: `Progress is ${goal.percent.toFixed(0)}%. Review the forecast and contribution plan.`,
-            href: "/goals",
-            tone: "warning",
-            icon: Target,
-          });
-        } else if (goal.status === "achieved") {
-          next.push({
-            id: `goal-achieved-${goal.id}`,
-            title: `${goal.name} achieved`,
-            description: "Your target has been reached.",
-            href: "/goals",
-            tone: "success",
-            icon: Target,
-          });
-        }
-      }
-      const today = new Date();
-      const todayKey = [
-        today.getFullYear(),
-        String(today.getMonth() + 1).padStart(2, "0"),
-        String(today.getDate()).padStart(2, "0"),
-      ].join("-");
-      for (const schedule of schedules) {
-        if (schedule.last_error) {
-          next.push({
-            id: `recurring-failed-${schedule.id}-${schedule.updated_at}`,
-            title: `${schedule.name} was paused`,
-            description: schedule.last_error,
-            href: "/recurring",
-            tone: "danger",
-            icon: CircleAlert,
-          });
-        } else if (
-          schedule.status === "active" &&
-          schedule.execution_mode === "review" &&
-          schedule.next_execution <= todayKey
-        ) {
-          next.push({
-            id: `recurring-due-${schedule.id}-${schedule.next_execution}`,
-            title: `${schedule.name} is ready to post`,
-            description:
-              "Review and post this scheduled transaction from Recurring.",
-            href: "/recurring",
-            tone: "warning",
-            icon: Flag,
-          });
-        }
-      }
-      setNotices(next);
-      setLoaded(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [loading]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => void load(), 800);
+    const timer = window.setTimeout(() => {
+      void dispatch(fetchNotifications());
+    }, 800);
     return () => window.clearTimeout(timer);
-    // Load once after the shell settles; no polling.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const visible = useMemo(
-    () => notices.filter((notice) => !dismissed.includes(notice.id)),
-    [notices, dismissed],
-  );
-
-  function dismissAll() {
-    const ids = [...new Set([...dismissed, ...notices.map((item) => item.id)])];
-    setDismissed(ids);
-    localStorage.setItem(DISMISSED_KEY, JSON.stringify(ids));
-  }
+  }, [dispatch]);
 
   return (
     <Popover
       className="w-[360px] p-0"
       onOpenChange={(open) => {
-        if (open && !loaded) void load();
+        if (open && !loaded) void dispatch(fetchNotifications());
       }}
       trigger={
         <span className="relative flex size-9 items-center justify-center rounded-[9px] text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)]">
@@ -183,7 +68,7 @@ export function NotificationCenter() {
         <div className="flex gap-1">
           <button
             type="button"
-            onClick={() => void load()}
+            onClick={() => void dispatch(fetchNotifications())}
             disabled={loading}
             className="flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] disabled:opacity-50 ds-focus"
             aria-label="Refresh notifications"
@@ -193,7 +78,7 @@ export function NotificationCenter() {
           {visible.length ? (
             <button
               type="button"
-              onClick={dismissAll}
+              onClick={() => dispatch(dismissAllNotifications())}
               className="flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] ds-focus"
               aria-label="Dismiss all notifications"
             >
@@ -208,34 +93,37 @@ export function NotificationCenter() {
             Checking your financial signals…
           </div>
         ) : visible.length ? (
-          visible.map((notice) => (
-            <button
-              key={notice.id}
-              type="button"
-              onClick={() => router.push(notice.href)}
-              className="flex w-full items-start gap-3 rounded-[10px] px-3 py-3 text-left hover:bg-[var(--ds-background-100)] ds-focus"
-            >
-              <span
-                className={
-                  notice.tone === "danger"
-                    ? "text-[var(--ds-status-red)]"
-                    : notice.tone === "success"
-                      ? "text-[var(--ds-status-green)]"
-                      : "text-[var(--ds-status-orange)]"
-                }
+          visible.map((notice) => {
+            const Icon = iconFor(notice);
+            return (
+              <button
+                key={notice.id}
+                type="button"
+                onClick={() => router.push(notice.href)}
+                className="flex w-full items-start gap-3 rounded-[10px] px-3 py-3 text-left hover:bg-[var(--ds-background-100)] ds-focus"
               >
-                <notice.icon size={17} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[12px] font-medium">
-                  {notice.title}
+                <span
+                  className={
+                    notice.tone === "danger"
+                      ? "text-[var(--ds-status-red)]"
+                      : notice.tone === "success"
+                        ? "text-[var(--ds-status-green)]"
+                        : "text-[var(--ds-status-orange)]"
+                  }
+                >
+                  <Icon size={17} />
                 </span>
-                <span className="mt-1 block text-[11px] leading-4 text-[var(--ds-gray-700)]">
-                  {notice.description}
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12px] font-medium">
+                    {notice.title}
+                  </span>
+                  <span className="mt-1 block text-[11px] leading-4 text-[var(--ds-gray-700)]">
+                    {notice.description}
+                  </span>
                 </span>
-              </span>
-            </button>
-          ))
+              </button>
+            );
+          })
         ) : (
           <div className="px-5 py-10 text-center">
             <CheckCheck
@@ -251,7 +139,12 @@ export function NotificationCenter() {
       </div>
       {visible.length ? (
         <div className="border-t border-[var(--ds-gray-200)] p-2">
-          <Button variant="ghost" size="sm" className="w-full" onClick={dismissAll}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full"
+            onClick={() => dispatch(dismissAllNotifications())}
+          >
             Mark all as read
           </Button>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -31,6 +31,16 @@ import { ThemeMenu } from "@/components/layout/theme-menu";
 import { openCommandPalette } from "@/components/layout/command-palette";
 import { useAuth } from "@/lib/auth-context";
 import { initials } from "@/lib/format";
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
+import {
+  selectSidebarVisible,
+  setMobileNavOpen,
+  setSidebarPeeking,
+  setSidebarPinned,
+  setSidebarResizing,
+  setSidebarWidth,
+  toggleSidebarPinned,
+} from "@/lib/store/slices/uiSlice";
 
 export type NavItem = {
   href: string;
@@ -102,10 +112,6 @@ function NavLink({
   );
 }
 
-const MIN_SIDEBAR_WIDTH = 220;
-const MAX_SIDEBAR_WIDTH = 420;
-const DEFAULT_SIDEBAR_WIDTH = 260;
-
 function SidebarContents({
   onNavigate,
   onHide,
@@ -172,7 +178,7 @@ function SidebarContents({
         </button>
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+      <nav className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-2 py-2">
         <div className="space-y-0.5">
           <p className="mb-1 px-2 text-[10px] font-medium text-[var(--ds-gray-700)]">
             Finance
@@ -238,63 +244,34 @@ function SidebarContents({
 }
 
 export function AppSidebar() {
-  const [pinned, setPinned] = useState(true);
-  const [peeking, setPeeking] = useState(false);
-  const [width, setWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
+  const dispatch = useAppDispatch();
+  const pinned = useAppSelector((state) => state.ui.sidebarPinned);
+  const peeking = useAppSelector((state) => state.ui.sidebarPeeking);
+  const width = useAppSelector((state) => state.ui.sidebarWidth);
+  const resizing = useAppSelector((state) => state.ui.sidebarResizing);
+  const visible = useAppSelector(selectSidebarVisible);
   const resizingRef = useRef(false);
-
-  const syncOffset = useCallback((isPinned: boolean, nextWidth: number) => {
-    document.documentElement.style.setProperty(
-      "--app-sidebar-offset",
-      isPinned ? `${nextWidth}px` : "0px",
-    );
-  }, []);
-
-  useEffect(() => {
-    const savedPinned = localStorage.getItem("finos:sidebar-pinned") !== "false";
-    const savedWidth = Number(localStorage.getItem("finos:sidebar-width"));
-    const nextWidth = Number.isFinite(savedWidth)
-      ? Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, savedWidth))
-      : DEFAULT_SIDEBAR_WIDTH;
-    setPinned(savedPinned);
-    setWidth(nextWidth);
-    syncOffset(savedPinned, nextWidth);
-  }, [syncOffset]);
-
-  const setPinnedState = useCallback(
-    (next: boolean) => {
-      setPinned(next);
-      setPeeking(false);
-      localStorage.setItem("finos:sidebar-pinned", String(next));
-      syncOffset(next, width);
-    },
-    [syncOffset, width],
-  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === "\\") {
         event.preventDefault();
-        setPinnedState(!pinned);
+        dispatch(toggleSidebarPinned());
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [pinned, setPinnedState]);
+  }, [dispatch]);
 
   useEffect(() => {
     const onPointerMove = (event: PointerEvent) => {
       if (!resizingRef.current) return;
-      const next = Math.min(
-        MAX_SIDEBAR_WIDTH,
-        Math.max(MIN_SIDEBAR_WIDTH, event.clientX),
-      );
-      setWidth(next);
-      localStorage.setItem("finos:sidebar-width", String(next));
-      syncOffset(pinned, next);
+      dispatch(setSidebarWidth(event.clientX));
     };
     const stopResize = () => {
+      if (!resizingRef.current) return;
       resizingRef.current = false;
+      dispatch(setSidebarResizing(false));
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
@@ -304,58 +281,65 @@ export function AppSidebar() {
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", stopResize);
     };
-  }, [pinned, syncOffset]);
-
-  const visible = pinned || peeking;
+  }, [dispatch]);
 
   return (
     <>
       {!pinned ? (
         <div
-          className="fixed inset-y-0 left-0 z-40 hidden w-2 md:block"
-          onPointerEnter={() => setPeeking(true)}
+          className="fixed bottom-0 left-0 top-11 z-40 hidden w-2 md:block"
+          onPointerEnter={() => dispatch(setSidebarPeeking(true))}
           aria-hidden
         />
       ) : null}
       <aside
         onPointerLeave={() => {
-          if (!pinned && !resizingRef.current) setPeeking(false);
+          if (!pinned && !resizingRef.current) {
+            dispatch(setSidebarPeeking(false));
+          }
         }}
         className={cn(
-          "fixed inset-y-0 left-0 z-50 hidden flex-col bg-[var(--ds-background-elevated)] transition-transform duration-200 md:flex",
-          "[box-shadow:1px_0_0_0_color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]",
-          !visible && "-translate-x-full",
+          "fixed z-50 hidden flex-col overflow-hidden bg-[var(--ds-background-elevated)] transition-[transform,opacity,border-radius] duration-200 md:flex",
+          pinned
+            ? "bottom-0 left-0 top-11 rounded-none [box-shadow:1px_0_0_0_color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]"
+            : "bottom-3 left-2 top-[3.25rem] rounded-[12px] border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]",
+          !visible && "-translate-x-[110%] opacity-0",
           peeking &&
             !pinned &&
-            "[box-shadow:1px_0_0_0_color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent),12px_0_32px_rgba(0,0,0,0.14)]",
+            "[box-shadow:0_12px_36px_rgba(0,0,0,0.22),0_2px_8px_rgba(0,0,0,0.12)]",
         )}
-        style={{ width }}
+        style={{ width: pinned ? width : Math.min(width, 232) }}
         aria-label="Main sidebar"
       >
         <SidebarContents
           pinned={pinned}
-          onPin={() => setPinnedState(!pinned)}
-          onHide={() => setPinnedState(false)}
+          onPin={() => dispatch(setSidebarPinned(!pinned))}
+          onHide={() => dispatch(setSidebarPinned(false))}
         />
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize sidebar"
-          className="absolute inset-y-0 right-[-3px] w-[6px] cursor-col-resize touch-none"
-          onPointerDown={(event) => {
-            event.preventDefault();
-            resizingRef.current = true;
-            document.body.style.cursor = "col-resize";
-            document.body.style.userSelect = "none";
-          }}
-        />
+        {pinned ? (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar"
+            className="absolute inset-y-0 right-[-3px] w-[6px] cursor-col-resize touch-none"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              resizingRef.current = true;
+              dispatch(setSidebarResizing(true));
+              document.body.style.cursor = "col-resize";
+              document.body.style.userSelect = "none";
+            }}
+          />
+        ) : null}
       </aside>
+      {resizing ? <span className="sr-only">Resizing sidebar</span> : null}
     </>
   );
 }
 
 export function MobileNav() {
-  const [moreOpen, setMoreOpen] = useState(false);
+  const dispatch = useAppDispatch();
+  const moreOpen = useAppSelector((state) => state.ui.mobileNavOpen);
   const items = [
     PRIMARY_NAV.find((item) => item.href === "/dashboard")!,
     PRIMARY_NAV.find((item) => item.href === "/expenses")!,
@@ -368,27 +352,27 @@ export function MobileNav() {
     <>
       <nav className="fixed inset-x-0 bottom-0 z-40 flex gap-1 bg-[var(--ds-background-elevated)] px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden [box-shadow:0_-1px_0_0_color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]">
         {items.map((item) => {
-        const active =
-          pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-[9px] px-1 py-1.5 text-[10px]",
-              active
-                ? "bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)]"
-                : "text-[var(--ds-gray-900)]",
-            )}
-          >
-            <item.icon size={17} strokeWidth={1.8} />
-            {item.label}
-          </Link>
-        );
+          const active =
+            pathname === item.href || pathname.startsWith(`${item.href}/`);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-[9px] px-1 py-1.5 text-[10px]",
+                active
+                  ? "bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)]"
+                  : "text-[var(--ds-gray-900)]",
+              )}
+            >
+              <item.icon size={17} strokeWidth={1.8} />
+              {item.label}
+            </Link>
+          );
         })}
         <button
           type="button"
-          onClick={() => setMoreOpen(true)}
+          onClick={() => dispatch(setMobileNavOpen(true))}
           className="flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-[9px] px-1 py-1.5 text-[10px] text-[var(--ds-gray-900)]"
           aria-label="Open all modules"
         >
@@ -400,10 +384,12 @@ export function MobileNav() {
         open={moreOpen}
         side="left"
         title="FinOS"
-        onClose={() => setMoreOpen(false)}
+        onClose={() => dispatch(setMobileNavOpen(false))}
       >
         <div className="-m-5 flex h-[calc(100dvh-4rem)] flex-col">
-          <SidebarContents onNavigate={() => setMoreOpen(false)} />
+          <SidebarContents
+            onNavigate={() => dispatch(setMobileNavOpen(false))}
+          />
         </div>
       </Drawer>
     </>

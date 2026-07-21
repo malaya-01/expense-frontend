@@ -44,6 +44,13 @@ export function clearTokens() {
   removeCookie(REFRESH_COOKIE);
 }
 
+type AuthFailureHandler = (() => void) | null;
+let authFailureHandler: AuthFailureHandler = null;
+
+export function registerAuthFailureHandler(handler: AuthFailureHandler) {
+  authFailureHandler = handler;
+}
+
 function createClient(): AxiosInstance {
   const instance = axios.create({
     baseURL:
@@ -95,6 +102,7 @@ function createClient(): AxiosInstance {
         return instance(original);
       } catch {
         clearTokens();
+        authFailureHandler?.();
         if (typeof window !== "undefined") {
           localStorage.removeItem("expense-tracker:user");
           window.location.assign("/signin?session=expired");
