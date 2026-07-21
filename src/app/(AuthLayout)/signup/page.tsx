@@ -1,67 +1,135 @@
 "use client";
 
-import AuthLayout from "../AuthLayout";
 import Link from "next/link";
+import { AuthField } from "../_components/AuthField";
+import { AuthOAuth } from "../_components/AuthOAuth";
+import { AuthShell } from "../_components/AuthShell";
 
-export default function SignupPage() {
+export default function SignUpPage() {
   return (
-    <AuthLayout
-      title="Expense Journal"
-      subtitle="Build smarter financial habits"
-      rightContent={
+    <AuthShell
+      compact
+      title="Create account"
+      subtitle="Start tracking in minutes — free to begin."
+      panelTitle="Build better money habits"
+      panelDescription="Smart categorization and insights to help you spend with intention."
+      panelBullets={[
+        "Unlimited entries on free plan",
+        "Auto category breakdowns",
+        "AI insights coming soon",
+      ]}
+      footer={
         <>
-          <h2 className="text-2xl font-semibold mb-6 text-gray-800">
-            Create Account
-          </h2>
-
-          <form className="space-y-4">
-            <input
-              type="text"
-              placeholder="Full Name"
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-
-            <input
-              type="email"
-              placeholder="Email"
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-
-            <input
-              type="password"
-              placeholder="Password"
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-
-            <input
-              type="password"
-              placeholder="Confirm Password"
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-
-            <button className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition">
-              Sign Up
-            </button>
-          </form>
-
-          <div className="my-4 text-center text-gray-500">or</div>
-
-          <button className="w-full border py-3 rounded-lg mb-3">
-            Sign up with Google
-          </button>
-
-          <p className="text-sm text-center mt-4">
-            Already have an account?{" "}
-            <Link href="/login" className="text-green-600 font-medium">
-              Login
-            </Link>
-          </p>
+          <span className="auth-muted">Have an account? </span>
+          <Link href="/signin" className="auth-link">
+            Sign in
+          </Link>
         </>
       }
     >
-      <p className="text-sm opacity-80">
-        Capture your spending patterns and journal insights daily.
-      </p>
-    </AuthLayout>
+      {/* TODO: onSubmit → POST /auth/register, validate passwords, redirect('/choose-app') */}
+      <form
+        className="space-y-2.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+        }}
+      >
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <AuthField>
+            <label htmlFor="signup-name" className="auth-label">
+              Full name
+            </label>
+            <input
+              id="signup-name"
+              name="name"
+              type="text"
+              autoComplete="name"
+              placeholder="Jane Doe"
+              className="auth-input mt-1"
+              required
+            />
+          </AuthField>
+
+          <AuthField>
+            <label htmlFor="signup-email" className="auth-label">
+              Email
+            </label>
+            <input
+              id="signup-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              className="auth-input mt-1"
+              suppressHydrationWarning
+              required
+            />
+          </AuthField>
+        </div>
+
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <AuthField>
+            <label htmlFor="signup-password" className="auth-label">
+              Password
+            </label>
+            <input
+              id="signup-password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              placeholder="8+ characters"
+              className="auth-input mt-1"
+              minLength={8}
+              required
+            />
+          </AuthField>
+
+          <AuthField>
+            <label htmlFor="signup-confirm" className="auth-label">
+              Confirm
+            </label>
+            <input
+              id="signup-confirm"
+              name="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              placeholder="Repeat"
+              className="auth-input mt-1"
+              minLength={8}
+              required
+            />
+          </AuthField>
+        </div>
+
+        <AuthField>
+          <label className="flex cursor-pointer items-start gap-2 auth-muted leading-snug">
+            <input
+              type="checkbox"
+              name="terms"
+              className="mt-0.5 size-3.5 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-slate-600"
+              required
+            />
+            <span>
+              I agree to the{" "}
+              <Link href="/terms" className="auth-link font-normal">
+                Terms
+              </Link>{" "}
+              &{" "}
+              <Link href="/privacy" className="auth-link font-normal">
+                Privacy
+              </Link>
+            </span>
+          </label>
+        </AuthField>
+
+        <AuthField>
+          <button type="submit" className="auth-btn-primary">
+            Create account
+          </button>
+        </AuthField>
+      </form>
+
+      <AuthOAuth label="or sign up with" />
+    </AuthShell>
   );
 }
