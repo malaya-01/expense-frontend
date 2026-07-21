@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { PageHeader, EmptyState } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
+import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { StatusDot } from "@/components/ui/status-dot";
 import {
@@ -36,6 +37,7 @@ import type {
 } from "@/types";
 
 export default function DashboardPage() {
+  const { openTransactionModal } = useTransactionModal();
   const router = useRouter();
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
@@ -157,7 +159,7 @@ export default function DashboardPage() {
             <Button variant="secondary" onClick={() => router.push("/reports")}>
               Reports
             </Button>
-            <Button onClick={() => router.push("/expenses/new")}>
+            <Button onClick={openTransactionModal}>
               New transaction
             </Button>
           </div>
@@ -304,7 +306,7 @@ export default function DashboardPage() {
                 title="No transactions yet"
                 description="Record expense, income, or transfers to move money between containers."
                 actionLabel="Add transaction"
-                onAction={() => router.push("/expenses/new")}
+                onAction={openTransactionModal}
                 className="py-10"
               />
             ) : (

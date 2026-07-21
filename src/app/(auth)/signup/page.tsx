@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardBody } from "@/components/ui/card";
+import { useToast } from "@/components/ui/toast";
 import { loginUser, registerUser } from "@/lib/api/auth";
 import { getErrorMessage } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
@@ -17,13 +19,13 @@ import { COUNTRIES, SUPPORTED_CURRENCIES, getCountry } from "@/lib/currency/curr
 export default function SignUpPage() {
   const router = useRouter();
   const { setSession } = useAuth();
+  const { showToast } = useToast();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [country, setCountry] = useState("IN");
   const [currency, setCurrency] = useState("INR");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const sortedCountries = useMemo(
@@ -39,9 +41,12 @@ export default function SignUpPage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    setError("");
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      showToast({
+        title: "Passwords do not match",
+        description: "Please re-enter the same password in both fields.",
+        tone: "warning",
+      });
       return;
     }
     setLoading(true);
@@ -54,6 +59,11 @@ export default function SignUpPage() {
         country,
         currency,
       });
+      showToast({
+        title: "Account created",
+        description: "Signing you in…",
+        tone: "success",
+      });
       const tokens = await loginUser({ email, password });
       const id = user.id || userIdFromToken(tokens.accessToken) || "local";
       setSession({
@@ -63,9 +73,18 @@ export default function SignUpPage() {
         country: user.country || country,
         currency: user.currency || currency,
       });
+      showToast({
+        title: "Welcome to FinOS",
+        description: "Your personal financial operating system is ready.",
+        tone: "success",
+      });
       router.replace("/dashboard");
     } catch (err) {
-      setError(getErrorMessage(err, "Could not create account"));
+      showToast({
+        title: "Sign up failed",
+        description: getErrorMessage(err, "Could not create account"),
+        tone: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -142,9 +161,8 @@ export default function SignUpPage() {
             </div>
             <div>
               <Label htmlFor="password">Password</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 autoComplete="new-password"
                 required
                 minLength={8}
@@ -155,9 +173,8 @@ export default function SignUpPage() {
             </div>
             <div>
               <Label htmlFor="confirm">Confirm password</Label>
-              <Input
+              <PasswordInput
                 id="confirm"
-                type="password"
                 autoComplete="new-password"
                 required
                 minLength={8}
@@ -165,10 +182,6 @@ export default function SignUpPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
             </div>
-
-            {error ? (
-              <p className="text-sm text-[var(--ds-status-red)]">{error}</p>
-            ) : null}
 
             <Button type="submit" className="w-full" loading={loading}>
               Create account

@@ -7,12 +7,13 @@ export const MIN_SIDEBAR_WIDTH = 220;
 export const MAX_SIDEBAR_WIDTH = 420;
 export const DEFAULT_SIDEBAR_WIDTH = 260;
 
-export type ToastTone = "success" | "info" | "error";
+export type ToastTone = "success" | "info" | "warning" | "error";
 
 export type ToastInput = {
   title: string;
   description?: string;
   tone?: ToastTone;
+  duration?: number;
 };
 
 export type ToastItem = ToastInput & { id: string };
@@ -86,7 +87,10 @@ const uiSlice = createSlice({
     },
     showToast(state, action: PayloadAction<ToastInput>) {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      state.toasts = [...state.toasts.slice(-3), { ...action.payload, id }];
+      state.toasts = [
+        ...state.toasts.slice(-3),
+        { tone: "info", ...action.payload, id },
+      ];
     },
     dismissToast(state, action: PayloadAction<string>) {
       state.toasts = state.toasts.filter((toast) => toast.id !== action.payload);

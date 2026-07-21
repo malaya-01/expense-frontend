@@ -160,7 +160,9 @@ startAppListening({
   effect: async (action, api) => {
     const toast = api.getState().ui.toasts.at(-1);
     if (!toast) return;
-    const timeout = action.payload.tone === "error" ? 7000 : 4000;
+    const timeout =
+      action.payload.duration ??
+      (action.payload.tone === "error" ? 7000 : 4500);
     await api.delay(timeout);
     api.dispatch(dismissToast(toast.id));
   },

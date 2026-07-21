@@ -339,23 +339,54 @@ select {
   }
 }
 
-@keyframes ds-toast-in {
+@keyframes ds-drawer-in-right {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
+    transform: translateX(16px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateX(0);
   }
 }
 
-.ds-drawer-enter {
+@keyframes ds-toast-in {
+  from {
+    opacity: 0;
+    transform: translate3d(12px, 6px, 0) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes ds-toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.ds-drawer-enter,
+.ds-drawer-enter-left {
   animation: ds-drawer-in 220ms var(--ds-motion-timing-swift);
 }
 
+.ds-drawer-enter-right {
+  animation: ds-drawer-in-right 220ms var(--ds-motion-timing-swift);
+}
+
 .ds-toast-enter {
-  animation: ds-toast-in 180ms var(--ds-motion-timing-swift);
+  animation: ds-toast-in 240ms var(--ds-motion-timing-swift);
+}
+
+.ds-toast-progress {
+  animation-name: ds-toast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

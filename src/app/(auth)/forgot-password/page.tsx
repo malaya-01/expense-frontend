@@ -1,39 +1,45 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardBody } from "@/components/ui/card";
+import { useToast } from "@/components/ui/toast";
 import { generateOtp, resetPassword } from "@/lib/api/auth";
 import { getErrorMessage } from "@/lib/api/client";
-import { Alert } from "@/components/ui/feedback";
 
 export default function ForgotPasswordPage() {
+  const router = useRouter();
+  const { showToast } = useToast();
   const [step, setStep] = useState<"email" | "reset">("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function requestOtp(e: FormEvent) {
     e.preventDefault();
-    setError("");
-    setMessage("");
     setLoading(true);
     try {
       const result = await generateOtp(email);
-      setMessage(
-        result.message ||
-          "If an account exists for this email, a recovery code was sent.",
-      );
+      showToast({
+        title: "Recovery code sent",
+        description:
+          result.message ||
+          "If an account exists for this email, a code was sent.",
+        tone: "success",
+      });
       setStep("reset");
     } catch (err) {
-      setError(getErrorMessage(err, "Could not generate OTP"));
+      showToast({
+        title: "Could not send code",
+        description: getErrorMessage(err, "Please try again in a moment."),
+        tone: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -41,10 +47,12 @@ export default function ForgotPasswordPage() {
 
   async function submitReset(e: FormEvent) {
     e.preventDefault();
-    setError("");
-    setMessage("");
     if (newPassword !== confirmNewPassword) {
-      setError("Passwords do not match");
+      showToast({
+        title: "Passwords do not match",
+        description: "Please re-enter the same password in both fields.",
+        tone: "warning",
+      });
       return;
     }
     setLoading(true);
@@ -55,9 +63,18 @@ export default function ForgotPasswordPage() {
         newPassword,
         confirmNewPassword,
       });
-      setMessage("Password updated. You can log in now.");
+      showToast({
+        title: "Password updated",
+        description: "You can sign in with your new password.",
+        tone: "success",
+      });
+      router.push("/signin");
     } catch (err) {
-      setError(getErrorMessage(err, "Could not reset password"));
+      showToast({
+        title: "Reset failed",
+        description: getErrorMessage(err, "Could not reset password"),
+        tone: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -86,9 +103,6 @@ export default function ForgotPasswordPage() {
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              {error ? (
-                <Alert tone="error" title="Code could not be sent" description={error} />
-              ) : null}
               <Button type="submit" className="w-full" loading={loading}>
                 Send code
               </Button>
@@ -130,12 +144,6 @@ export default function ForgotPasswordPage() {
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
                 />
               </div>
-              {error ? (
-                <p className="text-sm text-[var(--ds-status-red)]">{error}</p>
-              ) : null}
-              {message ? (
-                <p className="text-sm text-[var(--ds-status-green-dark)]">{message}</p>
-              ) : null}
               <Button type="submit" className="w-full" loading={loading}>
                 Update password
               </Button>

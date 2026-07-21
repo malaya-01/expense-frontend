@@ -12,6 +12,7 @@ export function Drawer({
   side = "right",
   onClose,
   className,
+  contentClassName,
 }: {
   open: boolean;
   title: string;
@@ -19,6 +20,7 @@ export function Drawer({
   side?: "left" | "right";
   onClose: () => void;
   className?: string;
+  contentClassName?: string;
 }) {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -77,9 +79,8 @@ export function Drawer({
         className={cn(
           "absolute inset-y-0 flex w-[min(88vw,360px)] flex-col bg-[var(--ds-background-elevated)] shadow-2xl",
           side === "left"
-            ? "left-0 border-r border-[var(--ds-gray-200)]"
-            : "right-0 border-l border-[var(--ds-gray-200)]",
-          "ds-drawer-enter",
+            ? "left-0 border-r border-[var(--ds-gray-200)] ds-drawer-enter-left"
+            : "right-0 border-l border-[var(--ds-gray-200)] ds-drawer-enter-right",
           className,
         )}
       >
@@ -97,7 +98,9 @@ export function Drawer({
             <X size={18} />
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
+        <div className={cn("min-h-0 flex-1 overflow-y-auto p-4", contentClassName)}>
+          {children}
+        </div>
       </section>
     </div>,
     document.body,

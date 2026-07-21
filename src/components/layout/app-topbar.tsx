@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { openCommandPalette } from "@/components/layout/command-palette";
 import { NotificationCenter } from "@/components/layout/notification-center";
+import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import {
   setMobileNavOpen,
@@ -46,6 +47,7 @@ const ROUTE_TITLES = [
 
 export function AppTopbar() {
   const router = useRouter();
+  const { openTransactionModal } = useTransactionModal();
   const pathname = usePathname();
   const dispatch = useAppDispatch();
   const sidebarPinned = useAppSelector((state) => state.ui.sidebarPinned);
@@ -77,7 +79,11 @@ export function AppTopbar() {
         onClick={() => dispatch(toggleSidebarPinned())}
         className="hidden size-7 items-center justify-center rounded-[6px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] md:flex ds-focus"
         aria-label={sidebarPinned ? "Hide sidebar" : "Show sidebar"}
-        title={sidebarPinned ? "Hide sidebar (Ctrl+\\)" : "Show sidebar (Ctrl+\\)"}
+        title={
+          sidebarPinned
+            ? "Hide sidebar (Ctrl+\\)"
+            : "Show sidebar (Ctrl+\\)"
+        }
       >
         <Menu size={15} />
       </button>
@@ -115,7 +121,7 @@ export function AppTopbar() {
         {showTransactionAction ? (
           <button
             type="button"
-            onClick={() => router.push("/expenses/new")}
+            onClick={openTransactionModal}
             className="hidden h-7 items-center gap-1 rounded-[6px] bg-[var(--ds-focus-color)] px-2.5 text-[11px] font-medium text-white hover:brightness-95 sm:flex ds-focus"
           >
             <Plus size={13} />

@@ -1,33 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardBody } from "@/components/ui/card";
+import { useToast } from "@/components/ui/toast";
 import { loginUser } from "@/lib/api/auth";
 import { getErrorMessage, getAccessToken } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { userIdFromToken } from "@/lib/jwt";
 
-export default function SignInPage() {
+function SignInForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setSession } = useAuth();
+  const { showToast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [hasSession, setHasSession] = useState(false);
+  const sessionToastShown = useRef(false);
 
   useEffect(() => {
     setHasSession(Boolean(getAccessToken()));
   }, []);
 
+  useEffect(() => {
+    if (sessionToastShown.current) return;
+    if (searchParams.get("session") !== "expired") return;
+    sessionToastShown.current = true;
+    showToast({
+      title: "Session expired",
+      description: "Please sign in again to continue.",
+      tone: "warning",
+    });
+  }, [searchParams, showToast]);
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    setError("");
     setLoading(true);
     try {
       const tokens = await loginUser({ email, password });
@@ -42,9 +56,18 @@ export default function SignInPage() {
         timezone: tokens.user?.timezone,
         locale: tokens.user?.locale,
       });
+      showToast({
+        title: "Signed in",
+        description: `Welcome back${tokens.user?.full_name ? `, ${tokens.user.full_name}` : ""}.`,
+        tone: "success",
+      });
       router.replace("/dashboard");
     } catch (err) {
-      setError(getErrorMessage(err, "Invalid email or password"));
+      showToast({
+        title: "Sign in failed",
+        description: getErrorMessage(err, "Invalid email or password"),
+        tone: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -86,9 +109,8 @@ export default function SignInPage() {
                   Forgot?
                 </Link>
               </div>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 autoComplete="current-password"
                 required
                 minLength={8}
@@ -97,10 +119,6 @@ export default function SignInPage() {
                 placeholder="••••••••"
               />
             </div>
-
-            {error ? (
-              <p className="text-sm text-[var(--ds-status-red)]">{error}</p>
-            ) : null}
 
             <Button type="submit" className="w-full" loading={loading}>
               Continue
@@ -128,5 +146,13 @@ export default function SignInPage() {
         </p>
       ) : null}
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignInForm />
+    </Suspense>
   );
 }

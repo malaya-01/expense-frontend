@@ -22,6 +22,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { PRIMARY_NAV, SECONDARY_NAV } from "./app-sidebar";
+import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/auth-context";
 import { listTransactions } from "@/lib/api/transactions";
@@ -89,6 +90,7 @@ function fuzzyMatch(value: string, query: string) {
 
 export function CommandPalette() {
   const router = useRouter();
+  const { openTransactionModal } = useTransactionModal();
   const dispatch = useAppDispatch();
   const { user } = useAuth();
   const open = useAppSelector((state) => state.ui.commandPaletteOpen);
@@ -110,12 +112,12 @@ export function CommandPalette() {
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
         event.preventDefault();
-        router.push("/expenses/new");
+        openTransactionModal();
       }
     };
     window.addEventListener("keydown", onGlobalKey);
     return () => window.removeEventListener("keydown", onGlobalKey);
-  }, [dispatch, router]);
+  }, [dispatch, openTransactionModal]);
 
   useEffect(() => {
     if (!open) return;
@@ -234,7 +236,7 @@ export function CommandPalette() {
         subtitle: "Record expense, income, or transfer",
         keywords: "add create expense income transfer",
         icon: CirclePlus,
-        run: () => router.push("/expenses/new"),
+        run: openTransactionModal,
       },
       {
         id: "ask-advisor",
@@ -263,7 +265,7 @@ export function CommandPalette() {
       ...navigation,
       ...recordItems,
     ];
-  }, [router, recordItems]);
+  }, [openTransactionModal, router, recordItems]);
 
   const normalized = query.trim().toLowerCase();
   const filtered = items.filter((item) =>

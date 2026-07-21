@@ -29,6 +29,7 @@ import { Drawer } from "@/components/ui/drawer";
 import { NotificationCenter } from "@/components/layout/notification-center";
 import { ThemeMenu } from "@/components/layout/theme-menu";
 import { openCommandPalette } from "@/components/layout/command-palette";
+import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { useAuth } from "@/lib/auth-context";
 import { initials } from "@/lib/format";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
@@ -124,6 +125,7 @@ function SidebarContents({
   pinned?: boolean;
 }) {
   const router = useRouter();
+  const { openTransactionModal } = useTransactionModal();
   const { user, logout } = useAuth();
 
   return (
@@ -168,7 +170,7 @@ function SidebarContents({
         <button
           type="button"
           onClick={() => {
-            router.push("/expenses/new");
+            openTransactionModal();
             onNavigate?.();
           }}
           className="flex min-h-8 w-full items-center gap-2 rounded-[7px] px-2 text-left text-[12px] text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] ds-focus"

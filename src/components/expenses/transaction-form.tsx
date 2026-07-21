@@ -30,11 +30,15 @@ type TransactionFormProps = {
   userId: string;
   initial?: LedgerTransaction | null;
   mode?: "create" | "edit";
+  onSuccess?: () => void;
+  onCancel?: () => void;
 };
 
 export function TransactionForm({
   initial,
   mode = "create",
+  onSuccess,
+  onCancel,
 }: TransactionFormProps) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -173,10 +177,20 @@ export function TransactionForm({
         description: "Your account balances and financial twin are up to date.",
         tone: "success",
       });
-      router.push("/expenses");
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push("/expenses");
+      }
       router.refresh();
     } catch (err) {
-      setError(getErrorMessage(err, "Could not save transaction"));
+      const message = getErrorMessage(err, "Could not save transaction");
+      setError(message);
+      showToast({
+        title: "Transaction not saved",
+        description: message,
+        tone: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -377,7 +391,7 @@ export function TransactionForm({
         <Button
           type="button"
           variant="ghost"
-          onClick={() => router.push("/expenses")}
+          onClick={() => (onCancel ? onCancel() : router.push("/expenses"))}
         >
           Cancel
         </Button>

@@ -17,6 +17,7 @@ import { assetTypeLabel } from "@/lib/investments/meta";
 import type { ReportOverview } from "@/types";
 import { Alert, CardGridSkeleton } from "@/components/ui/feedback";
 import { useToast } from "@/components/ui/toast";
+import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 
 function monthLabel(key: string): string {
   const [y, m] = key.split("-").map(Number);
@@ -30,6 +31,7 @@ function monthLabel(key: string): string {
 export default function ReportsPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { openTransactionModal } = useTransactionModal();
   const [months, setMonths] = useState(6);
   const [report, setReport] = useState<ReportOverview | null>(null);
   const [error, setError] = useState("");
@@ -229,9 +231,13 @@ export default function ReportsPage() {
                 {report.cash_flow.every((m) => m.income === 0 && m.expense === 0) ? (
                   <p className="text-sm text-[var(--ds-gray-900)]">
                     No ledger activity in this window.{" "}
-                    <Link href="/expenses/new" className="text-[var(--ds-focus-color)]">
+                    <button
+                      type="button"
+                      onClick={openTransactionModal}
+                      className="text-[var(--ds-focus-color)]"
+                    >
                       Record a transaction
-                    </Link>
+                    </button>
                   </p>
                 ) : (
                   <div className="space-y-4">

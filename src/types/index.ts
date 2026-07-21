@@ -546,7 +546,14 @@ export type AiSettings = {
   setup_guides: Record<AiProviderId, AiSetupGuide>;
 };
 
-export type AiCitation = { label: string; href: string };
+export type AiCitation = {
+  label: string;
+  href: string;
+  snippet?: string;
+  domain?: string;
+  image_url?: string;
+  source_type?: "module" | "web";
+};
 export type AiToolActivity = {
   name: string;
   status: "ok" | "error";
@@ -555,6 +562,7 @@ export type AiToolActivity = {
 
 export type AiActionProposal = {
   id: string;
+  conversation_id?: string | null;
   action_type: string;
   title: string;
   summary?: string | null;
@@ -589,6 +597,34 @@ export type AiConversation = {
   title: string;
   provider?: string | null;
   model?: string | null;
+  pinned_at?: string | null;
+  archived_at?: string | null;
+  last_message_preview?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AiDocumentSection = {
+  title: string;
+  content: string;
+};
+
+export type AiDocument = {
+  id: string;
+  conversation_id?: string | null;
+  name: string;
+  mime_type: string;
+  size_bytes: number;
+  detected_type?: string | null;
+  summary?: string | null;
+  analysis_confidence?: number | string | null;
+  extracted_sections?: AiDocumentSection[];
+  suggested_actions?: string[];
+  related_accounts?: string[];
+  related_transactions?: Array<Record<string, unknown>>;
+  status: "uploading" | "analyzing" | "ready" | "failed";
+  analysis_error?: string | null;
+  data_base64?: string;
   created_at: string;
   updated_at: string;
 };

@@ -1,16 +1,20 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AppSidebar, MobileNav } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { CommandPalette } from "@/components/layout/command-palette";
+import { TransactionModalProvider } from "@/components/expenses/transaction-modal-provider";
 import { useAuth } from "@/lib/auth-context";
 import { getAccessToken } from "@/lib/api/client";
+import { cn } from "@/lib/cn";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { ready, isAuthenticated } = useAuth();
+  const isAiWorkspace = pathname === "/ai" || pathname.startsWith("/ai/");
 
   useEffect(() => {
     if (!ready) return;
@@ -28,16 +32,31 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="h-dvh overflow-hidden bg-[var(--ds-background-100)]">
-      <AppTopbar />
-      <AppSidebar />
-      <main className="app-scrollbar h-[calc(100dvh-2.75rem)] translate-y-11 overflow-y-auto overscroll-contain px-4 py-6 pb-24 transition-[margin-left] duration-200 sm:px-6 sm:py-8 md:ml-[var(--app-sidebar-offset)] md:pb-10">
-        <div className="mx-auto w-full max-w-[var(--ds-page-width)]">
-          {children}
-        </div>
-      </main>
-      <MobileNav />
-      <CommandPalette />
-    </div>
+    <TransactionModalProvider>
+      <div className="h-dvh overflow-hidden bg-[var(--ds-background-100)]">
+        <AppTopbar />
+        <AppSidebar />
+        <main
+          className={cn(
+            "h-[calc(100dvh-2.75rem)] translate-y-11 transition-[margin-left] duration-200 md:ml-[var(--app-sidebar-offset)]",
+            isAiWorkspace
+              ? "overflow-hidden p-0 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0"
+              : "app-scrollbar overflow-y-auto overscroll-contain px-4 py-6 pb-24 sm:px-6 sm:py-8 md:pb-10",
+          )}
+        >
+          <div
+            className={cn(
+              isAiWorkspace
+                ? "h-full w-full max-w-none"
+                : "mx-auto w-full max-w-[var(--ds-page-width)]",
+            )}
+          >
+            {children}
+          </div>
+        </main>
+        <MobileNav />
+        <CommandPalette />
+      </div>
+    </TransactionModalProvider>
   );
 }

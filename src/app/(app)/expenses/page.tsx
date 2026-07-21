@@ -13,6 +13,10 @@ import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { TransactionTable } from "@/components/expenses/expense-table";
 import {
+  TRANSACTION_CREATED_EVENT,
+  useTransactionModal,
+} from "@/components/expenses/transaction-modal-provider";
+import {
   deleteTransaction,
   listTransactions,
 } from "@/lib/api/transactions";
@@ -23,6 +27,7 @@ import type { LedgerTransaction } from "@/types";
 
 export default function ExpensesPage() {
   const router = useRouter();
+  const { openTransactionModal } = useTransactionModal();
   const { user } = useAuth();
   const { showToast } = useToast();
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
@@ -54,6 +59,11 @@ export default function ExpensesPage() {
     if (!user?.id) return;
     refresh();
   }, [user?.id, refresh]);
+
+  useEffect(() => {
+    window.addEventListener(TRANSACTION_CREATED_EVENT, refresh);
+    return () => window.removeEventListener(TRANSACTION_CREATED_EVENT, refresh);
+  }, [refresh]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -121,7 +131,7 @@ export default function ExpensesPage() {
         title="Transactions"
         description={`${filtered.length} shown · ${formatCurrency(inflow, baseCurrency)} in · ${formatCurrency(outflow, baseCurrency)} out · ${baseCurrency}`}
         actions={
-          <Button onClick={() => router.push("/expenses/new")}>
+          <Button onClick={openTransactionModal}>
             New transaction
           </Button>
         }
@@ -226,7 +236,7 @@ export default function ExpensesPage() {
             }
             actionLabel={hasFilters ? "Clear filters" : "Add transaction"}
             onAction={
-              hasFilters ? clearFilters : () => router.push("/expenses/new")
+              hasFilters ? clearFilters : openTransactionModal
             }
           />
         </div>
