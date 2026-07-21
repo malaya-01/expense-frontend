@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Modal } from "@/components/ui/modal";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ColorField } from "@/components/ui/color-field";
 import { CONTAINER_TYPES, getContainerMeta } from "@/lib/accounts/types-meta";
 import { SUPPORTED_CURRENCIES } from "@/lib/currency/currency.data";
 import type {
@@ -185,24 +187,11 @@ export function AccountFormModal({
 
         <div>
           <Label htmlFor="acc-color">Color</Label>
-          <div className="mt-1.5 flex items-center gap-2">
-            <input
-              id="acc-color"
-              type="color"
-              value={form.color || meta.defaultColor}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, color: e.target.value }))
-              }
-              className="size-10 shrink-0 cursor-pointer rounded-[6px] border-0 bg-transparent p-0"
-            />
-            <Input
-              value={form.color || ""}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, color: e.target.value }))
-              }
-              className="font-mono text-xs"
-            />
-          </div>
+          <ColorField
+            id="acc-color"
+            value={form.color || meta.defaultColor}
+            onChange={(color) => setForm((current) => ({ ...current, color }))}
+          />
         </div>
 
         <div>
@@ -215,20 +204,18 @@ export function AccountFormModal({
           />
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-[var(--ds-gray-900)]">
-          <input
-            type="checkbox"
-            checked={form.include_in_net_worth ?? true}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                include_in_net_worth: e.target.checked,
-              }))
-            }
-            className="size-4 accent-[var(--ds-focus-color)]"
-          />
-          Include in net worth
-        </label>
+        <Checkbox
+          id="include-net-worth"
+          checked={form.include_in_net_worth ?? true}
+          onChange={(checked) =>
+            setForm((current) => ({
+              ...current,
+              include_in_net_worth: checked,
+            }))
+          }
+          label="Include in net worth"
+          description="Assets add to net worth; liabilities reduce it."
+        />
       </form>
     </Modal>
   );

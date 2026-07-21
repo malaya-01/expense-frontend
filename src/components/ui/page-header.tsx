@@ -18,13 +18,13 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center px-6 py-16 text-center",
+        "flex flex-col items-center justify-center px-6 py-14 text-center",
         className,
       )}
     >
-      <h2 className="text-[var(--ds-gray-1000)]">{title}</h2>
+      <h2 className="text-base font-semibold text-[var(--ds-gray-1000)]">{title}</h2>
       {description ? (
-        <p className="mt-2 max-w-sm text-xs leading-4 text-[var(--ds-gray-900)]">
+        <p className="mt-2 max-w-sm text-sm leading-5 text-[var(--ds-gray-700)]">
           {description}
         </p>
       ) : null}
@@ -47,13 +47,13 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h3 className="text-[28px] leading-9 tracking-[-1.12px] sm:text-[32px] sm:leading-10 sm:tracking-[-1.28px]">
+        <h1 className="text-[26px] font-semibold leading-8 tracking-[-0.8px] text-[var(--ds-gray-1000)] sm:text-[30px] sm:leading-9">
           {title}
-        </h3>
+        </h1>
         {description ? (
-          <p className="mt-2 text-sm leading-5 text-[var(--ds-gray-900)]">
+          <p className="mt-1.5 max-w-2xl text-[13px] leading-5 text-[var(--ds-gray-700)]">
             {description}
           </p>
         ) : null}

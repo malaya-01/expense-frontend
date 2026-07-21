@@ -1,13 +1,16 @@
 "use client";
 
-import { ComingSoon } from "@/components/finos/coming-soon";
+import { Suspense } from "react";
+import AiAdvisorPageInner from "./ai-advisor-client";
 
 export default function AiAdvisorPage() {
   return (
-    <ComingSoon
-      title="AI Advisor"
-      description="Not a chatbot — a financial reasoning engine for forecasts, behavior, and next actions."
-      question="What should I do next?"
-    />
+    <Suspense
+      fallback={
+        <p className="text-sm text-[var(--ds-gray-900)]">Loading FinOS AI…</p>
+      }
+    >
+      <AiAdvisorPageInner />
+    </Suspense>
   );
 }

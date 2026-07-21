@@ -8,12 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardBody } from "@/components/ui/card";
 import { generateOtp, resetPassword } from "@/lib/api/auth";
 import { getErrorMessage } from "@/lib/api/client";
+import { Alert } from "@/components/ui/feedback";
 
 export default function ForgotPasswordPage() {
   const [step, setStep] = useState<"email" | "reset">("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [devOtp, setDevOtp] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -27,8 +27,10 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     try {
       const result = await generateOtp(email);
-      if (result.otp) setDevOtp(result.otp);
-      setMessage("OTP sent. Check your email (or console in development).");
+      setMessage(
+        result.message ||
+          "If an account exists for this email, a recovery code was sent.",
+      );
       setStep("reset");
     } catch (err) {
       setError(getErrorMessage(err, "Could not generate OTP"));
@@ -85,7 +87,7 @@ export default function ForgotPasswordPage() {
                 />
               </div>
               {error ? (
-                <p className="text-sm text-[var(--ds-status-red)]">{error}</p>
+                <Alert tone="error" title="Code could not be sent" description={error} />
               ) : null}
               <Button type="submit" className="w-full" loading={loading}>
                 Send code
@@ -102,11 +104,9 @@ export default function ForgotPasswordPage() {
                   onChange={(e) => setOtp(e.target.value)}
                   placeholder="6-digit code"
                 />
-                {devOtp ? (
-                  <p className="mt-1.5 text-xs text-[var(--ds-gray-700)]">
-                    Dev OTP: {devOtp}
-                  </p>
-                ) : null}
+                <p className="mt-1.5 text-xs text-[var(--ds-gray-700)]">
+                  The code expires after 10 minutes and can only be used once.
+                </p>
               </div>
               <div>
                 <Label htmlFor="new">New password</Label>

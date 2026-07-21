@@ -1,449 +1,821 @@
-# Vercel — Design Language Reference
+---
+version: alpha
+name: Notion-design-analysis
+description: Notion presents itself as the all-in-one workspace through a confident, illustration-rich brand voice — anchored by a deep navy hero band ({colors.brand-navy}) decorated with brand-colored sticky-note dots and mesh wire illustrations, a signature purple pill primary CTA ({colors.primary}), and a rich palette of pastel-tinted feature cards that echo the colorful database properties of the live product. The system uses a Notion-Sans (Inter-based) typeface across every UI surface, anchors a 4-tier pricing comparison (Free / Plus / Business / Enterprise), and presents the live workspace UI mockup directly inside the hero band. Coverage spans homepage, Enterprise, Product AI, Product Agents, Startups, and Pricing surfaces.
 
-## 1. Visual Theme & Atmosphere
+colors:
+  primary: "#5645d4"
+  primary-pressed: "#4534b3"
+  primary-deep: "#3a2a99"
+  on-primary: "#ffffff"
+  brand-navy: "#0a1530"
+  brand-navy-deep: "#070f24"
+  brand-navy-mid: "#1a2a52"
+  link-blue: "#0075de"
+  link-blue-pressed: "#005bab"
+  brand-orange: "#dd5b00"
+  brand-orange-deep: "#793400"
+  brand-pink: "#ff64c8"
+  brand-pink-deep: "#a02e6d"
+  brand-purple: "#7b3ff2"
+  brand-purple-300: "#d6b6f6"
+  brand-purple-800: "#391c57"
+  brand-teal: "#2a9d99"
+  brand-green: "#1aae39"
+  brand-yellow: "#f5d75e"
+  brand-brown: "#523410"
+  card-tint-peach: "#ffe8d4"
+  card-tint-rose: "#fde0ec"
+  card-tint-mint: "#d9f3e1"
+  card-tint-lavender: "#e6e0f5"
+  card-tint-sky: "#dcecfa"
+  card-tint-yellow: "#fef7d6"
+  card-tint-yellow-bold: "#f9e79f"
+  card-tint-cream: "#f8f5e8"
+  card-tint-gray: "#f0eeec"
+  canvas: "#ffffff"
+  surface: "#f6f5f4"
+  surface-soft: "#fafaf9"
+  hairline: "#e5e3df"
+  hairline-soft: "#ede9e4"
+  hairline-strong: "#c8c4be"
+  ink-deep: "#000000"
+  ink: "#1a1a1a"
+  charcoal: "#37352f"
+  slate: "#5d5b54"
+  steel: "#787671"
+  stone: "#a4a097"
+  muted: "#bbb8b1"
+  on-dark: "#ffffff"
+  on-dark-muted: "#a4a097"
+  semantic-success: "#1aae39"
+  semantic-warning: "#dd5b00"
+  semantic-error: "#e03131"
 
-Vercel's interface is minimalism elevated to an engineering principle. Every pixel serves a purpose, every absence of ornament is a deliberate choice. The visual language strips away the superfluous — no gradients, no decorative borders, no color for color's sake — leaving behind a monochromatic canvas where content and function occupy the entire foreground. The background is a near-white `rgb(250, 250, 250)`, text is a near-black `rgb(23, 23, 23)`, and between them sits a precisely calibrated grayscale that communicates hierarchy without ever raising its voice.
+typography:
+  hero-display:
+    fontFamily: Notion Sans
+    fontSize: 80px
+    fontWeight: 600
+    lineHeight: 1.05
+    letterSpacing: -2px
+  display-lg:
+    fontFamily: Notion Sans
+    fontSize: 56px
+    fontWeight: 600
+    lineHeight: 1.10
+    letterSpacing: -1px
+  heading-1:
+    fontFamily: Notion Sans
+    fontSize: 48px
+    fontWeight: 600
+    lineHeight: 1.15
+    letterSpacing: -0.5px
+  heading-2:
+    fontFamily: Notion Sans
+    fontSize: 36px
+    fontWeight: 600
+    lineHeight: 1.20
+    letterSpacing: -0.5px
+  heading-3:
+    fontFamily: Notion Sans
+    fontSize: 28px
+    fontWeight: 600
+    lineHeight: 1.25
+  heading-4:
+    fontFamily: Notion Sans
+    fontSize: 22px
+    fontWeight: 600
+    lineHeight: 1.30
+  heading-5:
+    fontFamily: Notion Sans
+    fontSize: 18px
+    fontWeight: 600
+    lineHeight: 1.40
+  subtitle:
+    fontFamily: Notion Sans
+    fontSize: 18px
+    fontWeight: 400
+    lineHeight: 1.50
+  body-md:
+    fontFamily: Notion Sans
+    fontSize: 16px
+    fontWeight: 400
+    lineHeight: 1.55
+  body-md-medium:
+    fontFamily: Notion Sans
+    fontSize: 16px
+    fontWeight: 500
+    lineHeight: 1.55
+  body-sm:
+    fontFamily: Notion Sans
+    fontSize: 14px
+    fontWeight: 400
+    lineHeight: 1.50
+  body-sm-medium:
+    fontFamily: Notion Sans
+    fontSize: 14px
+    fontWeight: 500
+    lineHeight: 1.50
+  caption:
+    fontFamily: Notion Sans
+    fontSize: 13px
+    fontWeight: 400
+    lineHeight: 1.40
+  caption-bold:
+    fontFamily: Notion Sans
+    fontSize: 13px
+    fontWeight: 600
+    lineHeight: 1.40
+  micro:
+    fontFamily: Notion Sans
+    fontSize: 12px
+    fontWeight: 500
+    lineHeight: 1.40
+  micro-uppercase:
+    fontFamily: Notion Sans
+    fontSize: 11px
+    fontWeight: 600
+    lineHeight: 1.40
+    letterSpacing: 1px
+  button-md:
+    fontFamily: Notion Sans
+    fontSize: 14px
+    fontWeight: 500
+    lineHeight: 1.30
 
-What makes Vercel's design language remarkable is its relentless restraint. Color appears only when it must: blue `rgb(0, 114, 245)` marks interactive elements and focus states, and nothing else. Status indicators — greens, ambers, reds, purples — exist in small dot-sized badges (`div.size-2.5`), never as background fills or large swaths. The result is an interface that feels engineered rather than designed, where every visual decision can be justified by a functional requirement. Shadows replace borders. Weight replaces size. Spacing replaces dividers.
+rounded:
+  xs: 4px
+  sm: 6px
+  md: 8px
+  lg: 12px
+  xl: 16px
+  xxl: 20px
+  xxxl: 24px
+  full: 9999px
 
-The atmosphere is one of quiet confidence — the kind of UI that a developer trusts instinctively because it never tries to impress. It communicates through density of information and precision of layout, powered by 96 custom CSS properties that form one of the most comprehensive design token systems on the web.
+spacing:
+  xxs: 4px
+  xs: 8px
+  sm: 12px
+  md: 16px
+  lg: 20px
+  xl: 24px
+  xxl: 32px
+  xxxl: 40px
+  section-sm: 48px
+  section: 64px
+  section-lg: 96px
+  hero: 120px
 
+components:
+  button-primary:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.button-md}"
+    rounded: "{rounded.md}"
+    padding: "10px 18px"
+  button-primary-pressed:
+    backgroundColor: "{colors.primary-pressed}"
+    textColor: "{colors.on-primary}"
+  button-primary-disabled:
+    backgroundColor: "{colors.hairline}"
+    textColor: "{colors.muted}"
+  button-dark:
+    backgroundColor: "{colors.ink-deep}"
+    textColor: "{colors.on-dark}"
+    typography: "{typography.button-md}"
+    rounded: "{rounded.md}"
+    padding: "10px 18px"
+  button-secondary:
+    backgroundColor: "transparent"
+    textColor: "{colors.ink}"
+    typography: "{typography.button-md}"
+    rounded: "{rounded.md}"
+    padding: "10px 18px"
+    border: "1px solid {colors.hairline-strong}"
+  button-on-dark:
+    backgroundColor: "{colors.on-dark}"
+    textColor: "{colors.ink}"
+    typography: "{typography.button-md}"
+    rounded: "{rounded.md}"
+    padding: "10px 18px"
+  button-secondary-on-dark:
+    backgroundColor: "transparent"
+    textColor: "{colors.on-dark}"
+    typography: "{typography.button-md}"
+    rounded: "{rounded.md}"
+    padding: "10px 18px"
+    border: "1px solid {colors.on-dark-muted}"
+  button-ghost:
+    backgroundColor: "transparent"
+    textColor: "{colors.ink}"
+    typography: "{typography.button-md}"
+    rounded: "{rounded.sm}"
+    padding: "8px 12px"
+  button-link:
+    backgroundColor: "transparent"
+    textColor: "{colors.link-blue}"
+    typography: "{typography.body-sm-medium}"
+    padding: "0"
+  card-base:
+    backgroundColor: "{colors.canvas}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xl}"
+    border: "1px solid {colors.hairline}"
+  card-feature:
+    backgroundColor: "{colors.canvas}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xxl}"
+    border: "1px solid {colors.hairline}"
+  card-feature-yellow-bold:
+    backgroundColor: "{colors.card-tint-yellow-bold}"
+    textColor: "{colors.charcoal}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xxl}"
+  card-feature-peach:
+    backgroundColor: "{colors.card-tint-peach}"
+    textColor: "{colors.charcoal}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xxl}"
+  card-feature-rose:
+    backgroundColor: "{colors.card-tint-rose}"
+    textColor: "{colors.charcoal}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xxl}"
+  card-feature-mint:
+    backgroundColor: "{colors.card-tint-mint}"
+    textColor: "{colors.charcoal}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xxl}"
+  card-feature-sky:
+    backgroundColor: "{colors.card-tint-sky}"
+    textColor: "{colors.charcoal}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xxl}"
+  card-feature-lavender:
+    backgroundColor: "{colors.card-tint-lavender}"
+    textColor: "{colors.charcoal}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xxl}"
+  card-feature-yellow:
+    backgroundColor: "{colors.card-tint-yellow}"
+    textColor: "{colors.charcoal}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xxl}"
+  card-feature-cream:
+    backgroundColor: "{colors.card-tint-cream}"
+    textColor: "{colors.charcoal}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xxl}"
+  card-agent-tile:
+    backgroundColor: "{colors.canvas}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xl}"
+    border: "1px solid {colors.hairline}"
+  card-template:
+    backgroundColor: "{colors.canvas}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.lg}"
+    border: "1px solid {colors.hairline}"
+  card-startup-perk:
+    backgroundColor: "{colors.canvas}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xl}"
+    border: "1px solid {colors.hairline}"
+  pricing-card:
+    backgroundColor: "{colors.canvas}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xxl}"
+    border: "1px solid {colors.hairline}"
+  pricing-card-featured:
+    backgroundColor: "{colors.surface}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xxl}"
+    border: "2px solid {colors.primary}"
+  text-input:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: "{spacing.sm} {spacing.md}"
+    border: "1px solid {colors.hairline-strong}"
+    height: 44px
+  text-input-focused:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    border: "2px solid {colors.primary}"
+  search-pill:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.steel}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: "{spacing.sm} {spacing.md}"
+    height: 44px
+    border: "1px solid {colors.hairline}"
+  pill-tab:
+    backgroundColor: "transparent"
+    textColor: "{colors.steel}"
+    typography: "{typography.body-sm-medium}"
+    rounded: "{rounded.full}"
+    padding: "{spacing.xs} {spacing.md}"
+    border: "1px solid {colors.hairline}"
+  pill-tab-active:
+    backgroundColor: "{colors.ink-deep}"
+    textColor: "{colors.on-dark}"
+    rounded: "{rounded.full}"
+    border: "1px solid {colors.ink-deep}"
+  segmented-tab:
+    backgroundColor: "transparent"
+    textColor: "{colors.steel}"
+    typography: "{typography.body-sm-medium}"
+    padding: "{spacing.sm} {spacing.md}"
+    border: "0 0 2px transparent solid"
+  segmented-tab-active:
+    backgroundColor: "transparent"
+    textColor: "{colors.ink}"
+    typography: "{typography.body-sm-medium}"
+    border: "0 0 2px {colors.ink} solid"
+  badge-purple:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.caption-bold}"
+    rounded: "{rounded.full}"
+    padding: "4px 10px"
+  badge-pink:
+    backgroundColor: "{colors.brand-pink}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.caption-bold}"
+    rounded: "{rounded.full}"
+    padding: "4px 10px"
+  badge-orange:
+    backgroundColor: "{colors.brand-orange}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.caption-bold}"
+    rounded: "{rounded.full}"
+    padding: "4px 10px"
+  badge-tag-purple:
+    backgroundColor: "{colors.card-tint-lavender}"
+    textColor: "{colors.brand-purple-800}"
+    typography: "{typography.caption-bold}"
+    rounded: "{rounded.sm}"
+    padding: "2px 8px"
+  badge-tag-orange:
+    backgroundColor: "{colors.card-tint-peach}"
+    textColor: "{colors.brand-orange-deep}"
+    typography: "{typography.caption-bold}"
+    rounded: "{rounded.sm}"
+    padding: "2px 8px"
+  badge-tag-green:
+    backgroundColor: "{colors.card-tint-mint}"
+    textColor: "{colors.brand-green}"
+    typography: "{typography.caption-bold}"
+    rounded: "{rounded.sm}"
+    padding: "2px 8px"
+  badge-popular:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.caption-bold}"
+    rounded: "{rounded.full}"
+    padding: "4px 10px"
+  promo-banner:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body-sm-medium}"
+    padding: "{spacing.sm} {spacing.md}"
+  hero-band-dark:
+    backgroundColor: "{colors.brand-navy}"
+    textColor: "{colors.on-dark}"
+    rounded: "0"
+    padding: "{spacing.hero}"
+  workspace-mockup-card:
+    backgroundColor: "{colors.canvas}"
+    rounded: "{rounded.lg}"
+    padding: "0"
+    border: "1px solid {colors.hairline}"
+    shadow: "rgba(15, 15, 15, 0.2) 0px 24px 48px -8px"
+  cta-banner-light:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.section}"
+  comparison-table:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body-sm}"
+    rounded: "{rounded.md}"
+    border: "1px solid {colors.hairline}"
+  comparison-row:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    padding: "{spacing.md} {spacing.lg}"
+    border: "0 0 1px {colors.hairline-soft} solid"
+  testimonial-card:
+    backgroundColor: "{colors.canvas}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xxl}"
+    border: "1px solid {colors.hairline}"
+  logo-wall-item:
+    backgroundColor: "transparent"
+    textColor: "{colors.steel}"
+    typography: "{typography.body-md-medium}"
+    padding: "{spacing.lg}"
+  faq-accordion-item:
+    backgroundColor: "{colors.canvas}"
+    rounded: "{rounded.md}"
+    padding: "{spacing.xl}"
+    border: "0 0 1px {colors.hairline} solid"
+  stat-row:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.section-sm}"
+  footer-region:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.charcoal}"
+    typography: "{typography.body-sm}"
+    padding: "{spacing.section} {spacing.xxl}"
+    border: "1px solid {colors.hairline}"
+  footer-link:
+    backgroundColor: "transparent"
+    textColor: "{colors.steel}"
+    typography: "{typography.body-sm}"
+    padding: "{spacing.xxs} 0"
 ---
 
-## 2. Color Palette & Roles
+## Overview
 
-### Core Interface Colors
+Notion presents itself as the all-in-one workspace through a confident, illustration-rich brand voice. The homepage opens with **"Meet the night shift."** rendered centered over a deep navy hero band ({colors.brand-navy}), decorated with brand-colored sticky-note dots and mesh wire illustrations scattered around the headline. The signature **purple pill primary CTA** ({colors.primary}) "Get Notion free" sits at the visual center, paired with an outlined "Request a demo" secondary. Below the buttons, a real Notion workspace UI mockup card (the "Ramp HQ" kanban board) breaks out of the hero band with a deep diffuse drop shadow.
 
-| Role | Value | CSS Source | Usage |
-|------|-------|------------|-------|
-| Background (primary) | `rgb(250, 250, 250)` / `#FAFAFA` | body `backgroundColor` | Page canvas, surface base |
-| Background (elevated) | `rgb(255, 255, 255)` / `#FFFFFF` | card/link surfaces | Cards, modals, elevated panels |
-| Background (recessed) | `rgb(242, 242, 242)` / `#F2F2F2` | switch control surface | Toggle tracks, input backgrounds |
-| Text (primary) | `rgb(23, 23, 23)` / `#171717` | body `color` | Headings, primary content |
-| Text (secondary) | `rgb(77, 77, 77)` / `#4D4D4D` | button `color` | Navigation items, secondary labels |
-| Text (muted) | `rgb(143, 143, 143)` / `#8F8F8F` | grayLine surface | Decorative lines, disabled states |
-| Interactive accent | `rgb(0, 114, 245)` / `#0072F5` | link `color`, focus ring | Links, focus rings, active states |
-| Focus ring (alt) | `rgb(0, 95, 204)` / `#005FCC` | input focus `outline` | Native input focus indicators |
+Below the hero, the page cycles through a distinctive sequence of feature sections: a dense sticky-note "Keep work moving 24/7" panel with red/blue/green/purple/teal status icons; a **bold yellow** ({colors.card-tint-yellow-bold}) "Ask your on-demand assistants" banner card flanked by orange/rose/mint pastel feature tiles showing assistant UI mockups; and a "Bring all your work together" 3-column grid with brand-colored mockups (sky-blue tutorial card, light Notion calendar, brown/rust testimonial slate). The pricing page renders 4 tiers (Free / Plus / Business / Enterprise) horizontally with one tier featured (purple-bordered) and a dense feature comparison table running below.
 
-### Status & Category Indicators
+The system uses a Notion-Sans typeface (Inter-based) across every UI surface — humanist-geometric character that pairs naturally with the colorful illustrations. Buttons are `{rounded.md}` (8px) rectangles, NOT pills — distinguishing Notion's sober rectangular geometry from competitors that use pills universally. Cards use `{rounded.lg}` (12px) consistently.
 
-These colors appear exclusively as small indicator dots (`div.size-2.5` — approximately 10px) and never as large fills:
+**Key Characteristics:**
+- Deep navy hero band ({colors.brand-navy}) with scattered sticky-note dots + mesh wire decorative illustrations
+- **Signature purple pill** ({colors.primary}) primary CTA — Notion's recognizable "Get Notion free" button color
+- Real Notion workspace UI mockup card embedded in the hero with deep drop shadow
+- Bold yellow feature banner ({colors.card-tint-yellow-bold}) for high-emphasis content sections
+- Pastel feature card palette (peach, rose, mint, lavender, sky, yellow) echoing the live product database properties
+- Notion-Sans (Inter-based) across every UI surface
+- 8px-rounded buttons (NOT pills), 12px-rounded cards — sober editorial geometry
+- 4-tier pricing comparison with dense feature table
+- Centered hero layout (different from the left-aligned norm of most B2B SaaS)
 
-| Color | Value | Hex |
-|-------|-------|-----|
-| Blue | `rgb(0, 98, 209)` | `#0062D1` |
-| Cyan | `rgb(82, 174, 255)` | `#52AEFF` |
-| Teal (light) | `rgb(69, 222, 197)` | `#45DEC5` |
-| Teal (dark) | `rgb(6, 122, 110)` | `#067A6E` |
-| Green (dark) | `rgb(57, 142, 74)` | `#398E4A` |
-| Green (medium) | `rgb(69, 165, 87)` | `#45A557` |
-| Green (light) | `rgb(108, 218, 117)` | `#6CDA75` |
-| Orange | `rgb(255, 153, 10)` | `#FF990A` |
-| Red | `rgb(229, 72, 77)` | `#E5484D` |
-| Pink | `rgb(234, 62, 131)` | `#EA3E83` |
-| Purple (dark) | `rgb(120, 32, 188)` | `#7820BC` |
-| Purple (light) | `rgb(191, 137, 236)` | `#BF89EC` |
+## Colors
 
-### Design Token Mapping (CSS Custom Properties)
+> Source pages: notion.com/ (homepage), /enterprise, /product/ai, /product/agents, /startups, /pricing. Token coverage was identical across all six pages.
 
-| Token | Value | Role |
-|-------|-------|------|
-| `--ds-shadow-background-border` | `0 0 0 1px var(--ds-background-200)` | Surface-aware border layer |
-| `--ds-shadow-border-base` | `0 0 0 1px #00000014` | Universal border simulation |
-| `--ds-shadow-border` | `var(--ds-shadow-border-base), var(--ds-shadow-background-border)` | Combined default border |
-| `--ds-focus-ring` | `0 0 0 2px var(--ds-background-100), 0 0 0 4px var(--ds-focus-color)` | Double-ring focus pattern |
-| `--ds-overlay-backdrop-color` | `var(--ds-background-200)` | Modal/overlay backdrop |
-| `--ds-overlay-backdrop-opacity` | `.8` | Backdrop transparency |
-| `--geist-text-gradient` | `linear-gradient(180deg, #000c 0%, #000 100%)` | Text gradient effect (marketing) |
-| `--header-border-bottom` | `0 1px 0 0 #0000001a` | Header separator shadow |
-| `--header-import-flow-background` | `#fafafacc` | Semi-transparent overlay |
+### Brand & Primary
+- **Notion Purple** ({colors.primary}): Signature primary CTA color — the unmistakable "Get Notion free" pill button. Reserved for the dominant CTA only.
+- **Purple Pressed** ({colors.primary-pressed}): Pressed-state variant
+- **Purple Deep** ({colors.primary-deep}): Deeper variant for emphasis
+- **Brand Navy** ({colors.brand-navy}): Hero band background — deep navy
+- **Brand Navy Deep** ({colors.brand-navy-deep}): Deeper navy for promo banner
+- **Brand Navy Mid** ({colors.brand-navy-mid}): Mid-spectrum navy
+- **Link Blue** ({colors.link-blue}): Inline text link blue (NOT primary CTA)
+- **Link Blue Pressed** ({colors.link-blue-pressed}): Pressed-state link blue
 
-### Color Philosophy
+### Brand Color Spectrum (echoes live product database properties)
+- **Brand Pink** ({colors.brand-pink}): Pink accent
+- **Brand Pink Deep** ({colors.brand-pink-deep}): Deeper pink
+- **Brand Orange** ({colors.brand-orange}): Orange accent
+- **Brand Orange Deep** ({colors.brand-orange-deep}): Deeper orange-rust
+- **Brand Purple** ({colors.brand-purple}): Purple accent variant
+- **Brand Purple 300** ({colors.brand-purple-300}): Light purple
+- **Brand Purple 800** ({colors.brand-purple-800}): Deep purple for tag text
+- **Brand Teal** ({colors.brand-teal}): Teal accent
+- **Brand Green** ({colors.brand-green}): Bright green
+- **Brand Yellow** ({colors.brand-yellow}): Soft yellow
+- **Brand Brown** ({colors.brand-brown}): Brand brown for "earthy" tints
 
-Vercel is fundamentally **achromatic**. The interface operates within a 4-stop grayscale: `#FAFAFA` → `#F2F2F2` → `#EBEBEB` → `#171717`. Blue (`#0072F5`) is the sole interactive accent — it appears in links, focus rings, and the skip-to-content indicator, and nowhere else. Every other color is confined to status indicator dots no larger than 10px, enforcing a strict hierarchy where chromatic information signals data, never decoration.
+### Card Tints (Pastel Feature Card Backgrounds)
+- **Tint Peach** ({colors.card-tint-peach}): Pale peach
+- **Tint Rose** ({colors.card-tint-rose}): Pale rose-pink
+- **Tint Mint** ({colors.card-tint-mint}): Pale mint-green
+- **Tint Lavender** ({colors.card-tint-lavender}): Pale lavender
+- **Tint Sky** ({colors.card-tint-sky}): Pale sky-blue
+- **Tint Yellow** ({colors.card-tint-yellow}): Pale yellow
+- **Tint Yellow Bold** ({colors.card-tint-yellow-bold}): Bold yellow for high-emphasis feature banners ("Ask your on-demand assistants")
+- **Tint Cream** ({colors.card-tint-cream}): Cream tint
+- **Tint Gray** ({colors.card-tint-gray}): Neutral surface
 
----
+### Surface
+- **Canvas White** ({colors.canvas}): Page background and primary card surface
+- **Surface** ({colors.surface}): Subtle section backgrounds, search-pill rest, featured pricing tier
+- **Surface Soft** ({colors.surface-soft}): Quieter section divisions
+- **Hairline** ({colors.hairline}): 1px borders and primary dividers
+- **Hairline Soft** ({colors.hairline-soft}): Quieter dividers
+- **Hairline Strong** ({colors.hairline-strong}): Stronger 1px border for inputs
 
-## 3. Typography Rules
+### Text
+- **Ink Deep** ({colors.ink-deep}): Pure black for emphasis
+- **Ink** ({colors.ink}): Primary headlines and body text
+- **Charcoal** ({colors.charcoal}): Body emphasis (Notion's signature warm-charcoal)
+- **Slate** ({colors.slate}): Secondary text
+- **Steel** ({colors.steel}): Tertiary, footer links
+- **Stone** ({colors.stone}): Muted labels
+- **Muted** ({colors.muted}): Disabled, placeholders
+- **On Dark** ({colors.on-dark}): White text on dark surfaces
+- **On Dark Muted** ({colors.on-dark-muted}): Reduced-opacity white
 
-### The Geist Type System
+### Semantic
+- **Success** ({colors.semantic-success}): Confirmation green
+- **Warning** ({colors.semantic-warning}): Mid-priority alerts (orange)
+- **Error** ({colors.semantic-error}): Validation errors (red)
 
-Vercel uses its proprietary **Geist** font family — a typeface designed specifically for developer tooling interfaces. Two variants serve distinct purposes:
+## Typography
 
-- **Geist Sans** — all interface text (headings, body, navigation, buttons, labels)
-- **Geist Mono** — code blocks and monospaced content, with fallback to `ui-monospace, SFMono-Regular, "Roboto Mono"`
+### Font Family
+**Notion Sans** (primary): Notion's custom Inter-based variable typeface. Fallbacks: Inter, -apple-system, system-ui, 'Segoe UI', Helvetica, sans-serif. Humanist-geometric character used across every UI surface.
 
-Both fonts enable OpenType ligatures via `font-feature-settings: "liga"`.
+### Hierarchy
 
-### Type Hierarchy
+| Token | Size | Weight | Line Height | Letter Spacing | Use |
+|---|---|---|---|---|---|
+| `{typography.hero-display}` | 80px | 600 | 1.05 | -2px | Hero ("Meet the night shift") |
+| `{typography.display-lg}` | 56px | 600 | 1.10 | -1px | Section openers |
+| `{typography.heading-1}` | 48px | 600 | 1.15 | -0.5px | Page-level headlines ("Try for free") |
+| `{typography.heading-2}` | 36px | 600 | 1.20 | -0.5px | Subsection headlines ("Keep work moving 24/7") |
+| `{typography.heading-3}` | 28px | 600 | 1.25 | 0 | Card titles |
+| `{typography.heading-4}` | 22px | 600 | 1.30 | 0 | Feature tile titles |
+| `{typography.heading-5}` | 18px | 600 | 1.40 | 0 | FAQ questions |
+| `{typography.subtitle}` | 18px | 400 | 1.50 | 0 | Hero subtitle |
+| `{typography.body-md}` | 16px | 400 | 1.55 | 0 | Primary body text |
+| `{typography.body-md-medium}` | 16px | 500 | 1.55 | 0 | Body emphasis |
+| `{typography.body-sm}` | 14px | 400 | 1.50 | 0 | Secondary body |
+| `{typography.body-sm-medium}` | 14px | 500 | 1.50 | 0 | Active sidebar, button labels |
+| `{typography.caption-bold}` | 13px | 600 | 1.40 | 0 | Badge labels |
+| `{typography.button-md}` | 14px | 500 | 1.30 | 0 | Button labels |
 
-| Element | Size | Weight | Line Height | Letter Spacing | Role |
-|---------|------|--------|-------------|----------------|------|
-| `h1` | 48px | 600 | 48px (1.0) | **-2.28px** | Hero headlines |
-| `h3` | 32px | 600 | 40px (1.25) | **-1.28px** | Section titles |
-| `h2` | 14px | 500 | 20px (1.43) | -0.28px | Subsection labels |
-| `h5` | 14px | 400 | 20px (1.43) | normal | Tertiary headings |
-| `body` | 16px | 400 | normal | normal | Base reading text |
-| `a` | 16px | 400 | normal | normal | Inline links |
-| `button` | 14px | 400 | 14px (1.0) | normal | Button labels |
-| `label` | 14px | 400 | 20px (1.43) | normal | Form labels |
-| `p` | 12px | 400 | 16px (1.33) | normal | Small body text, captions |
-| `code` | 13px | 500 | 20px (1.54) | normal | Code snippets (Geist Mono) |
-| `pre` | 13px | 500 | 20px (1.54) | normal | Code blocks |
-| `input` | 13.3px | 400 | normal | normal | Form inputs |
+### Principles
+- Tight hero leading (1.05) on 80px display
+- Negative letter-spacing on display sizes (-2px to -0.5px)
+- Generous body leading (1.55) for documentation readability
+- 600 weight for headlines + 500 for buttons; 400 body
 
-### Weight Philosophy: The Three-Weight Rule
+## Layout
 
-Vercel uses exactly **three font weights** — and deliberately excludes bold (700):
+### Spacing System
+- **Base unit**: 4px (8px primary increment)
+- **Tokens**: `{spacing.xxs}` (4px) through `{spacing.hero}` (120px)
+- **Section rhythm**: Marketing pages use `{spacing.section-lg}` (96px); pricing tightens to `{spacing.section}` (64px)
 
-| Weight | Name | Usage |
-|--------|------|-------|
-| **400** | Regular | Body text, links, buttons, labels, form elements |
-| **500** | Medium | Code blocks, subsection headings (`h2`), UI emphasis |
-| **600** | Semibold | Display headings only (`h1`, `h3`) |
+### Grid & Container
+- 1280px max-width with 32px gutters
+- Pricing: 4-tier card row at desktop with dense comparison table
+- Homepage: centered hero with workspace mockup below buttons; alternating colorful feature card sections
 
-There is no weight 700 anywhere in the system. This constraint is philosophical: Vercel considers semibold sufficient for emphasis, and true bold too heavy for a minimalist interface. Emphasis is communicated through size and spacing, not weight.
+### Whitespace Philosophy
+Marketing surfaces use generous breathing room between feature card bands. Workspace mockup card on hero gets full-width treatment with deep drop shadow.
 
-### Aggressive Negative Letter-Spacing
+## Elevation & Depth
 
-Vercel's most distinctive typographic trait is extreme negative tracking on headlines:
+| Level | Treatment | Use |
+|---|---|---|
+| 0 (flat) | No shadow; `{colors.hairline}` border | Default cards, table rows |
+| 1 (subtle) | `rgba(15, 15, 15, 0.04) 0px 1px 2px 0px` | Hover-elevated tiles |
+| 2 (card) | `rgba(15, 15, 15, 0.08) 0px 4px 12px 0px` | Feature cards |
+| 3 (mockup) | `rgba(15, 15, 15, 0.20) 0px 24px 48px -8px` | Hero workspace mockup card |
+| 4 (modal) | `rgba(15, 15, 15, 0.16) 0px 16px 48px -8px` | Modals, dropdowns |
 
-- `h1` at 48px: **-2.28px** (approximately -4.75% of font size)
-- `h3` at 32px: **-1.28px** (approximately -4% of font size)
-- `h2` at 14px: -0.28px (-2% of font size)
+### Decorative Depth
+- Hero workspace mockup card uses deep diffuse drop shadow (Level 3) — significant elevation against the navy band
+- Pastel feature cards carry their own visual weight via tint backgrounds
+- Sticky-note dot illustrations and mesh wires add atmospheric decoration to navy hero
 
-This tightening creates a sense of density and precision at display sizes, reinforcing the engineered aesthetic. At body sizes (16px and below), letter-spacing returns to `normal`.
-
-### Form Typography Tokens
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--geist-form-large-font` | 1rem (16px) | Large form inputs |
-| `--geist-form-large-line-height` | 1.5rem (24px) | Large form line height |
-| `--geist-form-font` | .875rem (14px) | Default form inputs |
-| `--geist-form-line-height` | 1.25rem (20px) | Default form line height |
-| `--geist-form-small-font` | .875rem (14px) | Small form inputs |
-| `--geist-form-small-line-height` | .875rem (14px) | Small form line height |
-
----
-
-## 4. Component Stylings
-
-### Button States (9 Interactive States Captured)
-
-Vercel buttons follow a **ghost-first** pattern — default state is fully transparent, with hover and focus providing visual feedback:
-
-#### Navigation Buttons (Products, Resources, Solutions)
-
-| State | Background | Text Color | Box Shadow | Outline |
-|-------|-----------|------------|------------|---------|
-| **Default** | `transparent` | `rgb(77, 77, 77)` | none | none |
-| **Hover** | `rgb(235, 235, 235)` | `rgb(23, 23, 23)` | none | none |
-| **Focus** | `~transparent` | `rgb(23, 23, 23)` | `#FFF 0 0 0 2px, #0072F5 0 0 0 4px` | none |
-
-Key observations:
-- **Hover** fills with a subtle gray (`#EBEBEB`) and promotes text from secondary to primary color
-- **Focus** applies the signature **double-ring pattern**: a 2px white inner ring creates separation from the element, then a 4px blue outer ring provides the visible indicator
-- No `transform`, `opacity`, or `transition` changes — interactions are purely color-based
-
-#### Links
-
-| Variant | Default Color | Focus Behavior |
-|---------|--------------|----------------|
-| Standard link | `rgb(23, 23, 23)` | `outline: rgb(0, 114, 245) auto 2px` |
-| Navigation link | `rgb(77, 77, 77)` | `outline: rgb(0, 114, 245) auto 2px` |
-| Skip-to-content | `rgb(0, 114, 245)` | `opacity: 0 -> 1`, double-ring focus |
-
-#### Form Inputs
-
-| State | Background | Box Shadow | Outline |
-|-------|-----------|------------|---------|
-| **Default** | `transparent` | none | none |
-| **Focus** | `transparent` | none | `rgb(0, 95, 204) auto 1px` |
-
-Note the focus blue for inputs (`#005FCC`) differs slightly from the button focus blue (`#0072F5`) — a darker shade for the thinner 1px outline ensures equivalent visual weight.
-
-### The Double-Ring Focus Pattern
-
-Vercel's most distinctive interaction pattern, defined as `--ds-focus-ring`:
-
-```
-0 0 0 2px var(--ds-background-100),   /* White inner ring — gap */
-0 0 0 4px var(--ds-focus-color)        /* Blue outer ring — indicator */
-```
-
-This creates a 2px white buffer between the element and the blue focus ring, ensuring the ring is visible against any background — including elements that are themselves blue.
+## Shapes
 
 ### Border Radius Scale
 
-| Value | Usage |
-|-------|-------|
-| `6px` | Default component radius (`--geist-radius`) |
-| `8px` | Marketing components (`--geist-marketing-radius`) |
-| `12px` | Cards, elevated panels |
-| `12px 12px 0px 0px` | Top-anchored panels (drawers, sheets) |
-| `50%` / `100%` | Avatars, circular indicators |
-| `9999px` / `64px` / `100px` | Pill shapes (tags, badges, full-round buttons) |
-
-### Form Size Tokens
-
-| Size | Height Token | Value |
-|------|-------------|-------|
-| Small | `--geist-form-small-height` | `var(--geist-space-small)` = 32px |
-| Default | `--geist-form-height` | `var(--geist-space-medium)` = 40px |
-| Large | `--geist-form-large-height` | `var(--geist-space-large)` = 48px |
-
----
-
-## 5. Layout Principles
-
-### Spacing Scale (Geist Space System)
-
-Vercel's spacing system uses a **4px base unit** with multiplier naming:
-
-| Token | Value | Multiplier |
-|-------|-------|-----------|
-| `--geist-space` | 4px | 1x |
-| `--geist-space-2x` | 8px | 2x |
-| `--geist-space-3x` | 12px | 3x |
-| `--geist-space-4x` | 16px | 4x |
-| `--geist-space-6x` | 24px | 6x |
-| `--geist-space-8x` | 32px | 8x |
-| `--geist-space-10x` | 40px | 10x |
-| `--geist-space-16x` | 64px | 16x |
-| `--geist-space-24x` | 96px | 24x |
-| `--geist-space-32x` | 128px | 32x |
-| `--geist-space-48x` | 192px | 48x |
-| `--geist-space-64x` | 256px | 64x |
-
-Note the scale is not linear — it jumps from 10x to 16x, skipping 12x and 14x. The usable range spans from 4px to 256px (a 64:1 ratio).
-
-### Semantic Spacing Aliases
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--geist-space-small` | 32px | Small component height, compact sections |
-| `--geist-space-medium` | 40px | Default component height |
-| `--geist-space-large` | 48px | Large component height, generous sections |
-| `--geist-space-gap` | 24px | Default gap between elements |
-| `--geist-space-gap-half` | 12px | Tight gap |
-| `--geist-space-gap-quarter` | 8px | Minimal gap |
-| `--geist-gap-double` | 48px | Double-width gap |
-
-### Negative Space Tokens
-
-Every spacing value has a corresponding negative token (e.g., `--geist-space-4x-negative: -16px`), enabling precise pull-back positioning for overlapping elements and negative margins — 15 negative tokens total.
-
-### Page Layout
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--geist-page-width` | 1200px | Standard content width |
-| `--ds-page-width` | 1400px | Design system / wider content |
-| `--geist-page-margin` | 24px (= `--geist-space-gap`) | Horizontal page padding |
-| `--geist-page-width-with-margin` | `calc(1200px + 48px)` | Full width including margins |
-| `--header-height` | 64px | Fixed header height |
-| `--header-sub-menu-height` | 46px | Sub-navigation bar |
-| `--banner-min-height` | 64px | Announcement banner |
-
-### Observed Element Spacing
-
-| Element | Padding | Gap |
-|---------|---------|-----|
-| `main` | `0 16px` | — |
-| `header` | `0 24px` | 32px |
-| `footer` | `40px 24px` | — |
-| `section` | `0` | — |
+| Token | Value | Use |
+|---|---|---|
+| `{rounded.xs}` | 4px | Tag chips |
+| `{rounded.sm}` | 6px | Type badges |
+| `{rounded.md}` | 8px | Buttons, inputs, search-pill |
+| `{rounded.lg}` | 12px | Cards, pricing tiers, agent tiles, workspace mockup |
+| `{rounded.xl}` | 16px | Larger feature panels |
+| `{rounded.xxl}` | 20px | Featured product showcases |
+| `{rounded.xxxl}` | 24px | Larger feature cards |
+| `{rounded.full}` | 9999px | Status badges, pill tabs (NOT regular buttons) |
 
----
+Notion's geometry is sober-editorial — `{rounded.md}` (8px) buttons distinguish it from pill-button-everywhere brands.
 
-## 6. Depth & Elevation
+## Components
 
-### The Shadow-as-Border Technique
+> Per the no-hover policy, hover states are NOT documented.
 
-Vercel's most technically distinctive pattern: **box-shadow replaces CSS `border` entirely**. Instead of `border: 1px solid`, Vercel uses:
-
-```css
-box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
-```
+### Buttons
 
-This `0px 0px 0px 1px` shadow — zero offset, zero blur, 1px spread — creates a visually identical border without affecting box-model dimensions. Benefits:
+**`button-primary`** — Signature purple rectangular primary CTA, the dominant action.
+- Background `{colors.primary}`, text `{colors.on-primary}`, typography `{typography.button-md}`, padding `10px 18px`, rounded `{rounded.md}`.
+- Pressed state `button-primary-pressed` deepens to `{colors.primary-pressed}`.
+- Disabled state uses `{colors.hairline}` background.
 
-1. **No layout shift** — borders add to element dimensions (unless using `box-sizing`); shadows do not
-2. **Composable** — multiple shadow layers can be stacked in a single `box-shadow` declaration
-3. **Smooth transitions** — shadows animate more smoothly than border-color changes
-4. **Layered borders** — a single element can have multiple "border" rings at different offsets
-
-### Shadow Elevation Scale
-
-| Level | Token | Value | Usage |
-|-------|-------|-------|-------|
-| **Border only** | `--ds-shadow-border` | `0 0 0 1px #00000014, 0 0 0 1px var(--ds-background-200)` | Default card/container boundary |
-| **Small** | `--ds-shadow-border-small` | Border + `0px 2px 2px #0000000a` | Slightly raised elements |
-| **Medium** | `--ds-shadow-border-medium` | Border + `0px 2px 2px #0000000a, 0px 8px 8px -8px #0000000a` | Cards, dropdowns |
-| **Large** | `--ds-shadow-border-large` | Border + `0px 2px 2px #0000000a, 0px 8px 16px -4px #0000000a` | Popovers, floating panels |
-| **Tooltip** | `--ds-shadow-tooltip` | Border + `0px 1px 1px #00000005, 0px 4px 8px #0000000a` | Tooltip containers |
-| **Menu** | `--ds-shadow-menu` | Border + `0px 1px 1px #00000005, 0px 4px 8px -4px #0000000a, 0px 16px 24px -8px #0000000f` | Dropdown menus |
-| **Modal** | `--ds-shadow-modal` | Border + `0px 1px 1px #00000005, 0px 8px 16px -4px #0000000a, 0px 24px 32px -8px #0000000f` | Modal dialogs |
-| **Fullscreen** | `--ds-shadow-fullscreen` | Same as modal | Fullscreen overlays |
-
-### Shadow Composition Pattern
-
-Every elevated shadow composes three layers:
-
-1. **Border layer** (`--ds-shadow-border-base`): `0 0 0 1px #00000014` — the universal 1px "border"
-2. **Depth layer**: Actual drop shadow with increasing blur/offset per elevation
-3. **Background border** (`--ds-shadow-background-border`): `0 0 0 1px var(--ds-background-200)` — surface-aware ring
-
-### Observed Shadow Values (From Live Elements)
-
-| Shadow | Semantic Role |
-|--------|--------------|
-| `rgb(235, 235, 235) 0px 0px 0px 1px` | Light border ring (hover state, `#EBEBEB`) |
-| `rgba(0, 0, 0, 0.08) 0px 0px 0px 1px` | Standard border simulation |
-| `rgba(0, 0, 0, 0.04) 0px 2px 2px 0px` | Micro-elevation (subtle lift) |
-| `rgb(255, 255, 255) 0px 0px 0px 2px, rgb(0, 114, 245) 0px 0px 0px 4px` | Focus double-ring |
-| Complex 3-layer composite | Card with border + small shadow + background ring |
-| Complex 5-layer composite | Menu/tooltip with border + multi-depth + background ring |
-| Complex 6-layer composite | Elevated card with null resets + border + medium depth |
-
-### Motion Tokens
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--ds-motion-timing-swift` | `cubic-bezier(.175, .885, .32, 1.1)` | Snappy overshoot easing |
-| `--ds-motion-overlay-scale` | `.96` | Overlay entrance scale |
-| `--ds-motion-overlay-duration` | `.3s` | Overlay animation duration |
-| `--ds-motion-popover-duration` | `.2s` | Popover animation (faster) |
-
-The "swift" timing function overshoots slightly (ending value 1.1), creating a subtle bounce that makes overlays feel alive without being playful.
-
----
-
-## 7. Do's and Don'ts
-
-### Do's
-
-1. **Do use shadow-as-border** — Replace `border: 1px solid` with `box-shadow: 0 0 0 1px` for all container boundaries. This is Vercel's core visual technique.
-2. **Do limit font weights to 400/500/600** — Never use 700 (bold). Emphasis comes from size and spacing, not weight. Semibold (600) is reserved for display headings only.
-3. **Do apply aggressive negative letter-spacing on headlines** — Use approximately -4% to -4.75% tracking at 32px+ sizes. Headlines should feel dense and engineered.
-4. **Do use the double-ring focus pattern** — Always implement `0 0 0 2px white, 0 0 0 4px blue` for keyboard focus. The white inner ring ensures visibility on any background.
-5. **Do keep color achromatic** — The interface is black, white, and gray. Blue (`#0072F5`) is the only interactive color. Status colors appear only as small indicator dots.
-6. **Do compose shadows in layers** — Build elevation by stacking border-shadow + depth-shadow + background-border in a single `box-shadow` declaration.
-7. **Do use the 4px spacing base** — All spacing should be multiples of 4px, using the `--geist-space-*` token scale.
-
-### Don'ts
-
-1. **Don't use CSS `border` for containers** — Borders affect box-model layout. Use `box-shadow: 0 0 0 1px` instead for visual boundaries.
-2. **Don't use font-weight 700 or higher** — The Geist type system caps at 600 (semibold). Bold text violates the minimalist aesthetic and creates unnecessary visual weight.
-3. **Don't introduce new accent colors** — The interface is achromatic by design. If you need a new status color, use it only at indicator-dot scale (approximately 10px), never as backgrounds or large fills.
-4. **Don't use decorative gradients or patterns** — The only gradient in the system is `--geist-text-gradient`, a subtle black text effect. Background gradients, stripes, and patterns are absent.
-5. **Don't animate with `transform` or `opacity` on interactive elements** — Vercel buttons and links change only `background-color` and `color` on hover. No scale, translate, or fade effects.
-6. **Don't use rounded corners larger than 12px on functional UI** — `border-radius: 6px` is the standard. 12px is for cards. Pill shapes (`9999px`) are for badges and tags only.
-7. **Don't add divider lines between sections** — Vercel uses spacing (the `--geist-space-gap` system) and subtle surface color changes to separate content, not `<hr>` or border lines.
-
----
-
-## 8. Responsive Behavior
-
-### 45 Breakpoints: Component-Level Responsive Tuning
-
-Vercel uses an unusually granular set of **45 breakpoints**, far exceeding the typical 5-7 breakpoints of most design systems. This is not arbitrary — it reflects component-level responsive tuning where individual components define their own adaptation points.
-
-### Breakpoint Groups
-
-#### Mobile (< 600px) — 13 breakpoints
-
-| px | Likely Target |
-|----|--------------|
-| 370, 374, 375 | iPhone SE / iPhone 12 mini |
-| 383, 384 | Pixel 5 / narrow Androids |
-| 400, 401 | Wide phone threshold |
-| 427 | iPhone 14 Pro Max |
-| 440, 450 | Phablet territory |
-| 470, 480 | Large phone / small tablet boundary |
-| 500 | Max mobile width |
-
-#### Tablet (600-960px) — 10 breakpoints
-
-| px | Likely Target |
-|----|--------------|
-| 600, 601 | Small tablet threshold |
-| 610, 640 | Portrait tablet |
-| 650, 660, 670 | Mid-tablet adjustments |
-| 750 | Large portrait tablet |
-| 768, 769 | iPad portrait (classic breakpoint) |
-| 800 | Landscape phone / small landscape tablet |
-
-#### Desktop Small (960-1200px) — 12 breakpoints
-
-| px | Likely Target |
-|----|--------------|
-| 960, 961 | Tablet landscape / small desktop |
-| 992 | Bootstrap-legacy desktop |
-| 1000, 1020 | Narrow desktop |
-| 1024 | iPad landscape (classic) |
-| 1036, 1050 | Sidebar-adjusted content |
-| 1080, 1100 | Common laptop resolution |
-| 1108, 1120 | Content width transitions |
-| 1150, 1151 | Pre-max-width threshold |
-
-#### Desktop Large (1200px+) — 10 breakpoints
-
-| px | Likely Target |
-|----|--------------|
-| 1200 | `--geist-page-width` — standard content max |
-| 1240, 1248, 1250 | Content-with-margin region |
-| 1400 | `--ds-page-width` — wide content max |
-| 1600 | Large desktop / external monitor |
-| 2300 | Ultrawide / 4K displays |
-
-### Responsive Philosophy
-
-The clustering of breakpoints around certain ranges reveals Vercel's approach:
-- **13 breakpoints below 600px** — mobile is not one target, it is thirteen. Each component adapts independently.
-- **Dense clustering at 1020-1150px** — the critical laptop range gets per-component tuning where sidebar presence/absence creates many intermediate states.
-- **Single jump from 1600 to 2300** — large screens get minimal special treatment; content is capped at `--ds-page-width: 1400px`.
-
----
-
-## 9. Agent Prompt Guide
-
-### Quick Reference Tokens
-
-```
-Background:        #FAFAFA
-Text primary:      #171717
-Text secondary:    #4D4D4D
-Interactive blue:  #0072F5
-Focus blue:        #005FCC
-Border shadow:     0 0 0 1px rgba(0,0,0,0.08)
-Focus ring:        0 0 0 2px #FFF, 0 0 0 4px #0072F5
-Font:              Geist Sans (400/500/600), Geist Mono (500)
-Radius:            6px (default), 12px (cards), 9999px (pills)
-Spacing base:      4px (use multiples: 8, 12, 16, 24, 32, 40, 48)
-Page width:        1200px (standard), 1400px (wide)
-Header height:     64px
-Easing:            cubic-bezier(.175, .885, .32, 1.1)
-```
-
-### Example Prompts
-
-**Prompt 1: Dashboard Card**
-> "Create a dashboard metrics card. Background `#FFFFFF`, border using `box-shadow: 0 0 0 1px rgba(0,0,0,0.08)`, no CSS border. Corner radius `6px`. Title in Geist Sans 14px weight 500 color `#171717`. Value in 32px weight 600 with letter-spacing `-1.28px`. Subtitle in 12px weight 400 color `#4D4D4D`. Padding `24px`. Status indicator as a `10px` circle dot using the appropriate status color."
-
-**Prompt 2: Navigation Bar**
-> "Build a fixed header, height `64px`, background `#FAFAFA`, bottom border as `box-shadow: 0 1px 0 0 rgba(0,0,0,0.1)`. Navigation items in Geist Sans 14px weight 400 color `#4D4D4D`. On hover: background `#EBEBEB`, text color `#171717`. On focus: double-ring shadow `0 0 0 2px #FFF, 0 0 0 4px #0072F5`. Horizontal padding `24px`, gap between items `32px`. Logo area left-aligned."
-
-**Prompt 3: Dropdown Menu**
-> "Design a dropdown menu using shadow elevation `--ds-shadow-menu`: `box-shadow: 0 0 0 1px rgba(0,0,0,0.08), 0 1px 1px rgba(0,0,0,0.02), 0 4px 8px -4px rgba(0,0,0,0.04), 0 16px 24px -8px rgba(0,0,0,0.06)`. Background `#FFFFFF`, radius `12px`. Menu items 14px weight 400, padding `8px 16px`. Hover state: background `#FAFAFA`. Entrance animation: scale from `0.96` to `1.0` over `0.2s` with `cubic-bezier(.175, .885, .32, 1.1)` easing."
-
-**Prompt 4: Form Input**
-> "Create a text input, height `40px` (--geist-form-height), font Geist Sans `14px` weight 400. Border as `box-shadow: 0 0 0 1px rgba(0,0,0,0.08)`. Radius `6px`. Padding horizontal `12px`. On focus: outline `rgb(0, 95, 204) auto 1px`, remove shadow border. Placeholder color `#8F8F8F`. Background transparent."
-
-**Prompt 5: Achromatic Page Layout**
-> "Build a page layout: max-width `1200px`, centered with `24px` horizontal margin. Background `#FAFAFA`. Section spacing using `32px` gaps. All text in Geist Sans. Hero heading: 48px weight 600, letter-spacing `-2.28px`, color `#171717`. Body text: 16px weight 400, line-height normal. Links in `#0072F5`, no underline by default. No decorative elements, no gradients, no colored backgrounds. Dividers as spacing only."
-
----
-
-*Generated by Sparkbites — extracted from live CSS analysis*
+**`button-dark`** — Black rectangular CTA on light backgrounds.
+- Background `{colors.ink-deep}`, text `{colors.on-dark}`, typography `{typography.button-md}`, padding `10px 18px`, rounded `{rounded.md}`.
+
+**`button-secondary`** — Outlined rectangular for secondary actions ("Request a demo").
+- Background transparent, text `{colors.ink}`, border `1px solid {colors.hairline-strong}`, typography `{typography.button-md}`, padding `10px 18px`, rounded `{rounded.md}`.
+
+**`button-on-dark`** — White button on dark hero bands.
+- Background `{colors.on-dark}`, text `{colors.ink}`, typography `{typography.button-md}`, padding `10px 18px`, rounded `{rounded.md}`.
+
+**`button-secondary-on-dark`** — Outlined button on dark.
+- Background transparent, text `{colors.on-dark}`, border `1px solid {colors.on-dark-muted}`, typography `{typography.button-md}`, padding `10px 18px`, rounded `{rounded.md}`.
+
+**`button-ghost`** — Quieter ghost button.
+- Background transparent, text `{colors.ink}`, typography `{typography.button-md}`, padding `8px 12px`, rounded `{rounded.sm}`.
+
+**`button-link`** — Inline blue text link (NOT primary purple).
+- Background transparent, text `{colors.link-blue}`, typography `{typography.body-sm-medium}`, padding `0`.
+
+### Cards & Containers
+
+**`card-base`** — Standard content card.
+- Background `{colors.canvas}`, rounded `{rounded.lg}`, padding `{spacing.xl}`, border `1px solid {colors.hairline}`.
+
+**`card-feature`** — Feature card with larger padding.
+- Background `{colors.canvas}`, rounded `{rounded.lg}`, padding `{spacing.xxl}`, border `1px solid {colors.hairline}`.
+
+**`card-feature-yellow-bold`** — Bold yellow feature banner for high-emphasis content ("Ask your on-demand assistants").
+- Background `{colors.card-tint-yellow-bold}`, text `{colors.charcoal}`, rounded `{rounded.lg}`, padding `{spacing.xxl}`.
+
+**`card-feature-peach`** + **`card-feature-rose`** + **`card-feature-mint`** + **`card-feature-sky`** + **`card-feature-lavender`** + **`card-feature-yellow`** + **`card-feature-cream`** — Pastel-tinted feature cards.
+- Each variant uses its corresponding `card-tint-*` color as background, text `{colors.charcoal}`, rounded `{rounded.lg}`, padding `{spacing.xxl}`.
+
+**`card-agent-tile`** — Agent assistant tile.
+- Background `{colors.canvas}`, rounded `{rounded.lg}`, padding `{spacing.xl}`, border `1px solid {colors.hairline}`.
+
+**`card-template`** — Template thumbnail card.
+- Background `{colors.canvas}`, rounded `{rounded.lg}`, padding `{spacing.lg}`, border `1px solid {colors.hairline}`.
+
+**`card-startup-perk`** — Startup-program perk grid item.
+- Background `{colors.canvas}`, rounded `{rounded.lg}`, padding `{spacing.xl}`, border `1px solid {colors.hairline}`.
+
+**`pricing-card`** — Standard pricing tier card.
+- Background `{colors.canvas}`, rounded `{rounded.lg}`, padding `{spacing.xxl}`, border `1px solid {colors.hairline}`.
+
+**`pricing-card-featured`** — Featured pricing tier (Plus or Business — purple-bordered).
+- Background `{colors.surface}`, rounded `{rounded.lg}`, padding `{spacing.xxl}`, border `2px solid {colors.primary}`.
+
+### Inputs & Forms
+
+**`text-input`** — Standard text field.
+- Background `{colors.canvas}`, text `{colors.ink}`, border `1px solid {colors.hairline-strong}`, rounded `{rounded.md}`, padding `{spacing.sm} {spacing.md}`, height 44px.
+
+**`text-input-focused`** — Activated state.
+- Border switches to `2px solid {colors.primary}` (purple).
+
+**`search-pill`** — Search bar.
+- Background `{colors.surface}`, text `{colors.steel}`, typography `{typography.body-md}`, rounded `{rounded.md}`, height 44px, border `1px solid {colors.hairline}`.
+
+### Tabs
+
+**`pill-tab`** + **`pill-tab-active`** — Pill-style tab nav for top-level switching.
+- Inactive: text `{colors.steel}`, border `1px solid {colors.hairline}`, padding `{spacing.xs} {spacing.md}`, rounded `{rounded.full}`.
+- Active: background `{colors.ink-deep}`, text `{colors.on-dark}`.
+
+**`segmented-tab`** + **`segmented-tab-active`** — Underline-style tab navigation.
+- Inactive: text `{colors.steel}`, no border. Active: text `{colors.ink}`, 2px bottom border in `{colors.ink}`.
+
+### Badges & Status
+
+**`badge-purple`** — Purple status badge (matches primary CTA).
+- Background `{colors.primary}`, text `{colors.on-primary}`, typography `{typography.caption-bold}`, rounded `{rounded.full}`, padding `4px 10px`.
+
+**`badge-pink`** — Pink accent badge.
+- Background `{colors.brand-pink}`, text `{colors.on-primary}`, typography `{typography.caption-bold}`, rounded `{rounded.full}`, padding `4px 10px`.
+
+**`badge-orange`** — Orange accent badge.
+- Background `{colors.brand-orange}`, text `{colors.on-primary}`, typography `{typography.caption-bold}`, rounded `{rounded.full}`, padding `4px 10px`.
+
+**`badge-tag-purple`** — Soft-purple feature tag chip.
+- Background `{colors.card-tint-lavender}`, text `{colors.brand-purple-800}`, typography `{typography.caption-bold}`, rounded `{rounded.sm}`, padding `2px 8px`.
+
+**`badge-tag-orange`** — Soft-orange feature tag.
+- Background `{colors.card-tint-peach}`, text `{colors.brand-orange-deep}`, typography `{typography.caption-bold}`, rounded `{rounded.sm}`, padding `2px 8px`.
+
+**`badge-tag-green`** — Soft-mint feature tag.
+- Background `{colors.card-tint-mint}`, text `{colors.brand-green}`, typography `{typography.caption-bold}`, rounded `{rounded.sm}`, padding `2px 8px`.
+
+**`badge-popular`** — "Most Popular" tier indicator.
+- Background `{colors.primary}`, text `{colors.on-primary}`, typography `{typography.caption-bold}`, rounded `{rounded.full}`, padding `4px 10px`.
+
+**`promo-banner`** — Light surface promo strip ABOVE the top nav.
+- Background `{colors.surface}`, text `{colors.ink}`, typography `{typography.body-sm-medium}`, padding `{spacing.sm} {spacing.md}`. ("Developers: Get a first look at our new Developer Platform on May 13.")
+
+### Tables
+
+**`comparison-table`** — Pricing feature comparison table.
+- Background `{colors.canvas}`, text `{colors.ink}`, typography `{typography.body-sm}`, rounded `{rounded.md}`, border `1px solid {colors.hairline}`.
+
+**`comparison-row`** — Individual feature row.
+- Background `{colors.canvas}`, text `{colors.ink}`, padding `{spacing.md} {spacing.lg}`, bottom border `1px solid {colors.hairline-soft}`.
+
+### Documentation Components
+
+**`workspace-mockup-card`** — Embedded Notion workspace UI mockup on hero band ("Ramp HQ" kanban board).
+- Background `{colors.canvas}`, rounded `{rounded.lg}`, border `1px solid {colors.hairline}`, deep shadow `rgba(15, 15, 15, 0.20) 0px 24px 48px -8px`. Carries actual Notion product UI mock.
+
+**`testimonial-card`** — Customer testimonial card.
+- Background `{colors.canvas}`, rounded `{rounded.lg}`, padding `{spacing.xxl}`, border `1px solid {colors.hairline}`.
+
+**`logo-wall-item`** — Customer logo wordmark cell.
+- Background transparent, text `{colors.steel}`, typography `{typography.body-md-medium}`, padding `{spacing.lg}`.
+
+**`faq-accordion-item`** — FAQ panel.
+- Background `{colors.canvas}`, rounded `{rounded.md}`, padding `{spacing.xl}`, bottom border `1px solid {colors.hairline}`.
+
+**`stat-row`** — Stats strip with bar chart visualization ("More productivity. Fewer tools.").
+- Background `{colors.surface}`, text `{colors.ink}`, rounded `{rounded.lg}`, padding `{spacing.section-sm}`.
+
+**`cta-banner-light`** — Light surface CTA banner.
+- Background `{colors.surface}`, text `{colors.ink}`, rounded `{rounded.lg}`, padding `{spacing.section}`.
+
+### Navigation
+
+**Top Navigation (Marketing)** — Sticky white bar.
+- Background `{colors.canvas}`, height ~64px, bottom border `1px solid {colors.hairline}`.
+- Left: Notion "N" logo + "Product / AI / Solutions / Resources / Enterprise / Pricing / Request a demo" links.
+- Right: "Get Notion free" purple button + "Log in" link.
+
+### Signature Components
+
+**`hero-band-dark`** — Deep navy hero band with embedded workspace mockup and decorative dots/wires.
+- Background `{colors.brand-navy}`, text `{colors.on-dark}`, padding `{spacing.hero}`.
+- Layout: centered headline `{typography.hero-display}`, subtitle, button row (`button-primary` purple + `button-secondary-on-dark`), `workspace-mockup-card` below.
+- Atmospheric decoration: scattered colorful sticky-note dots and mesh wire illustrations around the hero content (NOT a literal pattern fill — handled per-page via SVG/illustration).
+
+**`footer-region`** — Multi-column light footer.
+- Background `{colors.canvas}`, padding `{spacing.section} {spacing.xxl}`, top border `1px solid {colors.hairline}`.
+- 6-column link grid (Product / Download / Resources / Notion for / Company / Legal).
+
+**`footer-link`** — Individual footer link.
+- Background transparent, text `{colors.steel}`, typography `{typography.body-sm}`, padding `{spacing.xxs} 0`.
+
+## Do's and Don'ts
+
+### Do
+- Use `{colors.primary}` (purple) as the dominant CTA across all surfaces — it's the brand's recognizable signal
+- Pair deep navy hero bands ({colors.brand-navy}) with the purple button + decorative sticky-note dots
+- Use pastel feature card tints (peach, rose, mint, lavender, sky, yellow) generously
+- Use `{colors.card-tint-yellow-bold}` for high-emphasis "Ask the assistant"-style banner cards
+- Apply `{rounded.md}` (8px) to buttons consistently — Notion uses rectangles, not pills
+- Apply `{rounded.lg}` (12px) to all card families
+- Maintain Notion-Sans across every UI surface
+- Use the workspace mockup card on hero bands to show actual product UI
+
+### Don't
+- Don't use the purple for body text or large background surfaces
+- Don't use pill-shaped buttons; Notion's geometry is rectangular-sober
+- Don't mix link-blue ({colors.link-blue}) with primary-purple ({colors.primary}) — they have distinct roles
+- Don't apply heavy shadows on flat documentation cards
+- Don't replace Notion-Sans with a generic Inter
+
+## Responsive Behavior
+
+### Breakpoints
+| Name | Width | Key Changes |
+|---|---|---|
+| Mobile (small) | < 480px | Single column. Hero 36px. Pricing 1-up. |
+| Mobile (large) | 480 – 767px | Feature cards 2-up. Hero 48px. |
+| Tablet | 768 – 1023px | 2-column feature grids. Hero 56px. |
+| Desktop | 1024 – 1279px | 4-tier pricing card row. Hero 72px. |
+| Wide Desktop | ≥ 1280px | Full 80px hero presentation. |
+
+### Touch Targets
+- Buttons render at 40–44px effective height
+- Form inputs render at 44px height
+- Pill tabs ~32px → 44px on mobile
+
+### Collapsing Strategy
+- **Promo banner** stays full-width; truncates at < 480px
+- **Top nav** below 1024px collapses to hamburger
+- **Hero band**: workspace mockup card moves below text/buttons on mobile
+- **Pricing tiers**: 4-column → 2-column tablet → 1-column mobile
+- **Feature cards**: 3-up desktop → 2-up tablet → 1-up mobile
+- **Hero typography**: 80px → 56px → 48px → 36px
+- **Footer**: 6-column desktop → 3-column tablet → accordion mobile
+
+### Image Behavior
+- Workspace mockup card maintains aspect ratio
+- Pastel illustrations inside feature cards scale proportionally
+- Customer logo wall: wordmarks at consistent 60–80px height
+
+## Iteration Guide
+
+1. Focus on ONE component at a time
+2. Reference component names and tokens directly
+3. Run `npx @google/design.md lint DESIGN.md` after edits
+4. Add new variants as separate `components:` entries
+5. Default to `{typography.body-md}` for body
+6. Keep `{colors.primary}` (purple) as the primary CTA — distinct from `{colors.link-blue}` for inline links
+7. Use `{rounded.md}` for buttons (rectangles), `{rounded.lg}` for cards, `{rounded.full}` for pill tabs/badges only
+
+## Known Gaps
+
+- Specific dark-mode token values not surfaced beyond hero bands
+- Animation/transition timings not extracted; recommend 150–200ms ease
+- Form validation success state not explicitly captured
+- Pastel-tint mapping (which feature uses which tint) is observation-based — the actual brand library may have more entries

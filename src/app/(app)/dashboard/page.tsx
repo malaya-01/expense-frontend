@@ -8,32 +8,72 @@ import { PageHeader, EmptyState } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { StatusDot } from "@/components/ui/status-dot";
+import {
+  Alert,
+  Badge,
+  PageSkeleton,
+  Progress,
+} from "@/components/ui/feedback";
 import { listAccounts } from "@/lib/api/accounts";
+import { listBudgets } from "@/lib/api/budgets";
+import { listGoals } from "@/lib/api/goals";
+import { listInvestments } from "@/lib/api/investments";
 import { listTransactions } from "@/lib/api/transactions";
 import { summarizeTwin } from "@/lib/accounts/metrics";
 import { getContainerMeta, isLiabilityType } from "@/lib/accounts/types-meta";
 import { useAuth } from "@/lib/auth-context";
 import {
   formatCurrency,
-  formatRelativeDay,
+  formatRelativeDate,
   monthKey,
 } from "@/lib/format";
-import type { FinancialContainer, LedgerTransaction } from "@/types";
+import type {
+  Budget,
+  FinancialContainer,
+  Goal,
+  InvestmentSummary,
+  LedgerTransaction,
+} from "@/types";
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
   const [containers, setContainers] = useState<FinancialContainer[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [investSummary, setInvestSummary] = useState<InvestmentSummary | null>(
+    null,
+  );
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
-    listTransactions()
-      .then(setTransactions)
-      .catch(() => setTransactions([]));
-    listAccounts(user.id)
-      .then(setContainers)
-      .catch(() => setContainers([]));
+    let alive = true;
+    setLoading(true);
+    Promise.allSettled([
+      listTransactions(),
+      listAccounts(user.id),
+      listBudgets(),
+      listGoals(),
+      listInvestments(),
+    ]).then((results) => {
+      if (!alive) return;
+      const [tx, account, budget, goal, investment] = results;
+      if (tx.status === "fulfilled") setTransactions(tx.value);
+      if (account.status === "fulfilled") setContainers(account.value);
+      if (budget.status === "fulfilled") setBudgets(budget.value);
+      if (goal.status === "fulfilled") setGoals(goal.value);
+      if (investment.status === "fulfilled") {
+        setInvestSummary(investment.value.summary);
+      }
+      setLoadError(results.some((result) => result.status === "rejected"));
+      setLoading(false);
+    });
+    return () => {
+      alive = false;
+    };
   }, [user?.id]);
 
   const twin = useMemo(
@@ -83,6 +123,26 @@ export default function DashboardPage() {
   }, [transactions, containers, twin]);
 
   const firstName = user?.full_name?.split(" ")[0];
+  const healthGrade =
+    stats.healthScore >= 90
+      ? "A"
+      : stats.healthScore >= 80
+        ? "B"
+        : stats.healthScore >= 70
+          ? "C"
+          : stats.healthScore >= 60
+            ? "D"
+            : "F";
+  const healthLabel =
+    stats.healthScore >= 80
+      ? "Strong"
+      : stats.healthScore >= 70
+        ? "Stable"
+        : stats.healthScore >= 60
+          ? "Needs attention"
+          : "Critical";
+
+  if (loading) return <PageSkeleton />;
 
   return (
     <div>
@@ -94,12 +154,92 @@ export default function DashboardPage() {
             <Button variant="secondary" onClick={() => router.push("/accounts")}>
               Accounts
             </Button>
+            <Button variant="secondary" onClick={() => router.push("/reports")}>
+              Reports
+            </Button>
             <Button onClick={() => router.push("/expenses/new")}>
               New transaction
             </Button>
           </div>
         }
       />
+
+      {loadError ? (
+        <Alert
+          className="mb-5"
+          tone="warning"
+          title="Some dashboard data could not be loaded"
+          description="Available information is still shown. Refresh the page to retry missing modules."
+          actionLabel="Refresh"
+          onAction={() => window.location.reload()}
+        />
+      ) : null}
+
+      <Card className="mb-4 overflow-hidden">
+        <CardBody className="py-5">
+          <div className="grid gap-5 lg:grid-cols-[auto_minmax(0,1fr)_minmax(220px,0.7fr)] lg:items-center">
+            <div className="flex items-center gap-4">
+              <div className="relative flex size-20 shrink-0 items-center justify-center rounded-full bg-[var(--ds-background-100)] ds-strong-border">
+                <span className="text-2xl font-semibold tabular-nums">
+                  {stats.healthScore}
+                </span>
+                <span className="absolute -bottom-1 rounded-full bg-[var(--ds-gray-1000)] px-2 py-0.5 text-[10px] font-semibold text-[var(--ds-primary-foreground)]">
+                  {healthGrade}
+                </span>
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base">Financial health</h2>
+                  <Badge
+                    tone={
+                      stats.healthScore >= 80
+                        ? "success"
+                        : stats.healthScore >= 60
+                          ? "warning"
+                          : "danger"
+                    }
+                  >
+                    {healthLabel}
+                  </Badge>
+                </div>
+                <p className="mt-1 max-w-md text-xs leading-5 text-[var(--ds-gray-700)]">
+                  An explainable estimate based on cash flow, liquidity,
+                  liabilities, and the financial data currently tracked.
+                </p>
+              </div>
+            </div>
+            <div>
+              <Progress
+                value={stats.healthScore}
+                label="Overall score"
+                tone={
+                  stats.healthScore >= 80
+                    ? "var(--ds-status-green)"
+                    : stats.healthScore >= 60
+                      ? "var(--ds-status-orange)"
+                      : "var(--ds-status-red)"
+                }
+              />
+              <p className="mt-2 text-[11px] text-[var(--ds-gray-700)]">
+                {stats.inflow >= stats.outflow
+                  ? "Strength: positive monthly cash flow."
+                  : "Risk: monthly spending is above recorded income."}
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={() =>
+                router.push(
+                  `/ai?q=${encodeURIComponent("Explain my financial health score, biggest risk, and fastest improvement.")}`,
+                )
+              }
+            >
+              Explain and improve
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
@@ -125,12 +265,18 @@ export default function DashboardPage() {
           tone="orange"
         />
         <MetricCard
-          title="Financial Health"
-          value={`${stats.healthScore}`}
+          title="Investments"
+          value={
+            investSummary
+              ? formatCurrency(investSummary.total_value, baseCurrency)
+              : formatCurrency(twin.investmentValue, baseCurrency)
+          }
           subtitle={
-            twin.totalLiabilities > 0
-              ? `${formatCurrency(twin.totalLiabilities, baseCurrency)} liabilities`
-              : "No liabilities tracked"
+            investSummary && investSummary.holding_count > 0
+              ? `${investSummary.gain_percent >= 0 ? "+" : ""}${investSummary.gain_percent.toFixed(1)}% P/L · ${investSummary.holding_count} holdings`
+              : twin.investmentValue > 0
+                ? "From investment containers"
+                : "Add holdings to track growth"
           }
           tone="purple"
         />
@@ -194,7 +340,7 @@ export default function DashboardPage() {
                             {tx.description}
                           </p>
                           <p className="text-xs text-[var(--ds-gray-700)]">
-                            {formatRelativeDay(tx.date)} · {flow}
+                            {formatRelativeDate(tx.date)} · {flow}
                           </p>
                         </div>
                       </div>
@@ -241,12 +387,24 @@ export default function DashboardPage() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <h2>What should I know?</h2>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <h2>What should I know?</h2>
+                <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
+                  Twin signals — deepen with FinOS AI
+                </p>
+              </div>
+              <Link
+                href="/ai"
+                className="text-sm text-[var(--ds-focus-color)]"
+              >
+                Ask FinOS
+              </Link>
             </CardHeader>
             <CardBody className="space-y-3">
               <AiInsight
                 tone="blue"
+                href={`/ai?q=${encodeURIComponent("Summarize my financial twin in 5 bullets.")}`}
                 text={
                   twin.containerCount === 0
                     ? "Create financial containers to unlock real net worth."
@@ -255,6 +413,7 @@ export default function DashboardPage() {
               />
               <AiInsight
                 tone="green"
+                href={`/ai?q=${encodeURIComponent("Where is my liquid cash and is it enough?")}`}
                 text={
                   twin.totalCash > 0
                     ? `Liquid cash on hand: ${formatCurrency(twin.totalCash, baseCurrency)}.`
@@ -263,12 +422,69 @@ export default function DashboardPage() {
               />
               <AiInsight
                 tone="orange"
+                href={`/ai?q=${encodeURIComponent("How risky are my liabilities right now?")}`}
                 text={
                   twin.totalLiabilities > 0
                     ? `Outstanding liabilities: ${formatCurrency(twin.totalLiabilities, baseCurrency)}.`
                     : "No credit or loan containers yet."
                 }
               />
+              <AiInsight
+                tone={
+                  budgets.some((b) => b.status === "over")
+                    ? "orange"
+                    : "blue"
+                }
+                href={`/ai?q=${encodeURIComponent("Am I overspending against my budgets this month?")}`}
+                text={
+                  budgets.length === 0
+                    ? "Set a budget to see if spending stays on track this month."
+                    : budgets.some((b) => b.status === "over")
+                      ? `${budgets.filter((b) => b.status === "over").length} budget${budgets.filter((b) => b.status === "over").length === 1 ? "" : "s"} over limit — review Budgets.`
+                      : budgets.some((b) => b.status === "warning")
+                        ? `${budgets.filter((b) => b.status === "warning").length} budget${budgets.filter((b) => b.status === "warning").length === 1 ? "" : "s"} near the limit.`
+                        : `All ${budgets.length} budget${budgets.length === 1 ? "" : "s"} on track this period.`
+                }
+              />
+              <AiInsight
+                tone={
+                  goals.some((g) => g.status === "behind" || g.status === "at_risk")
+                    ? "orange"
+                    : "green"
+                }
+                href={`/ai?q=${encodeURIComponent("How are my goals progressing?")}`}
+                text={
+                  goals.length === 0
+                    ? "Create a goal (emergency fund, vacation, house) to track where savings should go."
+                    : goals.some((g) => g.status === "achieved")
+                      ? `${goals.filter((g) => g.status === "achieved").length} goal${goals.filter((g) => g.status === "achieved").length === 1 ? "" : "s"} achieved — keep going.`
+                      : goals.some((g) => g.status === "behind" || g.status === "at_risk")
+                        ? `${goals.filter((g) => g.status === "behind" || g.status === "at_risk").length} goal${goals.filter((g) => g.status === "behind" || g.status === "at_risk").length === 1 ? "" : "s"} need attention.`
+                        : `All ${goals.length} goal${goals.length === 1 ? "" : "s"} on track.`
+                }
+              />
+              <AiInsight
+                tone="purple"
+                href={`/ai?q=${encodeURIComponent("How is my investment portfolio allocated and performing?")}`}
+                text={
+                  !investSummary || investSummary.holding_count === 0
+                    ? "Add investment holdings to see unrealized gains and allocation."
+                    : investSummary.total_gain >= 0
+                      ? `Portfolio up ${formatCurrency(investSummary.total_gain, baseCurrency)} (${investSummary.gain_percent.toFixed(1)}%).`
+                      : `Portfolio down ${formatCurrency(Math.abs(investSummary.total_gain), baseCurrency)} (${investSummary.gain_percent.toFixed(1)}%).`
+                }
+              />
+              <Button
+                variant="secondary"
+                className="w-full"
+                onClick={() =>
+                  router.push(
+                    `/ai?q=${encodeURIComponent("What should I do next financially?")}`,
+                  )
+                }
+              >
+                Open AI Advisor
+              </Button>
             </CardBody>
           </Card>
         </div>
@@ -302,14 +518,24 @@ function ContainerRow({ container }: { container: FinancialContainer }) {
 function AiInsight({
   text,
   tone,
+  href,
 }: {
   text: string;
-  tone: "blue" | "green" | "orange";
+  tone: "blue" | "green" | "orange" | "purple";
+  href?: string;
 }) {
-  return (
-    <div className="flex gap-2.5 rounded-[8px] bg-[var(--ds-background-100)] px-3 py-2.5">
+  const body = (
+    <div className="flex gap-2.5 rounded-[8px] bg-[var(--ds-background-100)] px-3 py-2.5 transition-colors hover:bg-[var(--ds-gray-100)]">
       <StatusDot tone={tone} className="mt-1" />
       <p className="text-xs leading-4 text-[var(--ds-gray-900)]">{text}</p>
     </div>
   );
+  if (href) {
+    return (
+      <Link href={href} className="block">
+        {body}
+      </Link>
+    );
+  }
+  return body;
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader, EmptyState } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { AccountCard } from "@/components/accounts/account-card";
 import { AccountFormModal } from "@/components/accounts/account-form-modal";
@@ -21,15 +22,20 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
+import { useToast } from "@/components/ui/toast";
+import { CardGridSkeleton, PageSkeleton } from "@/components/ui/feedback";
 import type { CreateContainerInput, FinancialContainer } from "@/types";
 
 export default function AccountsPage() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [containers, setContainers] = useState<FinancialContainer[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<FinancialContainer | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!user?.id) return;
@@ -94,6 +100,11 @@ export default function AccountsPage() {
         await createAccount(user.id, input);
       }
       setModalOpen(false);
+      showToast({
+        title: editing ? "Account updated" : "Account created",
+        description: "Your financial twin has been refreshed.",
+        tone: "success",
+      });
       await refresh();
     } catch (err) {
       setError(getErrorMessage(err, "Could not save container"));
@@ -102,18 +113,11 @@ export default function AccountsPage() {
 
   async function handleDelete(id: string) {
     if (!user?.id) return;
-    if (!window.confirm("Remove this financial container?")) return;
-    setError("");
-    try {
-      await deleteAccount(user.id, id);
-      await refresh();
-    } catch (err) {
-      setError(getErrorMessage(err, "Could not delete container"));
-    }
+    setDeleteId(id);
   }
 
   if (!user?.id) {
-    return <p className="text-sm text-[var(--ds-gray-900)]">Loading…</p>;
+    return <PageSkeleton />;
   }
 
   return (
@@ -158,7 +162,7 @@ export default function AccountsPage() {
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-[var(--ds-gray-900)]">Loading containers…</p>
+        <CardGridSkeleton />
       ) : containers.length === 0 ? (
         <div className="rounded-[12px] bg-[var(--ds-background-elevated)] ds-border">
           <EmptyState
@@ -196,6 +200,34 @@ export default function AccountsPage() {
         initial={editing}
         onSubmit={handleSave}
         defaultCurrency={baseCurrency}
+      />
+      <ConfirmDialog
+        open={Boolean(deleteId)}
+        title="Archive financial container?"
+        description="The container will no longer accept transactions, but its immutable ledger history remains available for reporting."
+        confirmLabel="Archive container"
+        destructive
+        busy={deleting}
+        onClose={() => setDeleteId(null)}
+        onConfirm={async () => {
+          if (!deleteId || !user?.id) return;
+          setDeleting(true);
+          setError("");
+          try {
+            await deleteAccount(user.id, deleteId);
+            setDeleteId(null);
+            await refresh();
+            showToast({
+              title: "Account archived",
+              description: "The financial container is no longer active.",
+              tone: "success",
+            });
+          } catch (err) {
+            setError(getErrorMessage(err, "Could not archive container"));
+          } finally {
+            setDeleting(false);
+          }
+        }}
       />
     </div>
   );

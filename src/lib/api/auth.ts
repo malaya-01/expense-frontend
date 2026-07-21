@@ -25,7 +25,7 @@ export async function loginUser(payload: {
 
 export async function generateOtp(email: string) {
   const res = await api.post("/auth/generate-otp", { email });
-  return unwrap<{ message: string; otp?: string }>(res);
+  return unwrap<{ message: string }>(res);
 }
 
 export async function resetPassword(payload: {

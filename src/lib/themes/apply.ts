@@ -46,6 +46,10 @@ export function applyThemeTokens(tokens: ThemeTokens, root: HTMLElement = docume
   root.style.setProperty("--ds-background-200", tokens.background200);
   root.style.setProperty("--ds-background-elevated", tokens.backgroundElevated);
   root.style.setProperty("--ds-gray-100", tokens.gray100);
+  root.style.setProperty(
+    "--ds-gray-200",
+    `color-mix(in srgb, ${tokens.gray1000} 10%, ${tokens.backgroundElevated})`,
+  );
   root.style.setProperty("--ds-gray-1000", tokens.gray1000);
   root.style.setProperty("--ds-gray-900", tokens.gray900);
   root.style.setProperty("--ds-gray-700", tokens.gray700);

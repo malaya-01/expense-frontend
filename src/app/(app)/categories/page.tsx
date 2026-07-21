@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardBody } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { StatusDot } from "@/components/ui/status-dot";
 import {
   createCategory,
@@ -18,6 +19,8 @@ import {
 } from "@/lib/api/categories";
 import { getErrorMessage } from "@/lib/api/client";
 import { formatCurrency } from "@/lib/format";
+import { useToast } from "@/components/ui/toast";
+import { CardGridSkeleton } from "@/components/ui/feedback";
 import type { Category, CreateCategoryInput } from "@/types";
 
 const COLORS = [
@@ -40,6 +43,7 @@ const emptyForm: CreateCategoryInput = {
 };
 
 export default function CategoriesPage() {
+  const { showToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -47,6 +51,8 @@ export default function CategoriesPage() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState<CreateCategoryInput>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -105,22 +111,17 @@ export default function CategoriesPage() {
       } else {
         await createCategory(payload);
       }
+      showToast({
+        title: editing ? "Category updated" : "Category created",
+        description: "It is ready to use in transactions and budgets.",
+        tone: "success",
+      });
       setModalOpen(false);
       await refresh();
     } catch (err) {
       setError(getErrorMessage(err, "Could not save category"));
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function onDelete(id: string) {
-    if (!window.confirm("Delete this category?")) return;
-    try {
-      await deleteCategory(id);
-      await refresh();
-    } catch (err) {
-      setError(getErrorMessage(err, "Could not delete category"));
     }
   }
 
@@ -137,7 +138,7 @@ export default function CategoriesPage() {
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-[var(--ds-gray-900)]">Loading categories…</p>
+        <CardGridSkeleton />
       ) : categories.length === 0 ? (
         <Card>
           <EmptyState
@@ -192,7 +193,7 @@ export default function CategoriesPage() {
                     variant="ghost"
                     size="sm"
                     className="text-[var(--ds-status-red)]"
-                    onClick={() => onDelete(category.id)}
+                    onClick={() => setDeleteTarget(category)}
                   >
                     Delete
                   </Button>
@@ -295,6 +296,36 @@ export default function CategoriesPage() {
           </div>
         </form>
       </Modal>
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete category?"
+        description={
+          deleteTarget
+            ? `“${deleteTarget.name}” will be removed. Existing transactions may prevent deletion.`
+            : undefined
+        }
+        confirmLabel="Delete category"
+        destructive
+        busy={deleting}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          setDeleting(true);
+          try {
+            await deleteCategory(deleteTarget.id);
+            setDeleteTarget(null);
+            await refresh();
+            showToast({
+              title: "Category deleted",
+              tone: "success",
+            });
+          } catch (err) {
+            setError(getErrorMessage(err, "Could not delete category"));
+          } finally {
+            setDeleting(false);
+          }
+        }}
+      />
     </div>
   );
 }

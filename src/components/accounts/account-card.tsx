@@ -64,10 +64,10 @@ export function AccountCard({
           <Button
             variant="ghost"
             size="sm"
-            className="text-[var(--ds-status-red)]"
+            className="text-[var(--ds-gray-700)]"
             onClick={onDelete}
           >
-            Delete
+            Archive
           </Button>
         </div>
       </CardBody>

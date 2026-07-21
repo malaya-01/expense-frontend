@@ -12,7 +12,7 @@ import {
   createLocalExpense,
   updateLocalExpense,
 } from "@/lib/expenses-store";
-import { todayISO } from "@/lib/format";
+import { requireDateOnly, todayISO } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import type { Category, CreateExpenseInput, Expense } from "@/types";
 
@@ -38,7 +38,7 @@ export function ExpenseForm({ userId, initial, mode = "create" }: ExpenseFormPro
   const [form, setForm] = useState<CreateExpenseInput>({
     amount: initial?.amount ?? 0,
     description: initial?.description ?? "",
-    date: initial?.date?.slice(0, 10) ?? todayISO(),
+    date: requireDateOnly(initial?.date, todayISO()),
     category_id: initial?.category_id ?? "",
     merchant: initial?.merchant ?? "",
     payment_method: initial?.payment_method ?? "",

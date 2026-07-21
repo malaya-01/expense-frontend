@@ -6,6 +6,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
+import { ColorField } from "@/components/ui/color-field";
 import { cn } from "@/lib/cn";
 import { useTheme } from "@/lib/theme-context";
 import type { CustomThemeInput, ThemeDefinition } from "@/lib/themes/types";
@@ -43,65 +44,37 @@ function ThemeSwatch({ theme }: { theme: ThemeDefinition }) {
   );
 }
 
-function ThemeCard({
+function ThemePickCard({
   theme,
   active,
   onSelect,
   onEdit,
   onDelete,
-  onDuplicate,
 }: {
   theme: ThemeDefinition;
   active: boolean;
   onSelect: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
-  onDuplicate?: () => void;
 }) {
-  const showActions = Boolean(onEdit || onDelete || onDuplicate);
-
   return (
     <div
       className={cn(
-        "rounded-[12px] bg-[var(--ds-background-elevated)] p-4 transition-colors",
+        "rounded-[12px] bg-[var(--ds-background-elevated)] p-3",
         active
           ? "ring-2 ring-[var(--ds-focus-color)] ring-offset-2 ring-offset-[var(--ds-background-100)]"
           : "ds-border",
       )}
     >
-      <button
-        type="button"
-        onClick={onSelect}
-        className="w-full rounded-[6px] text-left ds-focus"
-      >
+      <button type="button" onClick={onSelect} className="w-full text-left ds-focus rounded-[6px]">
         <ThemeSwatch theme={theme} />
-        <div className="mt-3 flex items-start justify-between gap-2">
-          <div>
-            <p className="text-sm text-[var(--ds-gray-1000)]">{theme.name}</p>
-            {theme.description ? (
-              <p className="mt-0.5 text-xs text-[var(--ds-gray-700)]">
-                {theme.description}
-              </p>
-            ) : null}
-          </div>
-          {active ? (
-            <span className="shrink-0 rounded-full bg-[var(--ds-gray-100)] px-2 py-0.5 text-[11px] text-[var(--ds-gray-900)]">
-              Active
-            </span>
-          ) : null}
-        </div>
+        <p className="mt-2 text-sm text-[var(--ds-gray-1000)]">{theme.name}</p>
       </button>
-
-      {showActions ? (
-        <div className="mt-3 flex flex-wrap gap-1">
+      {onEdit || onDelete ? (
+        <div className="mt-2 flex gap-1">
           {onEdit ? (
             <Button variant="ghost" size="sm" onClick={onEdit}>
               Edit
-            </Button>
-          ) : null}
-          {onDuplicate ? (
-            <Button variant="ghost" size="sm" onClick={onDuplicate}>
-              Duplicate
             </Button>
           ) : null}
           {onDelete ? (
@@ -120,8 +93,10 @@ function ThemeCard({
   );
 }
 
-export function ThemeSettings() {
+/** Compact appearance card — full theme browser lives in a modal. */
+export function AppearanceSection() {
   const {
+    activeTheme,
     activeThemeId,
     presetThemes,
     customThemes,
@@ -129,10 +104,10 @@ export function ThemeSettings() {
     createTheme,
     updateTheme,
     deleteTheme,
-    duplicateTheme,
   } = useTheme();
 
-  const [modalOpen, setModalOpen] = useState(false);
+  const [browseOpen, setBrowseOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<CustomThemeInput>(EMPTY_FORM);
 
@@ -144,7 +119,7 @@ export function ThemeSettings() {
   function openCreate() {
     setEditingId(null);
     setForm({ ...EMPTY_FORM, name: "My theme" });
-    setModalOpen(true);
+    setEditorOpen(true);
   }
 
   function openEdit(theme: ThemeDefinition) {
@@ -157,187 +132,151 @@ export function ThemeSettings() {
       gray900: theme.tokens.gray900,
       focusColor: theme.tokens.focusColor,
     });
-    setModalOpen(true);
+    setEditorOpen(true);
   }
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) return;
-    if (editingId) {
-      updateTheme(editingId, form);
-    } else {
-      createTheme(form);
-    }
-    setModalOpen(false);
+    if (editingId) updateTheme(editingId, form);
+    else createTheme(form);
+    setEditorOpen(false);
   }
 
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <CardHeader className="flex flex-row items-start justify-between gap-3">
           <div>
             <h2>Appearance</h2>
             <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-              Choose a preset or build your own palette.
+              Active theme for FinOS surfaces.
             </p>
           </div>
-          <Button size="sm" onClick={openCreate}>
-            Create theme
+          <Button size="sm" variant="secondary" onClick={() => setBrowseOpen(true)}>
+            Browse themes
           </Button>
         </CardHeader>
-        <CardBody className="space-y-6">
+        <CardBody>
+          <div className="flex items-center gap-4">
+            {activeTheme ? <ThemeSwatch theme={activeTheme} /> : null}
+            <div className="min-w-0">
+              <p className="text-sm text-[var(--ds-gray-1000)]">
+                {activeTheme?.name || "Default"}
+              </p>
+              <p className="mt-0.5 text-xs text-[var(--ds-gray-700)]">
+                {activeTheme?.builtin === false ? "Custom theme" : "Preset theme"}
+              </p>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
+      <Modal
+        open={browseOpen}
+        onClose={() => setBrowseOpen(false)}
+        title="Themes"
+        className="max-w-2xl"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setBrowseOpen(false)}>
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                setBrowseOpen(false);
+                openCreate();
+              }}
+            >
+              Create theme
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
           <section>
-            <h2 className="mb-3">Preset themes</h2>
+            <h2 className="mb-3 text-sm">Presets</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {presetThemes.map((theme) => (
-                <ThemeCard
+                <ThemePickCard
                   key={theme.id}
                   theme={theme}
                   active={activeThemeId === theme.id}
                   onSelect={() => setTheme(theme.id)}
-                  onDuplicate={() => {
-                    const copy = duplicateTheme(theme.id);
-                    if (copy) openEdit(copy);
-                  }}
                 />
               ))}
             </div>
           </section>
-
           <section>
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2>Your themes</h2>
-              <span className="text-xs text-[var(--ds-gray-700)]">
-                {customThemes.length} saved
-              </span>
-            </div>
+            <h2 className="mb-3 text-sm">Your themes</h2>
             {customThemes.length === 0 ? (
-              <div className="rounded-[12px] bg-[var(--ds-background-100)] px-4 py-8 text-center">
-                <p className="text-sm text-[var(--ds-gray-1000)]">
-                  No custom themes yet
-                </p>
-                <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-                  Pick colors for background, surface, text, and accent.
-                </p>
-                <Button className="mt-4" size="sm" onClick={openCreate}>
-                  Create your first theme
-                </Button>
-              </div>
+              <p className="text-sm text-[var(--ds-gray-900)]">
+                No custom themes yet.
+              </p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {customThemes.map((theme) => (
-                  <ThemeCard
+                  <ThemePickCard
                     key={theme.id}
                     theme={theme}
                     active={activeThemeId === theme.id}
                     onSelect={() => setTheme(theme.id)}
-                    onEdit={() => openEdit(theme)}
-                    onDelete={() => deleteTheme(theme.id)}
-                    onDuplicate={() => {
-                      const copy = duplicateTheme(theme.id);
-                      if (copy) openEdit(copy);
+                    onEdit={() => {
+                      setBrowseOpen(false);
+                      openEdit(theme);
                     }}
+                    onDelete={() => deleteTheme(theme.id)}
                   />
                 ))}
               </div>
             )}
           </section>
-        </CardBody>
-      </Card>
+        </div>
+      </Modal>
 
       <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
         title={editingId ? "Edit theme" : "Create theme"}
         className="max-w-lg"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setModalOpen(false)}>
+            <Button variant="ghost" onClick={() => setEditorOpen(false)}>
               Cancel
             </Button>
             <Button form="theme-form" type="submit">
-              {editingId ? "Save theme" : "Create theme"}
+              {editingId ? "Save" : "Create"}
             </Button>
           </>
         }
       >
         <form id="theme-form" onSubmit={onSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="theme-name">Theme name</Label>
+            <Label htmlFor="theme-name">Name</Label>
             <Input
               id="theme-name"
               required
               value={form.name}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, name: e.target.value }))
-              }
-              placeholder="Midnight workspace"
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             />
           </div>
-
           <div className="grid gap-4 sm:grid-cols-2">
             {COLOR_FIELDS.map((field) => (
               <div key={field.key}>
                 <Label htmlFor={field.key}>{field.label}</Label>
-                <div className="mt-1.5 flex items-center gap-2">
-                  <input
-                    id={field.key}
-                    type="color"
-                    value={form[field.key]}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        [field.key]: e.target.value,
-                      }))
-                    }
-                    className="size-10 shrink-0 cursor-pointer rounded-[6px] border-0 bg-transparent p-0"
-                  />
-                  <Input
-                    value={form[field.key]}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        [field.key]: e.target.value,
-                      }))
-                    }
-                    className="font-mono text-xs"
-                  />
-                </div>
-                {field.hint ? (
-                  <p className="mt-1 text-[11px] text-[var(--ds-gray-700)]">
-                    {field.hint}
-                  </p>
-                ) : null}
+                <ColorField
+                  id={field.key}
+                  value={form[field.key]}
+                  onChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      [field.key]: value,
+                    }))
+                  }
+                />
               </div>
             ))}
           </div>
-
-          <div className="rounded-[12px] bg-[var(--ds-background-100)] p-4">
-            <p className="text-xs text-[var(--ds-gray-700)]">Preview</p>
-            <div
-              className="mt-3 rounded-[12px] p-4 ds-border"
-              style={{ background: form.background100 }}
-            >
-              <div
-                className="rounded-[8px] p-3 ds-border"
-                style={{ background: form.backgroundElevated }}
-              >
-                <p className="text-sm" style={{ color: form.gray1000 }}>
-                  Expense overview
-                </p>
-                <p className="mt-1 text-xs" style={{ color: form.gray900 }}>
-                  Secondary label text
-                </p>
-                <p
-                  className="mt-2 text-xs"
-                  style={{ color: form.focusColor }}
-                >
-                  Accent link
-                </p>
-              </div>
-            </div>
-          </div>
-
           {editingTheme ? (
             <p className="text-xs text-[var(--ds-gray-700)]">
               Editing {editingTheme.name}
@@ -347,4 +286,9 @@ export function ThemeSettings() {
       </Modal>
     </>
   );
+}
+
+/** Backward-compatible export used by older imports */
+export function ThemeSettings() {
+  return <AppearanceSection />;
 }

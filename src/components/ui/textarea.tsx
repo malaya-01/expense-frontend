@@ -8,9 +8,9 @@ export function Textarea({
   return (
     <textarea
       className={cn(
-        "min-h-[96px] w-full resize-y rounded-[6px] bg-transparent px-3 py-2.5 text-[13.3px] text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-700)]",
+        "min-h-[104px] w-full resize-y rounded-[9px] bg-[var(--ds-background-elevated)] px-3.5 py-3 text-[13px] leading-5 text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-700)]",
         "ds-border outline-none",
-        "focus:shadow-none focus:outline focus:outline-1 focus:outline-[var(--ds-focus-input)]",
+        "transition-[box-shadow,background-color] focus:shadow-none focus:outline focus:outline-2 focus:outline-[var(--ds-focus-input)]",
         className,
       )}
       {...props}

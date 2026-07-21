@@ -10,10 +10,11 @@ export function Input({ className, error, id, ...props }: InputProps) {
     <div className="w-full">
       <input
         id={id}
+        suppressHydrationWarning
         className={cn(
-          "h-10 w-full rounded-[6px] bg-transparent px-3 text-[13.3px] text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-700)]",
+          "h-11 w-full rounded-[9px] bg-[var(--ds-background-elevated)] px-3.5 text-[13px] text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-700)]",
           "ds-border outline-none",
-          "focus:shadow-none focus:outline focus:outline-1 focus:outline-[var(--ds-focus-input)]",
+          "transition-[box-shadow,background-color] focus:bg-[var(--ds-background-elevated)] focus:shadow-none focus:outline focus:outline-2 focus:outline-[var(--ds-focus-input)]",
           error && "outline outline-1 outline-[var(--ds-status-red)]",
           className,
         )}

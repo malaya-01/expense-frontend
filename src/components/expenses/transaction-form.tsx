@@ -13,9 +13,10 @@ import {
   createTransaction,
   updateTransaction,
 } from "@/lib/api/transactions";
-import { formatCurrency, todayISO } from "@/lib/format";
+import { formatCurrency, requireDateOnly, todayISO } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { getContainerMeta } from "@/lib/accounts/types-meta";
+import { useToast } from "@/components/ui/toast";
 import { convertAmount, getRate } from "@/lib/currency/currency.data";
 import type {
   Category,
@@ -36,6 +37,7 @@ export function TransactionForm({
   mode = "create",
 }: TransactionFormProps) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [containers, setContainers] = useState<FinancialContainer[]>([]);
   const [error, setError] = useState("");
@@ -44,7 +46,7 @@ export function TransactionForm({
     type: initial?.type ?? "expense",
     amount: initial?.amount ?? 0,
     description: initial?.description ?? "",
-    date: initial?.date?.slice(0, 10) ?? todayISO(),
+    date: requireDateOnly(initial?.date, todayISO()),
     category_id: initial?.category_id ?? "",
     source_container_id: initial?.source_container_id ?? "",
     destination_container_id: initial?.destination_container_id ?? "",
@@ -166,6 +168,11 @@ export function TransactionForm({
       } else {
         await createTransaction(payload);
       }
+      showToast({
+        title: mode === "edit" ? "Transaction updated" : "Transaction recorded",
+        description: "Your account balances and financial twin are up to date.",
+        tone: "success",
+      });
       router.push("/expenses");
       router.refresh();
     } catch (err) {

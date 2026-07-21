@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,11 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
+
+  useEffect(() => {
+    setHasSession(Boolean(getAccessToken()));
+  }, []);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -110,7 +115,7 @@ export default function SignInPage() {
           Sign up
         </Link>
       </p>
-      {getAccessToken() ? (
+      {hasSession ? (
         <p className="mt-3 text-center text-xs text-[var(--ds-gray-700)]">
           Session detected —{" "}
           <button

@@ -3,26 +3,45 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
-import Cookies from "js-cookie";
 import type { ApiResponse } from "@/types";
 
 const ACCESS_COOKIE = "access_token";
 const REFRESH_COOKIE = "refresh_token";
 
-export function getAccessToken(): string | undefined {
-  return Cookies.get(ACCESS_COOKIE);
+function readCookie(name: string): string | undefined {
+  if (typeof document === "undefined") return undefined;
+  const encodedName = `${encodeURIComponent(name)}=`;
+  const match = document.cookie
+    .split("; ")
+    .find((cookie) => cookie.startsWith(encodedName));
+  return match ? decodeURIComponent(match.slice(encodedName.length)) : undefined;
 }
 
-export function setTokens(accessToken: string, refreshToken?: string) {
-  Cookies.set(ACCESS_COOKIE, accessToken, { expires: 2, sameSite: "lax" });
-  if (refreshToken) {
-    Cookies.set(REFRESH_COOKIE, refreshToken, { expires: 7, sameSite: "lax" });
-  }
+function writeCookie(name: string, value: string, days: number) {
+  if (typeof document === "undefined") return;
+  const expires = new Date(Date.now() + days * 86_400_000).toUTCString();
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; Path=/; Expires=${expires}; SameSite=Lax${secure}`;
+}
+
+function removeCookie(name: string) {
+  if (typeof document === "undefined") return;
+  document.cookie = `${encodeURIComponent(name)}=; Path=/; Max-Age=0; SameSite=Lax`;
+}
+
+export function getAccessToken(): string | undefined {
+  return readCookie(ACCESS_COOKIE);
+}
+
+export function setTokens(accessToken: string, _refreshToken?: string) {
+  writeCookie(ACCESS_COOKIE, accessToken, 2);
+  // Refresh tokens remain in the server-issued HttpOnly cookie.
+  removeCookie(REFRESH_COOKIE);
 }
 
 export function clearTokens() {
-  Cookies.remove(ACCESS_COOKIE);
-  Cookies.remove(REFRESH_COOKIE);
+  removeCookie(ACCESS_COOKIE);
+  removeCookie(REFRESH_COOKIE);
 }
 
 function createClient(): AxiosInstance {
@@ -48,7 +67,41 @@ function createClient(): AxiosInstance {
 
   instance.interceptors.response.use(
     (response: AxiosResponse) => response,
-    (error) => Promise.reject(error),
+    async (error) => {
+      const original = error.config as
+        | (InternalAxiosRequestConfig & { _retry?: boolean })
+        | undefined;
+      if (
+        error.response?.status !== 401 ||
+        !original ||
+        original._retry ||
+        String(original.url || "").includes("/auth/refresh-token")
+      ) {
+        return Promise.reject(error);
+      }
+
+      original._retry = true;
+      try {
+        const refresh = await axios.post<
+          ApiResponse<{ accessToken: string; refreshToken?: string }>
+        >(
+          `${instance.defaults.baseURL}/auth/refresh-token`,
+          {},
+          { withCredentials: true },
+        );
+        const tokens = refresh.data.data;
+        setTokens(tokens.accessToken, tokens.refreshToken);
+        original.headers.set("Authorization", `Bearer ${tokens.accessToken}`);
+        return instance(original);
+      } catch {
+        clearTokens();
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("expense-tracker:user");
+          window.location.assign("/signin?session=expired");
+        }
+        return Promise.reject(error);
+      }
+    },
   );
 
   return instance;
