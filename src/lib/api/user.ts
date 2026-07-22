@@ -7,8 +7,26 @@ export type UpdateProfileInput = {
   currency?: string;
   timezone?: string;
   locale?: string;
-  avatar_url?: string | null;
 };
+
+/** Turn a stored avatar path into a browser-loadable URL. */
+export function resolveAvatarUrl(
+  avatarUrl: string | null | undefined,
+): string | null {
+  if (!avatarUrl) return null;
+  if (
+    avatarUrl.startsWith("data:") ||
+    avatarUrl.startsWith("http://") ||
+    avatarUrl.startsWith("https://") ||
+    avatarUrl.startsWith("blob:")
+  ) {
+    return avatarUrl;
+  }
+  const apiBase =
+    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:9000/api";
+  const origin = apiBase.replace(/\/api\/?$/, "");
+  return `${origin}${avatarUrl.startsWith("/") ? avatarUrl : `/${avatarUrl}`}`;
+}
 
 export async function getCurrentUser(): Promise<User> {
   const res = await api.get("/user");
@@ -20,6 +38,24 @@ export async function updateProfile(payload: UpdateProfileInput): Promise<User> 
   return unwrap<User>(res);
 }
 
+export async function uploadAvatar(file: File): Promise<User> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Please choose an image file");
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error("Image must be under 5MB");
+  }
+  const form = new FormData();
+  form.append("avatar", file);
+  const res = await api.post("/user/avatar", form);
+  return unwrap<User>(res);
+}
+
+export async function removeAvatar(): Promise<User> {
+  const res = await api.delete("/user/avatar");
+  return unwrap<User>(res);
+}
+
 export async function changePassword(payload: {
   currentPassword: string;
   newPassword: string;
@@ -27,42 +63,4 @@ export async function changePassword(payload: {
 }): Promise<{ message: string }> {
   const res = await api.patch("/user/password", payload);
   return unwrap<{ message: string }>(res);
-}
-
-/** Compress an image file to a small JPEG data URL for avatar storage. */
-export function fileToAvatarDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (!file.type.startsWith("image/")) {
-      reject(new Error("Please choose an image file"));
-      return;
-    }
-    if (file.size > 8 * 1024 * 1024) {
-      reject(new Error("Image must be under 8MB"));
-      return;
-    }
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Could not read image"));
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = () => reject(new Error("Invalid image"));
-      img.onload = () => {
-        const size = 256;
-        const canvas = document.createElement("canvas");
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          reject(new Error("Canvas unavailable"));
-          return;
-        }
-        const min = Math.min(img.width, img.height);
-        const sx = (img.width - min) / 2;
-        const sy = (img.height - min) / 2;
-        ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
-        resolve(canvas.toDataURL("image/jpeg", 0.85));
-      };
-      img.src = String(reader.result);
-    };
-    reader.readAsDataURL(file);
-  });
 }

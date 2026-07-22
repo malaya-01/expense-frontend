@@ -25,6 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { resolveAvatarUrl } from "@/lib/api/user";
 import { Drawer } from "@/components/ui/drawer";
 import { NotificationCenter } from "@/components/layout/notification-center";
 import { ThemeMenu } from "@/components/layout/theme-menu";
@@ -214,7 +215,7 @@ function SidebarContents({
             {user?.avatar_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={user.avatar_url}
+                src={resolveAvatarUrl(user.avatar_url) || undefined}
                 alt=""
                 className="size-7 shrink-0 rounded-full object-cover"
               />

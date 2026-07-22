@@ -17,9 +17,11 @@ import {
 } from "@/lib/currency/currency.data";
 import {
   changePassword,
-  fileToAvatarDataUrl,
   getCurrentUser,
+  removeAvatar,
+  resolveAvatarUrl,
   updateProfile,
+  uploadAvatar,
 } from "@/lib/api/user";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
@@ -52,6 +54,7 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(
     user?.avatar_url || null,
   );
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -113,15 +116,65 @@ export default function ProfilePage() {
 
   async function onPickAvatar(file: File | null) {
     if (!file) return;
+    setUploadingAvatar(true);
     try {
-      const dataUrl = await fileToAvatarDataUrl(file);
-      setAvatarUrl(dataUrl);
+      const updated = await uploadAvatar(file);
+      setAvatarUrl(updated.avatar_url || null);
+      setSession({
+        id: updated.id,
+        email: updated.email,
+        full_name: updated.full_name,
+        country: updated.country,
+        currency: updated.currency,
+        timezone: updated.timezone,
+        locale: updated.locale,
+        avatar_url: updated.avatar_url,
+      });
+      showToast({
+        title: "Photo updated",
+        description: "Your profile picture was uploaded.",
+        tone: "success",
+      });
     } catch (err) {
       showToast({
         title: "Avatar upload failed",
-        description: getErrorMessage(err, "Could not process image"),
+        description: getErrorMessage(err, "Could not upload image"),
         tone: "error",
       });
+    } finally {
+      setUploadingAvatar(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function onRemoveAvatar() {
+    setUploadingAvatar(true);
+    try {
+      const updated = await removeAvatar();
+      setAvatarUrl(null);
+      setSession({
+        id: updated.id,
+        email: updated.email,
+        full_name: updated.full_name,
+        country: updated.country,
+        currency: updated.currency,
+        timezone: updated.timezone,
+        locale: updated.locale,
+        avatar_url: null,
+      });
+      showToast({
+        title: "Photo removed",
+        description: "Your profile picture was cleared.",
+        tone: "success",
+      });
+    } catch (err) {
+      showToast({
+        title: "Could not remove photo",
+        description: getErrorMessage(err, "Please try again"),
+        tone: "error",
+      });
+    } finally {
+      setUploadingAvatar(false);
     }
   }
 
@@ -134,7 +187,6 @@ export default function ProfilePage() {
         country,
         currency,
         timezone,
-        avatar_url: avatarUrl,
       });
       setSession({
         id: updated.id,
@@ -220,7 +272,7 @@ export default function ProfilePage() {
               {avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={avatarUrl}
+                  src={resolveAvatarUrl(avatarUrl) || undefined}
                   alt=""
                   className="size-24 rounded-full object-cover ds-border"
                 />
@@ -232,7 +284,8 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="absolute -bottom-1 -right-1 flex size-9 items-center justify-center rounded-full bg-[var(--ds-background-elevated)] text-[var(--ds-gray-1000)] shadow-sm ds-border ds-focus"
+                disabled={uploadingAvatar}
+                className="absolute -bottom-1 -right-1 flex size-9 items-center justify-center rounded-full bg-[var(--ds-background-elevated)] text-[var(--ds-gray-1000)] shadow-sm ds-border ds-focus disabled:opacity-50"
                 aria-label="Upload profile photo"
               >
                 <Camera size={15} />
@@ -240,7 +293,7 @@ export default function ProfilePage() {
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/gif"
                 className="hidden"
                 onChange={(e) => onPickAvatar(e.target.files?.[0] || null)}
               />
@@ -256,16 +309,18 @@ export default function ProfilePage() {
                 variant="secondary"
                 size="sm"
                 className="w-full"
+                disabled={uploadingAvatar}
                 onClick={() => fileRef.current?.click()}
               >
-                Change photo
+                {uploadingAvatar ? "Uploading…" : "Change photo"}
               </Button>
               {avatarUrl ? (
                 <Button
                   variant="ghost"
                   size="sm"
                   className="w-full text-[var(--ds-status-red)]"
-                  onClick={() => setAvatarUrl(null)}
+                  disabled={uploadingAvatar}
+                  onClick={() => void onRemoveAvatar()}
                 >
                   <Trash2 size={13} />
                   Remove photo
