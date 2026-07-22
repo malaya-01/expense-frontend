@@ -183,7 +183,7 @@ export default function RecurringPage() {
         />
       ) : null}
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Metric label="Active schedules" value={String(metrics.active)} />
         <Metric label="Automatic" value={String(metrics.automatic)} />
         <Metric label="Due for posting" value={String(metrics.due)} />
@@ -201,7 +201,7 @@ export default function RecurringPage() {
           />
         </Card>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
           {schedules.map((schedule) => {
             const due =
               schedule.status === "active" &&

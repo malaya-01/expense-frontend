@@ -130,7 +130,7 @@ export default function AccountsPage() {
         }
       />
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <MetricCard
           title="Net Worth"
           value={formatCurrency(summary.netWorth, baseCurrency)}
@@ -179,7 +179,7 @@ export default function AccountsPage() {
               <h2 className="mb-3 text-[var(--ds-gray-1000)]">
                 {section.label}
               </h2>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
                 {section.items.map((container) => (
                   <AccountCard
                     key={container.id}

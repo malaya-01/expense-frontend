@@ -30,6 +30,7 @@ import {
   hydrateSidebar,
   MAX_SIDEBAR_WIDTH,
   MIN_SIDEBAR_WIDTH,
+  resetSidebarTransient,
   setSidebarPinned,
   setSidebarWidth,
   showToast,
@@ -97,17 +98,19 @@ export function bootstrapAppState(dispatch: AppDispatch) {
 }
 
 startAppListening({
-  actionCreator: setSession,
-  effect: (action) => {
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(action.payload));
+  actionCreator: logout,
+  effect: (_action, api) => {
+    clearTokens();
+    localStorage.removeItem(USER_STORAGE_KEY);
+    api.dispatch(resetSidebarTransient());
   },
 });
 
 startAppListening({
-  actionCreator: logout,
-  effect: () => {
-    clearTokens();
-    localStorage.removeItem(USER_STORAGE_KEY);
+  actionCreator: setSession,
+  effect: (action, api) => {
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(action.payload));
+    api.dispatch(resetSidebarTransient());
   },
 });
 

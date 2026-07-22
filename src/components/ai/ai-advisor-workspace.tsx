@@ -103,7 +103,7 @@ export function AiAdvisorWorkspace() {
             ) : null}
             <Button
               variant={workspace.savedProvider ? "secondary" : "primary"}
-              onClick={() => router.push("/settings")}
+              onClick={() => router.push("/settings?section=ai")}
             >
               {workspace.savedProvider
                 ? "Review provider settings"

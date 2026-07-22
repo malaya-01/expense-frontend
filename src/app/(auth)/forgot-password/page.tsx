@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardBody } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
@@ -124,24 +125,24 @@ export default function ForgotPasswordPage() {
               </div>
               <div>
                 <Label htmlFor="new">New password</Label>
-                <Input
+                <PasswordInput
                   id="new"
-                  type="password"
                   required
                   minLength={8}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="At least 8 characters"
                 />
               </div>
               <div>
                 <Label htmlFor="confirm">Confirm password</Label>
-                <Input
+                <PasswordInput
                   id="confirm"
-                  type="password"
                   required
                   minLength={8}
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  placeholder="Re-enter your password"
                 />
               </div>
               <Button type="submit" className="w-full" loading={loading}>

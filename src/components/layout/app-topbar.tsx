@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeftRight,
   ChartNoAxesCombined,
-  ChevronDown,
   FileChartColumn,
   LayoutDashboard,
   Landmark,
@@ -18,6 +17,7 @@ import {
   Tags,
   Target,
   TrendingUp,
+  UserRound,
   WalletCards,
 } from "lucide-react";
 import { openCommandPalette } from "@/components/layout/command-palette";
@@ -43,6 +43,7 @@ const ROUTE_TITLES = [
   { route: "/ai", title: "AI Advisor", icon: Sparkles },
   { route: "/categories", title: "Categories", icon: Tags },
   { route: "/settings", title: "Settings", icon: Settings },
+  { route: "/profile", title: "Profile", icon: UserRound },
 ] as const;
 
 export function AppTopbar() {
@@ -98,12 +99,12 @@ export function AppTopbar() {
         </span>
         <button
           type="button"
-          onClick={() => router.push("/settings?section=security")}
-          className="hidden items-center gap-0.5 rounded-[5px] px-1 py-0.5 text-[10px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] sm:flex ds-focus"
-          title="Open privacy and security settings"
+          onClick={() => router.push("/profile")}
+          className="hidden items-center gap-1.5 rounded-[5px] px-1.5 py-0.5 text-[11px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] sm:flex ds-focus"
+          title="Open profile"
         >
-          Private
-          <ChevronDown size={11} />
+          <UserRound size={12} />
+          Profile
         </button>
       </div>
 

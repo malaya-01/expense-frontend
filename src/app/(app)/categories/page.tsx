@@ -149,7 +149,7 @@ export default function CategoriesPage() {
           />
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
           {categories.map((category) => (
             <Card key={category.id}>
               <CardBody className="pt-5">

@@ -155,11 +155,11 @@ export function ThemeMenu({
               {showCreateLink ? (
                 <div className="mt-1 pt-1 ds-header-rule">
                   <Link
-                    href="/settings"
+                    href="/settings?section=appearance"
                     onClick={() => setOpen(false)}
                     className="block rounded-[8px] px-2.5 py-1.5 text-[13px] text-[var(--ds-focus-color)] hover:bg-[var(--ds-background-100)]"
                   >
-                    Create custom theme…
+                    Browse all themes…
                   </Link>
                 </div>
               ) : null}

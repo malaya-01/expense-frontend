@@ -8,9 +8,9 @@ export async function registerUser(payload: {
   confirmPassword: string;
   country: string;
   currency?: string;
-}): Promise<User> {
+}): Promise<User & { message?: string }> {
   const res = await api.post("/auth/register", payload);
-  return unwrap<User>(res);
+  return unwrap<User & { message?: string }>(res);
 }
 
 export async function loginUser(payload: {
@@ -21,6 +21,16 @@ export async function loginUser(payload: {
   const data = unwrap<AuthTokens & { user?: User }>(res);
   setTokens(data.accessToken, data.refreshToken);
   return data;
+}
+
+export async function verifyEmail(token: string) {
+  const res = await api.post("/auth/verify-email", { token });
+  return unwrap<{ message: string; email?: string }>(res);
+}
+
+export async function resendVerification(email: string) {
+  const res = await api.post("/auth/resend-verification", { email });
+  return unwrap<{ message: string }>(res);
 }
 
 export async function generateOtp(email: string) {

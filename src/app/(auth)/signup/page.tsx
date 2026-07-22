@@ -10,15 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardBody } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
-import { loginUser, registerUser } from "@/lib/api/auth";
+import { registerUser } from "@/lib/api/auth";
 import { getErrorMessage } from "@/lib/api/client";
-import { useAuth } from "@/lib/auth-context";
-import { userIdFromToken } from "@/lib/jwt";
 import { COUNTRIES, SUPPORTED_CURRENCIES, getCountry } from "@/lib/currency/currency.data";
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { setSession } = useAuth();
   const { showToast } = useToast();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -51,7 +48,7 @@ export default function SignUpPage() {
     }
     setLoading(true);
     try {
-      const user = await registerUser({
+      await registerUser({
         full_name: fullName,
         email,
         password,
@@ -60,25 +57,11 @@ export default function SignUpPage() {
         currency,
       });
       showToast({
-        title: "Account created",
-        description: "Signing you in…",
+        title: "Check your email",
+        description: "We sent a verification link. Verify before signing in.",
         tone: "success",
       });
-      const tokens = await loginUser({ email, password });
-      const id = user.id || userIdFromToken(tokens.accessToken) || "local";
-      setSession({
-        id,
-        email: user.email || email,
-        full_name: user.full_name || fullName,
-        country: user.country || country,
-        currency: user.currency || currency,
-      });
-      showToast({
-        title: "Welcome to FinOS",
-        description: "Your personal financial operating system is ready.",
-        tone: "success",
-      });
-      router.replace("/dashboard");
+      router.replace(`/check-email?email=${encodeURIComponent(email)}`);
     } catch (err) {
       showToast({
         title: "Sign up failed",
@@ -92,7 +75,7 @@ export default function SignUpPage() {
 
   return (
     <div>
-      <h3 className="mb-2 text-[28px] leading-9 tracking-[-1.12px] sm:text-[32px] sm:leading-10 sm:tracking-[-1.28px]">
+      <h3 className="mb-2 font-heading text-[28px] leading-9 tracking-[-1.12px] sm:text-[32px] sm:leading-10 sm:tracking-[-1.28px]">
         Create FinOS account
       </h3>
       <p className="mb-8 text-sm leading-5 text-[var(--ds-gray-900)]">
@@ -102,27 +85,29 @@ export default function SignUpPage() {
       <Card>
         <CardBody className="pt-6">
           <form onSubmit={onSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="name">Full name</Label>
-              <Input
-                id="name"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Jane Doe"
-              />
-            </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-1">
+                <Label htmlFor="name">Full name</Label>
+                <Input
+                  id="name"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Jane Doe"
+                />
+              </div>
+              <div className="sm:col-span-1">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                />
+              </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
@@ -159,28 +144,31 @@ export default function SignUpPage() {
                 </p>
               </div>
             </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <PasswordInput
-                id="password"
-                autoComplete="new-password"
-                required
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 8 characters"
-              />
-            </div>
-            <div>
-              <Label htmlFor="confirm">Confirm password</Label>
-              <PasswordInput
-                id="confirm"
-                autoComplete="new-password"
-                required
-                minLength={8}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <PasswordInput
+                  id="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                />
+              </div>
+              <div>
+                <Label htmlFor="confirm">Confirm password</Label>
+                <PasswordInput
+                  id="confirm"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter your password"
+                />
+              </div>
             </div>
 
             <Button type="submit" className="w-full" loading={loading}>

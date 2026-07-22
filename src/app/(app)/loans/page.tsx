@@ -212,7 +212,7 @@ export default function LoansPage() {
         />
       ) : null}
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <SummaryCard
           label="Outstanding debt"
           value={formatCurrency(summary.outstanding, currency)}
@@ -261,7 +261,7 @@ export default function LoansPage() {
           />
         </Card>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
           {loans.map((loan) => (
             <Card key={loan.id}>
               <CardBody className="pt-5">

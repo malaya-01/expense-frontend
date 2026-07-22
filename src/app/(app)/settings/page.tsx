@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Bot,
@@ -14,12 +14,19 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
-import { StatusDot } from "@/components/ui/status-dot";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { PasswordInput } from "@/components/ui/password-input";
 import { AppearanceSection } from "@/components/settings/theme-settings";
 import { AiProvidersSection } from "@/components/settings/ai-providers-section";
 import { useAuth } from "@/lib/auth-context";
-import { getCountry } from "@/lib/currency/currency.data";
+import {
+  COUNTRIES,
+  SUPPORTED_CURRENCIES,
+  getCountry,
+} from "@/lib/currency/currency.data";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/toast";
 import { listAccounts } from "@/lib/api/accounts";
@@ -28,6 +35,9 @@ import { listBudgets } from "@/lib/api/budgets";
 import { listGoals } from "@/lib/api/goals";
 import { listInvestments } from "@/lib/api/investments";
 import { listCategories } from "@/lib/api/categories";
+import { changePassword, updateProfile } from "@/lib/api/user";
+import { getErrorMessage } from "@/lib/api/client";
+import { openCommandPalette } from "@/components/layout/command-palette";
 
 const SECTIONS = [
   { id: "general", label: "General", icon: UserRound },
@@ -42,13 +52,44 @@ const SECTIONS = [
 
 type SectionId = (typeof SECTIONS)[number]["id"];
 
+const TIMEZONES = [
+  "UTC",
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Asia/Dubai",
+  "Asia/Kolkata",
+  "Asia/Singapore",
+  "Asia/Tokyo",
+  "Australia/Sydney",
+];
+
 export default function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user, setSession, logout } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
   const [section, setSection] = useState<SectionId>("general");
   const [exporting, setExporting] = useState(false);
+
+  const [country, setCountry] = useState(user?.country || "US");
+  const [currency, setCurrency] = useState(user?.currency || "USD");
+  const [timezone, setTimezone] = useState(user?.timezone || "UTC");
+  const [savingDefaults, setSavingDefaults] = useState(false);
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  const sortedCountries = useMemo(
+    () => [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name)),
+    [],
+  );
 
   useEffect(() => {
     const requested = searchParams.get("section");
@@ -56,6 +97,76 @@ export default function SettingsPage() {
       setSection(requested as SectionId);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    setCountry(user?.country || "US");
+    setCurrency(user?.currency || "USD");
+    setTimezone(user?.timezone || "UTC");
+  }, [user?.country, user?.currency, user?.timezone]);
+
+  function go(id: SectionId) {
+    setSection(id);
+    router.replace(`/settings?section=${id}`, { scroll: false });
+  }
+
+  async function saveDefaults(e: FormEvent) {
+    e.preventDefault();
+    if (!user) return;
+    setSavingDefaults(true);
+    try {
+      const updated = await updateProfile({ country, currency, timezone });
+      setSession({ ...user, ...updated });
+      showToast({
+        title: "Defaults saved",
+        description: "Country, currency, and timezone updated.",
+        tone: "success",
+      });
+    } catch (err) {
+      showToast({
+        title: "Could not save defaults",
+        description: getErrorMessage(err),
+        tone: "error",
+      });
+    } finally {
+      setSavingDefaults(false);
+    }
+  }
+
+  async function onChangePassword(e: FormEvent) {
+    e.preventDefault();
+    if (newPassword !== confirmNewPassword) {
+      showToast({
+        title: "Passwords do not match",
+        description: "Re-enter the same new password.",
+        tone: "warning",
+      });
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await changePassword({
+        currentPassword,
+        newPassword,
+        confirmNewPassword,
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      showToast({
+        title: "Password updated",
+        description: "Your password was changed successfully.",
+        tone: "success",
+      });
+    } catch (err) {
+      showToast({
+        title: "Password change failed",
+        description: getErrorMessage(err),
+        tone: "error",
+      });
+    } finally {
+      setSavingPassword(false);
+    }
+  }
 
   async function exportData() {
     if (!user?.id) return;
@@ -118,24 +229,24 @@ export default function SettingsPage() {
     <div>
       <PageHeader
         title="Settings"
-        description="Personalize FinOS, protect your data, and configure your financial workspace."
+        description="Configure FinOS security, AI providers, appearance, and workspace tools."
       />
 
-      <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
-        <nav className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
+      <div className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+        <nav className="flex gap-1 overflow-x-auto rounded-[12px] bg-[var(--ds-background-elevated)] p-1.5 ds-border lg:sticky lg:top-14 lg:h-fit lg:flex-col lg:overflow-visible">
           {SECTIONS.map((item) => (
             <button
               key={item.id}
               type="button"
-              onClick={() => setSection(item.id)}
+              onClick={() => go(item.id)}
               className={cn(
-                "flex min-h-11 items-center gap-2.5 rounded-[9px] px-3 py-2 text-left text-[13px] whitespace-nowrap ds-focus",
+                "flex min-h-10 items-center gap-2.5 rounded-[8px] px-3 py-2 text-left text-[13px] whitespace-nowrap ds-focus",
                 section === item.id
                   ? "bg-[var(--ds-gray-100)] font-medium text-[var(--ds-gray-1000)]"
-                  : "text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)]",
+                  : "text-[var(--ds-gray-900)] hover:bg-[var(--ds-background-100)]",
               )}
             >
-              <item.icon size={15} className="shrink-0" />
+              <item.icon size={15} className="shrink-0 opacity-80" />
               {item.label}
             </button>
           ))}
@@ -143,96 +254,180 @@ export default function SettingsPage() {
 
         <div className="min-w-0 space-y-4">
           {section === "general" ? (
-            <>
-              <Card>
-                <CardHeader>
-                  <h2>Profile</h2>
-                </CardHeader>
-                <CardBody className="space-y-3">
-                  <Row label="Name" value={user?.full_name || "—"} />
-                  <Row label="Email" value={user?.email || "—"} />
-                  <Row
-                    label="User ID"
-                    value={user?.id || "—"}
-                    mono
-                  />
-                </CardBody>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <h2>Defaults</h2>
-                </CardHeader>
-                <CardBody className="space-y-3">
-                  <Row
-                    label="Country"
-                    value={
-                      user?.country
-                        ? getCountry(user.country)?.name || user.country
-                        : "—"
-                    }
-                  />
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-sm text-[var(--ds-gray-900)]">
-                      Base currency
-                    </span>
-                    <span className="inline-flex items-center gap-2 text-sm">
-                      <StatusDot tone="green" />
-                      {user?.currency || "USD"}
-                    </span>
-                  </div>
-                  <Row label="Timezone" value={user?.timezone || "UTC"} />
-                  <p className="pt-1 text-xs leading-4 text-[var(--ds-gray-700)]">
-                    Totals convert into your base currency. Accounts and transfers
-                    keep their own currencies.
+            <Card>
+              <CardHeader className="flex flex-row items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-heading text-base font-semibold">
+                    Workspace defaults
+                  </h2>
+                  <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
+                    Reporting currency and regional defaults for totals.
                   </p>
-                </CardBody>
-              </Card>
-            </>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => router.push("/profile")}
+                >
+                  Open profile
+                </Button>
+              </CardHeader>
+              <CardBody>
+                <form onSubmit={saveDefaults} className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor="country">Country</Label>
+                      <Select
+                        id="country"
+                        value={country}
+                        onChange={(e) => {
+                          const code = e.target.value;
+                          setCountry(code);
+                          const meta = getCountry(code);
+                          if (meta) setCurrency(meta.currency);
+                        }}
+                      >
+                        {sortedCountries.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="currency">Base currency</Label>
+                      <Select
+                        id="currency"
+                        value={currency}
+                        onChange={(e) => setCurrency(e.target.value)}
+                      >
+                        {SUPPORTED_CURRENCIES.map((code) => (
+                          <option key={code} value={code}>
+                            {code}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="timezone">Timezone</Label>
+                    <Select
+                      id="timezone"
+                      value={timezone}
+                      onChange={(e) => setTimezone(e.target.value)}
+                    >
+                      {TIMEZONES.map((tz) => (
+                        <option key={tz} value={tz}>
+                          {tz}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button type="submit" loading={savingDefaults}>
+                      Save defaults
+                    </Button>
+                  </div>
+                </form>
+              </CardBody>
+            </Card>
           ) : null}
 
           {section === "ai" ? <AiProvidersSection /> : null}
           {section === "appearance" ? <AppearanceSection /> : null}
 
           {section === "security" ? (
-            <Card>
-              <CardHeader>
-                <h2>Security status</h2>
-              </CardHeader>
-              <CardBody className="space-y-4">
-                <SecurityRow
-                  label="Authenticated session"
-                  description="Requests use signed access tokens with automatic refresh."
-                />
-                <SecurityRow
-                  label="Encrypted AI credentials"
-                  description="Provider secrets are encrypted with AES-256-GCM before storage."
-                />
-                <SecurityRow
-                  label="Confirmation-gated AI actions"
-                  description="The Advisor cannot change financial data without your approval."
-                />
-                <p className="rounded-[10px] bg-[var(--ds-background-100)] p-3 text-xs leading-5 text-[var(--ds-gray-700)]">
-                  FinOS never displays stored provider secrets after saving them.
-                  Disconnect a provider from AI & Models to remove its credentials.
-                </p>
-              </CardBody>
-            </Card>
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <h2 className="font-heading text-base font-semibold">
+                    Change password
+                  </h2>
+                  <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
+                    Update the password used to sign in to FinOS.
+                  </p>
+                </CardHeader>
+                <CardBody>
+                  <form onSubmit={onChangePassword} className="space-y-4">
+                    <div>
+                      <Label htmlFor="currentPassword">Current password</Label>
+                      <PasswordInput
+                        id="currentPassword"
+                        autoComplete="current-password"
+                        required
+                        minLength={8}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <Label htmlFor="newPassword">New password</Label>
+                        <PasswordInput
+                          id="newPassword"
+                          autoComplete="new-password"
+                          required
+                          minLength={8}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="confirmNewPassword">Confirm new</Label>
+                        <PasswordInput
+                          id="confirmNewPassword"
+                          autoComplete="new-password"
+                          required
+                          minLength={8}
+                          value={confirmNewPassword}
+                          onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <Button type="submit" loading={savingPassword}>
+                        Update password
+                      </Button>
+                    </div>
+                  </form>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <h2 className="font-heading text-base font-semibold">
+                    Security posture
+                  </h2>
+                </CardHeader>
+                <CardBody className="space-y-3 text-xs leading-5 text-[var(--ds-gray-700)]">
+                  <p>
+                    Sessions use signed access tokens with automatic refresh.
+                    AI provider secrets are encrypted at rest (AES-256-GCM).
+                  </p>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => router.push("/forgot-password")}
+                  >
+                    Reset via email instead
+                  </Button>
+                </CardBody>
+              </Card>
+            </div>
           ) : null}
 
           {section === "data" ? (
-            <Card>
-              <CardHeader>
-                <h2>Data & backup</h2>
-              </CardHeader>
-              <CardBody>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-medium">Export a portable backup</p>
-                    <p className="mt-1 max-w-xl text-xs leading-5 text-[var(--ds-gray-700)]">
-                      Download accounts, transactions, categories, budgets,
-                      goals, and investments in a readable JSON file.
-                    </p>
-                  </div>
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <h2 className="font-heading text-base font-semibold">
+                    Export backup
+                  </h2>
+                  <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
+                    Download accounts, transactions, categories, budgets, goals,
+                    and investments as JSON.
+                  </p>
+                </CardHeader>
+                <CardBody>
                   <Button
                     variant="secondary"
                     loading={exporting}
@@ -240,22 +435,58 @@ export default function SettingsPage() {
                   >
                     Export data
                   </Button>
-                </div>
-              </CardBody>
-            </Card>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <h2 className="font-heading text-base font-semibold">
+                    Local cache
+                  </h2>
+                  <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
+                    Clear dismissed notifications stored in this browser. Does
+                    not delete server data.
+                  </p>
+                </CardHeader>
+                <CardBody>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      localStorage.removeItem("finos:dismissed-notifications");
+                      showToast({
+                        title: "Local cache cleared",
+                        description: "Dismissed notification state was reset.",
+                        tone: "success",
+                      });
+                    }}
+                  >
+                    Clear dismissed notifications
+                  </Button>
+                </CardBody>
+              </Card>
+            </div>
           ) : null}
 
           {section === "shortcuts" ? (
             <Card>
               <CardHeader>
-                <h2>Keyboard shortcuts</h2>
+                <h2 className="font-heading text-base font-semibold">
+                  Keyboard shortcuts
+                </h2>
+                <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
+                  Try them now — open the command palette from here.
+                </p>
               </CardHeader>
-              <CardBody className="divide-y divide-[var(--ds-gray-200)]">
+              <CardBody className="space-y-1">
                 <Shortcut label="Command palette" keys="Ctrl / Cmd + K" />
                 <Shortcut label="New transaction" keys="Ctrl / Cmd + N" />
                 <Shortcut label="Navigate command results" keys="↑ / ↓" />
                 <Shortcut label="Run selected command" keys="Enter" />
                 <Shortcut label="Close dialogs and panels" keys="Esc" />
+                <div className="pt-3">
+                  <Button size="sm" variant="secondary" onClick={openCommandPalette}>
+                    Open command palette
+                  </Button>
+                </div>
               </CardBody>
             </Card>
           ) : null}
@@ -263,13 +494,13 @@ export default function SettingsPage() {
           {section === "session" ? (
             <Card>
               <CardHeader>
-                <h2>Session</h2>
-              </CardHeader>
-              <CardBody className="space-y-3">
-                <p className="text-sm text-[var(--ds-gray-900)]">
-                  Sign out of FinOS on this device. Provider keys stay encrypted
-                  on the server until you disconnect them.
+                <h2 className="font-heading text-base font-semibold">Session</h2>
+                <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
+                  Signed in as {user?.email || "—"}. Signing out only affects
+                  this browser.
                 </p>
+              </CardHeader>
+              <CardBody className="flex flex-wrap gap-2">
                 <Button
                   variant="danger"
                   onClick={() => {
@@ -279,6 +510,12 @@ export default function SettingsPage() {
                 >
                   Log out
                 </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => router.push("/profile")}
+                >
+                  Edit profile
+                </Button>
               </CardBody>
             </Card>
           ) : null}
@@ -286,7 +523,9 @@ export default function SettingsPage() {
           {section === "about" ? (
             <Card>
               <CardHeader>
-                <h2>About FinOS</h2>
+                <h2 className="font-heading text-base font-semibold">
+                  About FinOS
+                </h2>
               </CardHeader>
               <CardBody className="space-y-3">
                 <Row label="Application" value="FinOS" />
@@ -333,31 +572,9 @@ function Row({
   );
 }
 
-function SecurityRow({
-  label,
-  description,
-}: {
-  label: string;
-  description: string;
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--ds-status-green)_12%,transparent)] text-[var(--ds-status-green)]">
-        <ShieldCheck size={14} />
-      </span>
-      <div>
-        <p className="text-[13px] font-medium">{label}</p>
-        <p className="mt-0.5 text-xs leading-5 text-[var(--ds-gray-700)]">
-          {description}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function Shortcut({ label, keys }: { label: string; keys: string }) {
   return (
-    <div className="flex min-h-12 items-center justify-between gap-4 py-2">
+    <div className="flex min-h-12 items-center justify-between gap-4 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_6%,transparent)] py-2 last:border-b-0">
       <span className="text-[13px] text-[var(--ds-gray-900)]">{label}</span>
       <kbd className="rounded-[7px] bg-[var(--ds-background-200)] px-2.5 py-1.5 font-mono text-[11px] text-[var(--ds-gray-900)] ds-border">
         {keys}

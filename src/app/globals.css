@@ -93,6 +93,7 @@
   --color-danger: var(--ds-status-red);
   --color-success: var(--ds-status-green);
   --font-sans: var(--font-app-sans);
+  --font-heading: var(--font-app-sans);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -173,9 +174,19 @@ body {
   font-family: var(--font-app-sans), ui-sans-serif, system-ui, sans-serif;
   font-size: 15px;
   font-weight: 400;
-  font-feature-settings: "liga";
+  font-feature-settings: "liga", "ss01", "cv11";
+  letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
+}
+
+.font-heading {
+  font-family: var(--font-heading), var(--font-app-sans), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.025em;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 h1 {

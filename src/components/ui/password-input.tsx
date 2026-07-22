@@ -3,19 +3,25 @@
 import { useState, type ComponentProps } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/cn";
 
 type PasswordInputProps = Omit<
   ComponentProps<typeof Input>,
   "type" | "endAdornment"
 >;
 
-export function PasswordInput(props: PasswordInputProps) {
+export function PasswordInput({ className, ...props }: PasswordInputProps) {
   const [visible, setVisible] = useState(false);
 
   return (
     <Input
       {...props}
       type={visible ? "text" : "password"}
+      className={cn(
+        // Placeholders must read as hints — never as filled password glyphs.
+        "placeholder:font-normal placeholder:tracking-normal placeholder:text-[color-mix(in_srgb,var(--ds-gray-700)_58%,transparent)]",
+        className,
+      )}
       endAdornment={
         <button
           type="button"

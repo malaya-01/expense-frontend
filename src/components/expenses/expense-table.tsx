@@ -101,15 +101,15 @@ export function TransactionTable({
           );
         })}
       </div>
-      <div className="hidden overflow-x-auto rounded-[12px] bg-[var(--ds-background-elevated)] ds-border md:block">
+      <div className="hidden overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] ds-border md:block">
       <table className="w-full min-w-[720px] border-collapse text-left">
         <thead>
-          <tr className="text-xs text-[var(--ds-gray-900)]">
-            <th className="px-6 py-3 font-normal">Transaction</th>
-            <th className="px-6 py-3 font-normal">Flow</th>
-            <th className="px-6 py-3 font-normal">Date</th>
-            <th className="px-6 py-3 font-normal text-right">Amount</th>
-            <th className="px-6 py-3 font-normal text-right">Actions</th>
+          <tr className="border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-background-100)] text-[11px] uppercase tracking-[0.08em] text-[var(--ds-gray-700)]">
+            <th className="px-5 py-3 font-medium">Transaction</th>
+            <th className="px-5 py-3 font-medium">Flow</th>
+            <th className="px-5 py-3 font-medium">Date</th>
+            <th className="px-5 py-3 font-medium text-right">Amount</th>
+            <th className="px-5 py-3 font-medium text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -129,16 +129,16 @@ export function TransactionTable({
             return (
               <tr
                 key={tx.id}
-                className="hover:bg-[var(--ds-background-100)]"
+                className="border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_6%,transparent)] last:border-b-0 hover:bg-[color-mix(in_srgb,var(--ds-focus-color)_4%,transparent)]"
               >
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
+                <td className="px-5 py-3.5">
+                  <div className="flex items-center gap-2.5">
                     <StatusDot tone={TYPE_TONE[tx.type]} />
                     <div>
-                      <div className="text-sm text-[var(--ds-gray-1000)]">
+                      <div className="text-[13px] font-medium text-[var(--ds-gray-1000)]">
                         {tx.description}
                       </div>
-                      <div className="mt-0.5 text-xs capitalize text-[var(--ds-gray-700)]">
+                      <div className="mt-0.5 text-[11px] capitalize text-[var(--ds-gray-700)]">
                         {tx.type}
                         {tx.category_name ? ` · ${tx.category_name}` : ""}
                         {tx.merchant ? ` · ${tx.merchant}` : ""}
@@ -146,30 +146,30 @@ export function TransactionTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-sm text-[var(--ds-gray-900)]">
+                <td className="px-5 py-3.5 text-[12px] text-[var(--ds-gray-900)]">
                   {flow}
                 </td>
-                <td className="px-6 py-4 text-sm text-[var(--ds-gray-900)]">
+                <td className="px-5 py-3.5 font-mono text-[12px] tabular-nums text-[var(--ds-gray-900)]">
                   {formatRelativeDate(tx.date)}
                 </td>
-                <td className="px-6 py-4 text-right text-sm font-medium tabular-nums text-[var(--ds-gray-1000)]">
+                <td className="px-5 py-3.5 text-right font-mono text-[13px] font-semibold tabular-nums text-[var(--ds-gray-1000)]">
                   <div>
                     {sign}
                     {formatCurrency(tx.amount, nativeCurrency)}
                   </div>
                   {showBase ? (
-                    <div className="mt-0.5 text-xs font-normal text-[var(--ds-gray-700)]">
+                    <div className="mt-0.5 text-[11px] font-normal text-[var(--ds-gray-700)]">
                       ≈ {sign}
                       {formatCurrency(baseAmount, baseCurrency)}
                     </div>
                   ) : null}
                 </td>
-                <td className="px-6 py-4 text-right">
+                <td className="px-5 py-3.5 text-right">
                   <div className="inline-flex items-center gap-1">
                     <button
                       type="button"
                       onClick={() => onEdit(tx)}
-                      className="rounded-[6px] px-2.5 py-1.5 text-sm text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)]"
+                      className="rounded-[6px] px-2 py-1 text-[12px] text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)]"
                     >
                       Edit
                     </button>

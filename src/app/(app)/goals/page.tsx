@@ -128,7 +128,7 @@ export default function GoalsPage() {
         <p className="mb-4 text-sm text-[var(--ds-status-red)]">{error}</p>
       ) : null}
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-8 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <MetricCard
           title="Targeted"
           value={formatCurrency(summary.target, baseCurrency)}
@@ -177,7 +177,7 @@ export default function GoalsPage() {
           />
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
           {goals.map((g) => (
             <GoalCard
               key={g.id}

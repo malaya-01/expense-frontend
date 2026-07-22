@@ -205,17 +205,33 @@ function SidebarContents({
           <ThemeMenu showCreateLink />
         </div>
         <div className="flex items-center gap-2 rounded-[8px] px-2 py-2">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[var(--ds-background-200)] text-[10px] font-medium text-[var(--ds-gray-1000)]">
-            {initials(user?.full_name, user?.email)}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[11px] font-medium text-[var(--ds-gray-1000)]">
-              {user?.full_name || "FinOS user"}
-            </p>
-            <p className="truncate text-[10px] text-[var(--ds-gray-700)]">
-              {user?.email}
-            </p>
-          </div>
+          <button
+            type="button"
+            onClick={() => router.push("/profile")}
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-[6px] text-left ds-focus"
+            title="Open profile"
+          >
+            {user?.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.avatar_url}
+                alt=""
+                className="size-7 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[var(--ds-background-200)] text-[10px] font-medium text-[var(--ds-gray-1000)]">
+                {initials(user?.full_name, user?.email)}
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11px] font-medium text-[var(--ds-gray-1000)]">
+                {user?.full_name || "FinOS user"}
+              </p>
+              <p className="truncate text-[10px] text-[var(--ds-gray-700)]">
+                {user?.email}
+              </p>
+            </div>
+          </button>
           <button
             type="button"
             onClick={() => {

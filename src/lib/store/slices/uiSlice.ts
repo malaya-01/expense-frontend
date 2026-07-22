@@ -79,6 +79,11 @@ const uiSlice = createSlice({
     setMobileNavOpen(state, action: PayloadAction<boolean>) {
       state.mobileNavOpen = action.payload;
     },
+    resetSidebarTransient(state) {
+      state.sidebarPeeking = false;
+      state.mobileNavOpen = false;
+      state.commandPaletteOpen = false;
+    },
     openCommandPalette(state) {
       state.commandPaletteOpen = true;
     },
@@ -106,6 +111,7 @@ export const {
   setSidebarWidth,
   setSidebarResizing,
   setMobileNavOpen,
+  resetSidebarTransient,
   openCommandPalette,
   closeCommandPalette,
   showToast,

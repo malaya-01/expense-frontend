@@ -55,6 +55,7 @@ function SignInForm() {
         currency: tokens.user?.currency || "USD",
         timezone: tokens.user?.timezone,
         locale: tokens.user?.locale,
+        avatar_url: tokens.user?.avatar_url ?? null,
       });
       showToast({
         title: "Signed in",
@@ -63,9 +64,20 @@ function SignInForm() {
       });
       router.replace("/dashboard");
     } catch (err) {
+      const message = getErrorMessage(err, "Invalid email or password");
+      if (message.includes("EMAIL_NOT_VERIFIED")) {
+        showToast({
+          title: "Email not verified",
+          description:
+            "We sent a fresh verification link. Check your inbox, then sign in.",
+          tone: "warning",
+        });
+        router.replace(`/check-email?email=${encodeURIComponent(email)}`);
+        return;
+      }
       showToast({
         title: "Sign in failed",
-        description: getErrorMessage(err, "Invalid email or password"),
+        description: message,
         tone: "error",
       });
     } finally {
@@ -116,7 +128,7 @@ function SignInForm() {
                 minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Enter your password"
               />
             </div>
 

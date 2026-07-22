@@ -47,13 +47,13 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 className="text-[26px] font-semibold leading-8 tracking-[-0.8px] text-[var(--ds-gray-1000)] sm:text-[30px] sm:leading-9">
+        <h1 className="font-heading text-[24px] font-semibold leading-8 tracking-[-0.8px] text-[var(--ds-gray-1000)] sm:text-[28px] sm:leading-9">
           {title}
         </h1>
         {description ? (
-          <p className="mt-1.5 max-w-2xl text-[13px] leading-5 text-[var(--ds-gray-700)]">
+          <p className="mt-1 max-w-2xl text-[13px] leading-5 text-[var(--ds-gray-700)]">
             {description}
           </p>
         ) : null}
