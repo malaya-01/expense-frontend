@@ -10,12 +10,15 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardBody } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
-import { registerUser } from "@/lib/api/auth";
+import { loginUser, registerUser } from "@/lib/api/auth";
 import { getErrorMessage } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
+import { userIdFromToken } from "@/lib/jwt";
 import { COUNTRIES, SUPPORTED_CURRENCIES, getCountry } from "@/lib/currency/currency.data";
 
 export default function SignUpPage() {
   const router = useRouter();
+  const { setSession } = useAuth();
   const { showToast } = useToast();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -56,12 +59,25 @@ export default function SignUpPage() {
         country,
         currency,
       });
+      const tokens = await loginUser({ email, password });
+      const id =
+        tokens.user?.id || userIdFromToken(tokens.accessToken) || "local";
+      setSession({
+        id,
+        email: tokens.user?.email || email,
+        full_name: tokens.user?.full_name ?? fullName,
+        country: tokens.user?.country ?? country,
+        currency: tokens.user?.currency || currency || "USD",
+        timezone: tokens.user?.timezone,
+        locale: tokens.user?.locale,
+        avatar_url: tokens.user?.avatar_url ?? null,
+      });
       showToast({
-        title: "Check your email",
-        description: "We sent a verification link. Verify before signing in.",
+        title: "Welcome to FinOS",
+        description: "Your account is ready.",
         tone: "success",
       });
-      router.replace(`/check-email?email=${encodeURIComponent(email)}`);
+      router.replace("/dashboard");
     } catch (err) {
       showToast({
         title: "Sign up failed",
