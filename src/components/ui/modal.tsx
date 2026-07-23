@@ -24,19 +24,31 @@ export function Modal({
   const closeRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!open) return;
     const previousFocus = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    // Only steal focus when the modal first opens — not on every parent re-render.
     window.requestAnimationFrame(() => {
+      const alreadyInside = dialogRef.current?.contains(document.activeElement);
+      if (alreadyInside) return;
       const firstBodyControl = dialogRef.current?.querySelector<HTMLElement>(
         "[data-modal-body] input:not([disabled]), [data-modal-body] select:not([disabled]), [data-modal-body] textarea:not([disabled]), [data-modal-body] button:not([disabled])",
       );
       (firstBodyControl || closeRef.current)?.focus();
     });
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        if ((e.target as HTMLElement | null)?.closest?.("[data-nested-overlay]")) {
+          return;
+        }
+        onCloseRef.current();
+        return;
+      }
       if (e.key === "Tab") {
         const focusable = Array.from(
           dialogRef.current?.querySelectorAll<HTMLElement>(
@@ -61,7 +73,7 @@ export function Modal({
       document.body.style.overflow = previousOverflow;
       previousFocus?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open || typeof document === "undefined") return null;
 

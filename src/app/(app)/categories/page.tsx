@@ -1,6 +1,8 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Lightbulb, Plus, Search, Check } from "lucide-react";
 import { PageHeader, EmptyState } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardBody } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { StatusDot } from "@/components/ui/status-dot";
+import { CategoryCard } from "@/components/categories/category-card";
 import {
   createCategory,
   deleteCategory,
@@ -18,35 +20,51 @@ import {
   updateCategory,
 } from "@/lib/api/categories";
 import { getErrorMessage } from "@/lib/api/client";
-import { formatCurrency } from "@/lib/format";
+import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import { CardGridSkeleton } from "@/components/ui/feedback";
+import { CategoryNameWithIcon } from "@/components/categories/category-icon-picker";
+import { cn } from "@/lib/cn";
+import {
+  normalizeCategoryIcon,
+  suggestCategoryIconHeuristic,
+  type CategoryIconId,
+} from "@/lib/categories/icons";
 import type { Category, CreateCategoryInput } from "@/types";
 
 const COLORS = [
-  "#0062D1",
-  "#45A557",
-  "#FF990A",
+  "#6B7280",
   "#E5484D",
-  "#7820BC",
-  "#067A6E",
   "#EA3E83",
-  "#52AEFF",
+  "#16A34A",
+  "#0D9488",
+  "#7C3AED",
+  "#2563EB",
+  "#4338CA",
+  "#FF990A",
+  "#0062D1",
 ];
 
 const emptyForm: CreateCategoryInput = {
   name: "",
   description: "",
   color: COLORS[0],
+  icon: "tags",
   budget_amount: undefined,
   budget_period: "MONTHLY",
 };
 
+type FilterKind = "all" | "budgeted" | "unbudgeted";
+
 export default function CategoriesPage() {
+  const { user } = useAuth();
   const { showToast } = useToast();
+  const currency = user?.currency || "USD";
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<FilterKind>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState<CreateCategoryInput>(emptyForm);
@@ -69,8 +87,24 @@ export default function CategoriesPage() {
   }, []);
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return categories.filter((category) => {
+      const hasBudget = Boolean(
+        category.budget_amount && Number(category.budget_amount) > 0,
+      );
+      if (filter === "budgeted" && !hasBudget) return false;
+      if (filter === "unbudgeted" && hasBudget) return false;
+      if (!q) return true;
+      return (
+        category.name.toLowerCase().includes(q) ||
+        (category.description || "").toLowerCase().includes(q)
+      );
+    });
+  }, [categories, filter, search]);
 
   function openCreate() {
     setEditing(null);
@@ -84,12 +118,24 @@ export default function CategoriesPage() {
       name: category.name,
       description: category.description || "",
       color: category.color || COLORS[0],
+      icon: normalizeCategoryIcon(category.icon),
       budget_amount: category.budget_amount
         ? Number(category.budget_amount)
         : undefined,
       budget_period: category.budget_period || "MONTHLY",
     });
     setModalOpen(true);
+  }
+
+  function onNameChange(name: string) {
+    const trimmed = name.trim();
+    setForm((f) => ({
+      ...f,
+      name,
+      icon: trimmed
+        ? suggestCategoryIconHeuristic(trimmed, f.description || "")
+        : "tags",
+    }));
   }
 
   async function onSubmit(e: FormEvent) {
@@ -101,6 +147,7 @@ export default function CategoriesPage() {
         name: form.name.trim(),
         description: form.description?.trim() || undefined,
         color: form.color,
+        icon: normalizeCategoryIcon(form.icon),
         budget_amount: form.budget_amount
           ? Number(form.budget_amount)
           : undefined,
@@ -129,8 +176,43 @@ export default function CategoriesPage() {
     <div>
       <PageHeader
         title="Categories"
-        description="Organize spending with budgets and color markers."
-        actions={<Button onClick={openCreate}>New category</Button>}
+        description="Track spending envelopes with budgets, progress, and color coding."
+        actions={
+          <>
+            <label className="flex h-9 min-w-[180px] flex-1 items-center gap-2 rounded-[10px] bg-[var(--ds-background-elevated)] px-3 shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:flex-none">
+              <Search
+                size={14}
+                className="text-[var(--ds-gray-700)]"
+                aria-hidden
+              />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search categories…"
+                className="w-full bg-transparent text-xs text-[var(--ds-gray-1000)] outline-none placeholder:text-[var(--ds-gray-700)]"
+                aria-label="Search categories"
+              />
+            </label>
+            <div className="w-[148px] shrink-0">
+              <Select
+                value={filter}
+                onChange={(event) =>
+                  setFilter(event.target.value as FilterKind)
+                }
+                aria-label="Filter categories"
+                className="h-9"
+              >
+                <option value="all">All types</option>
+                <option value="budgeted">Budgeted</option>
+                <option value="unbudgeted">No budget</option>
+              </Select>
+            </div>
+            <Button onClick={openCreate} className="gap-1.5">
+              <Plus size={15} />
+              New category
+            </Button>
+          </>
+        }
       />
 
       {error ? (
@@ -148,61 +230,53 @@ export default function CategoriesPage() {
             onAction={openCreate}
           />
         </Card>
+      ) : visible.length === 0 ? (
+        <Card>
+          <CardBody className="py-10 text-center">
+            <p className="text-sm font-medium text-[var(--ds-gray-1000)]">
+              No matching categories
+            </p>
+            <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
+              Try a different search or filter.
+            </p>
+          </CardBody>
+        </Card>
       ) : (
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
-          {categories.map((category) => (
-            <Card key={category.id}>
-              <CardBody className="pt-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <StatusDot color={category.color || undefined} tone="blue" />
-                    <div className="min-w-0">
-                      <h2 className="truncate text-[var(--ds-gray-1000)]">
-                        {category.name}
-                      </h2>
-                      {category.description ? (
-                        <p className="mt-1 line-clamp-2 text-xs leading-4 text-[var(--ds-gray-900)]">
-                          {category.description}
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-                {category.budget_amount ? (
-                  <p className="mt-4 text-xs text-[var(--ds-gray-700)]">
-                    Budget{" "}
-                    {formatCurrency(Number(category.budget_amount))}
-                    {category.budget_period
-                      ? ` / ${category.budget_period.toLowerCase()}`
-                      : ""}
-                  </p>
-                ) : (
-                  <p className="mt-4 text-xs text-[var(--ds-gray-700)]">
-                    No budget set
-                  </p>
-                )}
-                <div className="mt-4 flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => openEdit(category)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-[var(--ds-status-red)]"
-                    onClick={() => setDeleteTarget(category)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </CardBody>
-            </Card>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {visible.map((category) => (
+            <CategoryCard
+              key={category.id}
+              category={category}
+              currency={currency}
+              onEdit={() => openEdit(category)}
+              onDelete={() => setDeleteTarget(category)}
+            />
           ))}
         </div>
       )}
+
+      {!loading && categories.length > 0 ? (
+        <aside className="mt-6 flex items-start gap-3 rounded-[14px] bg-[color-mix(in_srgb,var(--ds-status-orange)_10%,var(--ds-background-elevated))] px-4 py-3 text-sm text-[var(--ds-gray-900)]">
+          <Lightbulb
+            size={18}
+            className="mt-0.5 shrink-0 text-[var(--ds-status-orange)]"
+            aria-hidden
+          />
+          <p className="min-w-0 leading-5">
+            <span className="font-semibold text-[var(--ds-gray-1000)]">
+              Tip:
+            </span>{" "}
+            Set a monthly budget on each category to see On Track / Near Limit
+            status as you spend.{" "}
+            <Link
+              href="/budgets"
+              className="font-medium text-[var(--ds-status-blue)] underline underline-offset-2"
+            >
+              Learn more
+            </Link>
+          </p>
+        </aside>
+      ) : null}
 
       <Modal
         open={modalOpen}
@@ -222,12 +296,23 @@ export default function CategoriesPage() {
         <form id="category-form" onSubmit={onSubmit} className="space-y-4">
           <div>
             <Label htmlFor="cat-name">Name</Label>
-            <Input
-              id="cat-name"
-              required
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            />
+            <div className="mt-1">
+              <CategoryNameWithIcon
+                id="cat-name"
+                required
+                name={form.name}
+                icon={normalizeCategoryIcon(form.icon) as CategoryIconId}
+                color={form.color}
+                showIcon={Boolean(form.name.trim())}
+                onNameChange={onNameChange}
+                onIconChange={(icon) => {
+                  setForm((f) => ({ ...f, icon }));
+                }}
+              />
+            </div>
+            <p className="mt-1.5 text-[11px] text-[var(--ds-gray-700)]">
+              Icon updates as you type. Click it to pick a different one before saving.
+            </p>
           </div>
           <div>
             <Label htmlFor="cat-desc">Description</Label>
@@ -242,20 +327,33 @@ export default function CategoriesPage() {
           <div>
             <Label>Color</Label>
             <div className="mt-1 flex flex-wrap gap-2">
-              {COLORS.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  aria-label={`Select ${color}`}
-                  onClick={() => setForm((f) => ({ ...f, color }))}
-                  className="flex size-8 items-center justify-center rounded-[6px] hover:bg-[var(--ds-gray-100)] ds-focus"
-                >
-                  <StatusDot color={color} />
-                  {form.color === color ? (
-                    <span className="sr-only">Selected</span>
-                  ) : null}
-                </button>
-              ))}
+              {COLORS.map((color) => {
+                const selected = form.color === color;
+                return (
+                  <button
+                    key={color}
+                    type="button"
+                    aria-label={`Select color ${color}`}
+                    aria-pressed={selected}
+                    onClick={() => setForm((f) => ({ ...f, color }))}
+                    className={cn(
+                      "relative flex size-8 items-center justify-center rounded-full transition-transform ds-focus",
+                      selected
+                        ? "scale-105 ring-2 ring-[var(--ds-gray-1000)] ring-offset-2 ring-offset-[var(--ds-background-elevated)]"
+                        : "hover:scale-105",
+                    )}
+                    style={{ backgroundColor: color }}
+                  >
+                    {selected ? (
+                      <Check
+                        size={14}
+                        strokeWidth={2.5}
+                        className="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]"
+                      />
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">

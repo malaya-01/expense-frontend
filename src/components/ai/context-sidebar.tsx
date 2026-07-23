@@ -3,16 +3,15 @@
 import { memo } from "react";
 import Link from "next/link";
 import {
-  Check,
   FileText,
   Lightbulb,
+  LoaderCircle,
   PlusCircle,
   ShieldAlert,
   TrendingUp,
   Upload,
   Wallet,
 } from "lucide-react";
-import { connectedSources } from "@/components/ai/tool-labels";
 import { Badge } from "@/components/ui/feedback";
 import { Button } from "@/components/ui/button";
 import { ActionMenu } from "@/components/ui/action-menu";
@@ -232,19 +231,12 @@ export const ContextSidebar = memo(function ContextSidebar({
   }
 
   const inConversation = Boolean(activeId || messages.length);
-  const latestAssistant = [...messages]
-    .reverse()
-    .find((message) => message.role === "assistant");
   const referencedDocuments = documents.filter((document) =>
     messages.some((message) =>
       message.attachments?.some(
         (attachment) => attachment.name === document.name,
       ),
     ),
-  );
-  const sources = connectedSources(latestAssistant?.tool_activity);
-  const relatedModules = (latestAssistant?.citations || []).filter(
-    (citation) => citation.href.startsWith("/"),
   );
 
   return (
@@ -255,36 +247,6 @@ export const ContextSidebar = memo(function ContextSidebar({
       <div className="app-scrollbar min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
         {inConversation ? (
           <>
-            <section>
-              <p className="text-sm font-semibold text-[var(--ds-gray-1000)]">
-                Connected Sources
-              </p>
-              <p className="mt-1 text-xs leading-5 text-[var(--ds-gray-700)]">
-                Data FinOS used to ground this reply.
-              </p>
-              <div className="mt-3 space-y-2">
-                {(sources.length
-                  ? sources
-                  : ["Financial Twin", "Accounts", "Budgets", "Goals"]
-                )
-                  .slice(0, 6)
-                  .map((source) => (
-                    <div
-                      key={source}
-                      className="flex items-center gap-2 text-xs text-[var(--ds-gray-900)]"
-                    >
-                      <span className="flex size-5 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--ds-status-green)_14%,transparent)]">
-                        <Check
-                          size={11}
-                          className="text-[var(--ds-status-green)]"
-                        />
-                      </span>
-                      <span>{source}</span>
-                    </div>
-                  ))}
-              </div>
-            </section>
-
             {referencedDocuments.length ? (
               <DocumentList
                 title="Referenced Documents"
@@ -293,24 +255,6 @@ export const ContextSidebar = memo(function ContextSidebar({
                 onDelete={onDeleteDocument}
               />
             ) : null}
-
-            {relatedModules.length ? (
-              <section>
-                <p className="mb-2 text-sm font-semibold">Related Modules</p>
-                <div className="flex flex-wrap gap-2">
-                  {relatedModules.map((citation) => (
-                    <Link
-                      key={citation.href}
-                      href={citation.href}
-                      className="rounded-full bg-[var(--ds-background-elevated)] px-3 py-1.5 text-[11px] text-[var(--ds-focus-color)] ds-focus"
-                    >
-                      {citation.label}
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
           </>
         ) : (
           <>
@@ -506,8 +450,16 @@ function DocumentList({
                 disabled={document.id.startsWith("upload-")}
                 className="flex min-w-0 flex-1 items-start gap-2 text-left ds-focus"
               >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-[var(--ds-background-elevated)]">
-                  <FileText size={15} className="text-[var(--ds-status-red)]" />
+                <span className="relative flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-[var(--ds-background-elevated)]">
+                  {document.id.startsWith("upload-") ||
+                  document.status === "analyzing" ? (
+                    <LoaderCircle
+                      size={15}
+                      className="animate-spin text-[var(--ds-focus-color)]"
+                    />
+                  ) : (
+                    <FileText size={15} className="text-[var(--ds-status-red)]" />
+                  )}
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate text-xs font-medium">

@@ -274,21 +274,39 @@ select {
 
 .ai-markdown {
   line-height: 1.65;
+  color: var(--ds-gray-1000);
+  /* Links stay clearly blue even when brand accent is orange/brown. */
+  --ai-md-link: var(--ds-status-blue);
+  --ai-md-link-hover: color-mix(in srgb, var(--ds-status-blue) 82%, #000);
 }
 
 .ai-markdown > * + * {
   margin-top: 0.75rem;
 }
 
+.ai-markdown .ai-md-p {
+  margin: 0;
+}
+
 .ai-markdown h1,
 .ai-markdown h2,
-.ai-markdown h3 {
+.ai-markdown h3,
+.ai-markdown h4 {
   margin-top: 1rem;
   color: var(--ds-gray-1000);
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.4;
   letter-spacing: -0.01em;
+}
+
+.ai-markdown h1 {
+  font-size: 1rem;
+}
+
+.ai-markdown h2,
+.ai-markdown h3,
+.ai-markdown h4 {
+  font-size: 0.875rem;
 }
 
 .ai-markdown ul,
@@ -308,9 +326,34 @@ select {
   margin-top: 0.3rem;
 }
 
+.ai-markdown input[type="checkbox"] {
+  margin-right: 0.4rem;
+}
+
+.ai-markdown .ai-md-strong,
 .ai-markdown strong {
   color: var(--ds-gray-1000);
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.ai-markdown .ai-md-em,
+.ai-markdown em {
+  font-style: italic;
+  color: var(--ds-gray-900);
+}
+
+.ai-markdown .ai-md-link,
+.ai-markdown a {
+  color: var(--ai-md-link);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.ai-markdown .ai-md-link:hover,
+.ai-markdown a:hover {
+  color: var(--ai-md-link-hover);
 }
 
 .ai-markdown code {
@@ -319,6 +362,7 @@ select {
   padding: 0.1rem 0.3rem;
   font-family: var(--font-geist-mono), monospace;
   font-size: 0.85em;
+  color: var(--ds-gray-1000);
 }
 
 .ai-markdown pre {
@@ -331,6 +375,43 @@ select {
 .ai-markdown pre code {
   background: transparent;
   padding: 0;
+}
+
+/* Streaming caret sits after the last character of the latest block. */
+.ai-markdown.is-streaming > p:last-child::after,
+.ai-markdown.is-streaming > :last-child.ai-md-p::after,
+.ai-markdown.is-streaming > ul:last-child > li:last-child::after,
+.ai-markdown.is-streaming > ol:last-child > li:last-child::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  background: var(--ds-gray-1000);
+  animation: ai-caret-blink 1s steps(1, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-markdown.is-streaming > p:last-child::after,
+  .ai-markdown.is-streaming > :last-child.ai-md-p::after,
+  .ai-markdown.is-streaming > ul:last-child > li:last-child::after,
+  .ai-markdown.is-streaming > ol:last-child > li:last-child::after {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+@keyframes ai-caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
 }
 
 .ds-focus:focus-visible {

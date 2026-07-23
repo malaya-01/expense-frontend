@@ -1,19 +1,44 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { PageHeader, EmptyState } from "@/components/ui/page-header";
+import {
+  Building2,
+  ChevronRight,
+  CreditCard,
+  Filter,
+  Landmark,
+  PiggyBank,
+  Plus,
+  Search,
+  Scale,
+  Users,
+  Wallet,
+} from "lucide-react";
+import { EmptyState } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { MetricCard } from "@/components/dashboard/metric-card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { AccountCard } from "@/components/accounts/account-card";
 import { AccountFormModal } from "@/components/accounts/account-form-modal";
+import { AccountKpiCard } from "@/components/accounts/account-kpi-card";
+import { AccountsSidebar } from "@/components/accounts/accounts-sidebar";
 import { summarizeTwin } from "@/lib/accounts/metrics";
+import {
+  allocationSlices,
+  buildAccountInsights,
+  buildKpiSeries,
+  groupAccent,
+  groupSectionTotal,
+  recentAccountActivity,
+} from "@/lib/accounts/insights";
 import {
   createAccount,
   deleteAccount,
   listAccounts,
   updateAccount,
 } from "@/lib/api/accounts";
+import { listTransactions } from "@/lib/api/transactions";
 import {
   CONTAINER_TYPES,
   GROUP_LABELS,
@@ -24,36 +49,65 @@ import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
 import { CardGridSkeleton, PageSkeleton } from "@/components/ui/feedback";
-import type { CreateContainerInput, FinancialContainer } from "@/types";
+import type {
+  CreateContainerInput,
+  FinancialContainer,
+  LedgerTransaction,
+} from "@/types";
+
+type GroupFilter = "all" | "liquid" | "invest" | "credit" | "people" | "other";
+
+function sectionIcon(group: string) {
+  switch (group) {
+    case "liquid":
+      return Landmark;
+    case "invest":
+      return PiggyBank;
+    case "credit":
+      return CreditCard;
+    case "people":
+      return Users;
+    default:
+      return Building2;
+  }
+}
 
 export default function AccountsPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [containers, setContainers] = useState<FinancialContainer[]>([]);
+  const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<FinancialContainer | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [groupFilter, setGroupFilter] = useState<GroupFilter>("all");
 
   const refresh = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
     setError("");
     try {
-      const data = await listAccounts(user.id);
-      setContainers(data);
+      const [accounts, txns] = await Promise.all([
+        listAccounts(user.id),
+        listTransactions().catch(() => [] as LedgerTransaction[]),
+      ]);
+      setContainers(accounts);
+      setTransactions(txns);
     } catch (err) {
       setError(getErrorMessage(err, "Could not load accounts"));
       setContainers([]);
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
   }, [user?.id]);
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   const baseCurrency = user?.currency || "USD";
@@ -61,10 +115,37 @@ export default function AccountsPage() {
     () => summarizeTwin(containers, baseCurrency),
     [containers, baseCurrency],
   );
+  const series = useMemo(
+    () => buildKpiSeries(containers, transactions, summary, baseCurrency),
+    [containers, transactions, summary, baseCurrency],
+  );
+  const allocation = useMemo(() => allocationSlices(summary), [summary]);
+  const insights = useMemo(
+    () => buildAccountInsights(summary, containers, transactions),
+    [summary, containers, transactions],
+  );
+  const activity = useMemo(
+    () => recentAccountActivity(containers, transactions, 8),
+    [containers, transactions],
+  );
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return containers.filter((container) => {
+      const group = getContainerMeta(container.type).group;
+      if (groupFilter !== "all" && group !== groupFilter) return false;
+      if (!q) return true;
+      return (
+        container.name.toLowerCase().includes(q) ||
+        (container.institution || "").toLowerCase().includes(q) ||
+        getContainerMeta(container.type).label.toLowerCase().includes(q)
+      );
+    });
+  }, [containers, search, groupFilter]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, FinancialContainer[]>();
-    for (const c of containers) {
+    for (const c of filtered) {
       const group = getContainerMeta(c.type).group;
       const list = map.get(group) || [];
       list.push(c);
@@ -76,9 +157,30 @@ export default function AccountsPage() {
         group,
         label: GROUP_LABELS[group] || group,
         items: map.get(group) || [],
+        accent: groupAccent(group),
+        total: groupSectionTotal(map.get(group) || [], baseCurrency),
       }))
       .filter((g) => g.items.length > 0);
-  }, [containers]);
+  }, [filtered, baseCurrency]);
+
+  const liquidCount = containers.filter((c) =>
+    ["cash", "wallet", "bank"].includes(c.type),
+  ).length;
+  const investCount = containers.filter((c) =>
+    ["investment", "gold", "crypto"].includes(c.type),
+  ).length;
+  const liabilityCount = containers.filter((c) =>
+    getContainerMeta(c.type).isLiability,
+  ).length;
+  const latestUpdate = containers
+    .map((c) => c.updated_at)
+    .sort()
+    .at(-1);
+  const updatedLabel = latestUpdate
+    ? new Date(latestUpdate).toDateString() === new Date().toDateString()
+      ? "Today"
+      : new Date(latestUpdate).toLocaleDateString()
+    : "—";
 
   function openCreate() {
     setEditing(null);
@@ -111,49 +213,134 @@ export default function AccountsPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!user?.id) return;
-    setDeleteId(id);
-  }
-
   if (!user?.id) {
     return <PageSkeleton />;
   }
 
   return (
     <div>
-      <PageHeader
-        title="Accounts"
-        description="Financial Containers — every place value lives in your Digital Financial Twin."
-        actions={
-          <Button onClick={openCreate}>New container</Button>
-        }
-      />
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-[28px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[32px]">
+            Accounts
+          </h1>
+          <p className="mt-1 max-w-xl text-sm text-[var(--ds-gray-700)]">
+            Financial containers — every place value lives in your Digital
+            Financial Twin.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
+            <Search
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ds-gray-700)]"
+            />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search accounts..."
+              className="pl-8"
+              aria-label="Search accounts"
+            />
+          </div>
+          <div className="relative sm:w-44">
+            <Filter
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-[var(--ds-gray-700)]"
+            />
+            <Select
+              value={groupFilter}
+              onChange={(e) => setGroupFilter(e.target.value as GroupFilter)}
+              className="pl-8"
+              aria-label="Filter accounts"
+            >
+              <option value="all">All accounts</option>
+              <option value="liquid">Cash & banks</option>
+              <option value="invest">Investments</option>
+              <option value="credit">Credit & loans</option>
+              <option value="people">People</option>
+              <option value="other">Other</option>
+            </Select>
+          </div>
+          <Button onClick={openCreate} className="shrink-0">
+            <Plus size={16} />
+            Add account
+          </Button>
+        </div>
+      </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <AccountKpiCard
           title="Net Worth"
-          value={formatCurrency(summary.netWorth, baseCurrency)}
-          subtitle={`Assets − liabilities · ${baseCurrency}`}
-          tone="blue"
+          value={summary.netWorth}
+          currency={baseCurrency}
+          delta={series.netWorthDelta}
+          series={series.netWorth}
+          icon={Scale}
+          accent="#2563EB"
+          footerLeft={{
+            label: "Assets",
+            value: formatCurrency(summary.totalAssets, baseCurrency),
+          }}
+          footerRight={{
+            label: "Liabilities",
+            value: formatCurrency(summary.totalLiabilities, baseCurrency),
+          }}
         />
-        <MetricCard
+        <AccountKpiCard
           title="Total Cash"
-          value={formatCurrency(summary.totalCash, baseCurrency)}
-          subtitle={`Cash, wallets, banks · ${baseCurrency}`}
-          tone="green"
+          value={summary.totalCash}
+          currency={baseCurrency}
+          delta={series.cashDelta}
+          series={series.cash}
+          icon={Wallet}
+          accent="#16A34A"
+          footerLeft={{
+            label: "Accounts",
+            value: String(liquidCount),
+          }}
+          footerRight={{
+            label: "Updated",
+            value: updatedLabel,
+          }}
         />
-        <MetricCard
+        <AccountKpiCard
           title="Investments"
-          value={formatCurrency(summary.investmentValue, baseCurrency)}
-          subtitle={`Stocks, gold, crypto · ${baseCurrency}`}
-          tone="purple"
+          value={summary.investmentValue}
+          currency={baseCurrency}
+          delta={series.investmentsDelta}
+          series={series.investments}
+          icon={PiggyBank}
+          accent="#7C3AED"
+          footerLeft={{
+            label: "Share of assets",
+            value:
+              summary.totalAssets > 0
+                ? `${((summary.investmentValue / summary.totalAssets) * 100).toFixed(1)}%`
+                : "—",
+          }}
+          footerRight={{
+            label: "Accounts",
+            value: String(investCount),
+          }}
         />
-        <MetricCard
+        <AccountKpiCard
           title="Liabilities"
-          value={formatCurrency(summary.totalLiabilities, baseCurrency)}
-          subtitle={`Cards, loans, payables · ${baseCurrency}`}
-          tone="orange"
+          value={summary.totalLiabilities}
+          currency={baseCurrency}
+          delta={series.liabilitiesDelta}
+          series={series.liabilities}
+          icon={CreditCard}
+          accent="#F97316"
+          invertDelta
+          footerLeft={{
+            label: "Accounts",
+            value: String(liabilityCount),
+          }}
+          footerRight={{
+            label: "Due soon",
+            value: formatCurrency(0, baseCurrency),
+          }}
         />
       </div>
 
@@ -161,38 +348,113 @@ export default function AccountsPage() {
         <p className="mb-4 text-sm text-[var(--ds-status-red)]">{error}</p>
       ) : null}
 
-      {loading ? (
-        <CardGridSkeleton />
-      ) : containers.length === 0 ? (
-        <div className="rounded-[12px] bg-[var(--ds-background-elevated)] ds-border">
-          <EmptyState
-            title="No containers yet"
-            description="Add cash, bank mirrors, credit cards, investments, or loans. Money never disappears — it moves between containers."
-            actionLabel="Add first container"
-            onAction={openCreate}
-          />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0">
+          {loading ? (
+            <CardGridSkeleton />
+          ) : containers.length === 0 ? (
+            <div className="rounded-[16px] bg-[var(--ds-background-elevated)] ds-border">
+              <EmptyState
+                title="No accounts yet"
+                description="Add cash, bank mirrors, credit cards, investments, or loans. Money never disappears — it moves between containers."
+                actionLabel="Add first account"
+                onAction={openCreate}
+              />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="rounded-[16px] bg-[var(--ds-background-elevated)] px-5 py-10 text-center ds-border">
+              <p className="text-sm font-medium text-[var(--ds-gray-1000)]">
+                No accounts match your filters
+              </p>
+              <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
+                Try a different search or clear the group filter.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-7">
+              {grouped.map((section) => {
+                const Icon = sectionIcon(section.group);
+                return (
+                  <section key={section.group}>
+                    <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="inline-flex size-8 items-center justify-center rounded-[10px]"
+                          style={{
+                            color: section.accent,
+                            background: `color-mix(in srgb, ${section.accent} 14%, transparent)`,
+                          }}
+                        >
+                          <Icon size={15} strokeWidth={1.9} />
+                        </span>
+                        <div>
+                          <h2 className="text-sm font-semibold text-[var(--ds-gray-1000)]">
+                            {section.label}
+                          </h2>
+                          <p className="text-[11px] text-[var(--ds-gray-700)]">
+                            {section.items.length}{" "}
+                            {section.items.length === 1 ? "Account" : "Accounts"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] uppercase tracking-[0.04em] text-[var(--ds-gray-700)]">
+                          Total balance
+                        </p>
+                        <p
+                          className="text-sm font-semibold tabular-nums"
+                          style={{ color: section.accent }}
+                        >
+                          {formatCurrency(section.total, baseCurrency)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-2.5">
+                      {section.items.map((container) => (
+                        <AccountCard
+                          key={container.id}
+                          container={container}
+                          onEdit={() => openEdit(container)}
+                          onDelete={() => setDeleteId(container.id)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={openCreate}
+                className="flex w-full items-center gap-3 rounded-[16px] border border-dashed border-[color:color-mix(in_srgb,var(--ds-gray-1000)_18%,transparent)] bg-[var(--ds-background-elevated)] px-4 py-4 text-left transition-colors hover:bg-[var(--ds-gray-100)] ds-focus sm:px-5"
+              >
+                <span className="inline-flex size-11 items-center justify-center rounded-full bg-[var(--ds-gray-100)] text-[var(--ds-gray-900)]">
+                  <Plus size={18} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-[var(--ds-gray-1000)]">
+                    Add a new account
+                  </span>
+                  <span className="mt-0.5 block text-xs text-[var(--ds-gray-700)]">
+                    Cash, bank, credit card, investment, or loan container
+                  </span>
+                </span>
+                <ChevronRight
+                  size={16}
+                  className="shrink-0 text-[var(--ds-gray-700)]"
+                />
+              </button>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="space-y-8">
-          {grouped.map((section) => (
-            <section key={section.group}>
-              <h2 className="mb-3 text-[var(--ds-gray-1000)]">
-                {section.label}
-              </h2>
-              <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
-                {section.items.map((container) => (
-                  <AccountCard
-                    key={container.id}
-                    container={container}
-                    onEdit={() => openEdit(container)}
-                    onDelete={() => handleDelete(container.id)}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
+
+        <AccountsSidebar
+          insights={insights}
+          allocation={allocation}
+          activity={activity}
+          currency={baseCurrency}
+        />
+      </div>
 
       <AccountFormModal
         open={modalOpen}

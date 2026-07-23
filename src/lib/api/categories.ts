@@ -25,3 +25,16 @@ export async function updateCategory(
 export async function deleteCategory(id: string): Promise<void> {
   await api.delete(`/categories/${id}`);
 }
+
+export async function listCategoryIcons(): Promise<Array<{ id: string }>> {
+  const res = await api.get("/categories/icons");
+  return unwrap(res);
+}
+
+export async function suggestCategoryIcon(payload: {
+  name: string;
+  description?: string;
+}): Promise<{ icon: string; source: "ai" | "heuristic" }> {
+  const res = await api.post("/ai/suggest-category-icon", payload);
+  return unwrap(res);
+}

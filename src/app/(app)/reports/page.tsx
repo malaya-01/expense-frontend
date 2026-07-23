@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Download, RefreshCw } from "lucide-react";
-import { PageHeader, EmptyState } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/page-header";
+import { ModuleHeader } from "@/components/ui/module-header";
 import { Button } from "@/components/ui/button";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -119,7 +120,7 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <PageHeader
+      <ModuleHeader
         title="Reports"
         description="What does my financial picture look like? Ledger, budgets, and portfolio in one view."
         actions={

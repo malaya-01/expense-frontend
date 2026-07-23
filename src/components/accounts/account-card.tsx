@@ -1,11 +1,51 @@
 "use client";
 
-import { StatusDot } from "@/components/ui/status-dot";
-import { Button } from "@/components/ui/button";
-import { Card, CardBody } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/format";
-import { getContainerMeta, isLiabilityType } from "@/lib/accounts/types-meta";
+import {
+  Building2,
+  CreditCard,
+  Landmark,
+  MoreHorizontal,
+  PiggyBank,
+  Users,
+  Wallet,
+} from "lucide-react";
+import { ActionMenu } from "@/components/ui/action-menu";
+import { cn } from "@/lib/cn";
+import { formatCurrency, formatRelativeDay } from "@/lib/format";
+import {
+  getContainerMeta,
+  isLiabilityType,
+} from "@/lib/accounts/types-meta";
 import type { FinancialContainer } from "@/types";
+
+function typeIcon(type: FinancialContainer["type"]) {
+  switch (type) {
+    case "cash":
+    case "wallet":
+      return Wallet;
+    case "bank":
+      return Landmark;
+    case "credit_card":
+    case "loan":
+    case "payable":
+      return CreditCard;
+    case "investment":
+    case "gold":
+    case "crypto":
+      return PiggyBank;
+    case "receivable":
+      return Users;
+    default:
+      return Building2;
+  }
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
 
 export function AccountCard({
   container,
@@ -18,59 +58,94 @@ export function AccountCard({
 }) {
   const meta = getContainerMeta(container.type);
   const liability = isLiabilityType(container.type);
+  const accent = container.color || meta.defaultColor;
+  const Icon = typeIcon(container.type);
+  const updated = container.updated_at
+    ? formatRelativeDay(container.updated_at.slice(0, 10))
+    : "—";
 
   return (
-    <Card>
-      <CardBody className="pt-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <StatusDot color={container.color || meta.defaultColor} />
-            <div className="min-w-0">
-              <h2 className="truncate text-[var(--ds-gray-1000)]">
-                {container.name}
-              </h2>
-              <p className="mt-0.5 text-xs text-[var(--ds-gray-700)]">
-                {meta.label} · {container.currency}
-                {container.institution ? ` · ${container.institution}` : ""}
-              </p>
-            </div>
-          </div>
-          {!container.include_in_net_worth ? (
-            <span className="shrink-0 rounded-full bg-[var(--ds-gray-100)] px-2 py-0.5 text-[10px] text-[var(--ds-gray-700)]">
-              Excluded
-            </span>
-          ) : null}
-        </div>
-
-        <p
-          className="mt-5 text-[28px] font-semibold leading-8 tracking-[-1.12px] tabular-nums"
+    <article className="group relative overflow-hidden rounded-[16px] bg-[var(--ds-background-elevated)] ds-border">
+      <div
+        className="absolute inset-y-0 left-0 w-[3px]"
+        style={{ background: accent }}
+        aria-hidden
+      />
+      <div className="flex items-center gap-3 px-4 py-3.5 pl-5 sm:gap-4 sm:px-5 sm:py-4">
+        <div
+          className="relative flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
           style={{
-            color: liability
-              ? "var(--finos-danger)"
-              : "var(--ds-gray-1000)",
+            color: accent,
+            background: `color-mix(in srgb, ${accent} 14%, transparent)`,
           }}
+          title={container.institution || meta.label}
         >
-          {liability ? "−" : ""}
-          {formatCurrency(container.balance, container.currency)}
-        </p>
-        <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-          {liability ? "Outstanding liability" : "Asset balance"}
-        </p>
-
-        <div className="mt-4 flex gap-1">
-          <Button variant="ghost" size="sm" onClick={onEdit}>
-            Edit
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-[var(--ds-gray-700)]"
-            onClick={onDelete}
-          >
-            Archive
-          </Button>
+          <span className="absolute inset-0 grid place-items-center opacity-100 group-hover:opacity-0">
+            {container.institution ? initials(container.institution) : (
+              <Icon size={18} strokeWidth={1.85} />
+            )}
+          </span>
+          <span className="absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100">
+            <Icon size={18} strokeWidth={1.85} />
+          </span>
         </div>
-      </CardBody>
-    </Card>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-sm font-semibold text-[var(--ds-gray-1000)]">
+              {container.name}
+            </h3>
+            {!container.include_in_net_worth ? (
+              <span className="rounded-full bg-[var(--ds-gray-100)] px-2 py-0.5 text-[10px] font-medium text-[var(--ds-gray-700)]">
+                Excluded
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-0.5 truncate text-xs text-[var(--ds-gray-700)]">
+            {meta.label}
+            {container.institution ? ` · ${container.institution}` : ""}
+            {` · ${container.currency}`}
+          </p>
+          <p className="mt-1 text-[11px] text-[var(--ds-gray-700)]">
+            Updated {updated}
+          </p>
+        </div>
+
+        <div className="shrink-0 text-right">
+          <p
+            className={cn(
+              "text-sm font-semibold tabular-nums sm:text-base",
+              liability
+                ? "text-[var(--ds-status-red)]"
+                : "text-[var(--ds-gray-1000)]",
+            )}
+          >
+            {liability ? "−" : ""}
+            {formatCurrency(container.balance, container.currency)}
+          </p>
+          <p className="mt-0.5 text-[11px] text-[var(--ds-gray-700)]">
+            {liability ? "Outstanding" : "Available balance"}
+          </p>
+        </div>
+
+        <ActionMenu
+          label={`Actions for ${container.name}`}
+          items={[
+            { id: "edit", label: "Edit", onSelect: onEdit },
+            {
+              id: "archive",
+              label: "Archive",
+              tone: "danger",
+              onSelect: onDelete,
+            },
+          ]}
+          trigger={
+            <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)]">
+              <MoreHorizontal size={16} />
+            </span>
+          }
+        />
+      </div>
+    </article>
   );
 }

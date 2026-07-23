@@ -1,10 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { PageHeader, EmptyState } from "@/components/ui/page-header";
+import {
+  AlertTriangle,
+  CircleDollarSign,
+  PiggyBank,
+  Plus,
+  Wallet,
+} from "lucide-react";
+import { EmptyState } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { MetricCard } from "@/components/dashboard/metric-card";
+import { ModuleHeader } from "@/components/ui/module-header";
+import { SummaryKpiCard } from "@/components/ui/summary-kpi-card";
 import { BudgetCard } from "@/components/budgets/budget-card";
 import { BudgetFormModal } from "@/components/budgets/budget-form-modal";
 import {
@@ -21,6 +29,8 @@ import { useToast } from "@/components/ui/toast";
 import { CardGridSkeleton } from "@/components/ui/feedback";
 import type { Budget, Category, CreateBudgetInput } from "@/types";
 
+type StatusFilter = "all" | "on_track" | "warning" | "over";
+
 export default function BudgetsPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -32,6 +42,8 @@ export default function BudgetsPage() {
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<Budget | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const baseCurrency = user?.currency || "USD";
 
@@ -55,7 +67,7 @@ export default function BudgetsPage() {
 
   useEffect(() => {
     if (!user?.id) return;
-    refresh();
+    void refresh();
   }, [user?.id, refresh]);
 
   const summary = useMemo(() => {
@@ -72,6 +84,18 @@ export default function BudgetsPage() {
       onTrack: budgets.length - overCount - warningCount,
     };
   }, [budgets]);
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return budgets.filter((budget) => {
+      if (statusFilter !== "all" && budget.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        budget.name.toLowerCase().includes(q) ||
+        (budget.category_name || "").toLowerCase().includes(q)
+      );
+    });
+  }, [budgets, search, statusFilter]);
 
   function openCreate() {
     setEditing(null);
@@ -100,11 +124,25 @@ export default function BudgetsPage() {
 
   return (
     <div>
-      <PageHeader
+      <ModuleHeader
         title="Budgets"
         description="Am I on track this month? Limits vs ledger spend in your base currency."
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search budgets..."
+        filter={statusFilter}
+        onFilterChange={(value) => setStatusFilter(value as StatusFilter)}
+        filterOptions={[
+          { value: "all", label: "All statuses" },
+          { value: "on_track", label: "On track" },
+          { value: "warning", label: "Near limit" },
+          { value: "over", label: "Over budget" },
+        ]}
         actions={
-          <Button onClick={openCreate}>New budget</Button>
+          <Button onClick={openCreate} className="shrink-0">
+            <Plus size={16} />
+            New budget
+          </Button>
         }
       />
 
@@ -112,25 +150,36 @@ export default function BudgetsPage() {
         <p className="mb-4 text-sm text-[var(--ds-status-red)]">{error}</p>
       ) : null}
 
-      <div className="mb-8 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryKpiCard
           title="Budgeted"
           value={formatCurrency(summary.totalLimit, baseCurrency)}
           subtitle={`${budgets.length} envelope${budgets.length === 1 ? "" : "s"}`}
+          icon={PiggyBank}
+          tone="blue"
+          footerLeft={{ label: "Envelopes", value: String(budgets.length) }}
+          footerRight={{
+            label: "On track",
+            value: String(summary.onTrack),
+          }}
         />
-        <MetricCard
+        <SummaryKpiCard
           title="Spent this period"
           value={formatCurrency(summary.totalSpent, baseCurrency)}
           subtitle="From ledger expenses"
+          icon={Wallet}
+          tone="orange"
         />
-        <MetricCard
+        <SummaryKpiCard
           title="Remaining"
           value={formatCurrency(summary.remaining, baseCurrency)}
           subtitle={
             summary.remaining < 0 ? "Overall overspend" : "Across envelopes"
           }
+          icon={CircleDollarSign}
+          tone={summary.remaining < 0 ? "red" : "green"}
         />
-        <MetricCard
+        <SummaryKpiCard
           title="Health"
           value={
             budgets.length === 0
@@ -142,13 +191,21 @@ export default function BudgetsPage() {
                   : "On track"
           }
           subtitle={`${summary.onTrack} healthy`}
+          icon={AlertTriangle}
+          tone={
+            summary.overCount > 0
+              ? "red"
+              : summary.warningCount > 0
+                ? "orange"
+                : "green"
+          }
         />
       </div>
 
       {loading ? (
         <CardGridSkeleton />
       ) : budgets.length === 0 ? (
-        <div className="rounded-[12px] bg-[var(--ds-background-elevated)] ds-border">
+        <div className="rounded-[16px] bg-[var(--ds-background-elevated)] ds-border">
           <EmptyState
             title="No budgets yet"
             description="Create monthly or weekly envelopes. Spend is calculated live from your transactions."
@@ -156,9 +213,15 @@ export default function BudgetsPage() {
             onAction={openCreate}
           />
         </div>
+      ) : visible.length === 0 ? (
+        <div className="rounded-[16px] bg-[var(--ds-background-elevated)] px-5 py-10 text-center ds-border">
+          <p className="text-sm font-medium text-[var(--ds-gray-1000)]">
+            No budgets match your filters
+          </p>
+        </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
-          {budgets.map((b) => (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {visible.map((b) => (
             <BudgetCard
               key={b.id}
               budget={b}

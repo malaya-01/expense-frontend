@@ -11,6 +11,7 @@ import {
 import { useSearchParams } from "next/navigation";
 import { humanizeAdvisorStatus } from "@/components/ai/tool-labels";
 import { parseInvokedToolsFromText } from "@/lib/ai/command-catalog";
+import { invalidateProposalNameMaps } from "@/components/ai/proposal-payload-view";
 import { getErrorMessage } from "@/lib/api/client";
 import {
   archiveAiConversation,
@@ -22,7 +23,6 @@ import {
   getAiConversation,
   getAiDocument,
   getAiSettings,
-  getAiStarters,
   listAiConversations,
   listAiDocuments,
   listPendingAiProposals,
@@ -33,6 +33,7 @@ import {
   streamAiChat,
   uploadAiDocument,
 } from "@/lib/api/ai";
+import { fileToBase64WithProgress } from "@/lib/ai/file-to-base64";
 import { getReportOverview } from "@/lib/api/reports";
 import type {
   AiActionProposal,
@@ -96,11 +97,11 @@ export function useAiAdvisorWorkspace() {
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [railCollapsed, setRailCollapsed] = useState(false);
+  const [archivedView, setArchivedView] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<{ stop: () => void } | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
   const lastFocusRefresh = useRef(0);
-  const defaultStartersRef = useRef<string[]>([]);
 
   useEffect(() => {
     const SpeechRecognitionCtor =
@@ -112,24 +113,24 @@ export function useAiAdvisorWorkspace() {
   }, []);
 
   const refreshLists = useCallback(
-    async (options?: { silent?: boolean; q?: string }) => {
+    async (options?: {
+      silent?: boolean;
+      q?: string;
+      archived?: boolean;
+    }) => {
       if (!options?.silent) setPageLoading(true);
       try {
         const q = options?.q ?? "";
-        const [s, c, st, pending, docs, report] = await Promise.all([
+        const archived = Boolean(options?.archived);
+        const [s, c, pending, docs, report] = await Promise.all([
           getAiSettings(),
-          listAiConversations(q || undefined).catch(() => []),
-          getAiStarters().catch(() => ({ questions: [] as string[] })),
+          listAiConversations(q || undefined, { archived }).catch(() => []),
           listPendingAiProposals().catch(() => []),
           listAiDocuments().catch(() => []),
           getReportOverview(3).catch(() => null),
         ]);
         setSettings(s);
         setConversations(c);
-        if (st.questions?.length) {
-          defaultStartersRef.current = st.questions;
-          setStarters((prev) => (prev.length ? prev : st.questions));
-        }
         setPendingGlobal(pending);
         setDocuments(docs);
         if (report) setOverview(report);
@@ -145,15 +146,15 @@ export function useAiAdvisorWorkspace() {
   );
 
   useEffect(() => {
-    void refreshLists();
-  }, [refreshLists]);
+    void refreshLists({ archived: archivedView, q: search });
+  }, [refreshLists, archivedView]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      void refreshLists({ silent: true, q: search });
+      void refreshLists({ silent: true, q: search, archived: archivedView });
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [search, refreshLists]);
+  }, [search, archivedView, refreshLists]);
 
   useEffect(() => {
     setRailCollapsed(
@@ -176,17 +177,6 @@ export function useAiAdvisorWorkspace() {
   );
 
   useEffect(() => {
-    if (!messages.length) return;
-    const reducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    messageEndRef.current?.scrollIntoView({
-      behavior: reducedMotion ? "auto" : "smooth",
-      block: "nearest",
-    });
-  }, [messages, status]);
-
-  useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       const now = Date.now();
@@ -205,7 +195,7 @@ export function useAiAdvisorWorkspace() {
       setActiveId(id);
       setMessages(data.messages);
       setProposals(data.proposals || []);
-      setStarters(contextualFollowUps(data.messages));
+      setStarters([]);
     } catch (err) {
       setError(getErrorMessage(err, "Could not open conversation"));
     }
@@ -222,9 +212,10 @@ export function useAiAdvisorWorkspace() {
     setError("");
     setFailedPrompt("");
     setStatus("");
-    setStarters(defaultStartersRef.current);
+    setStarters([]);
     setSelectedDocumentId(null);
     setSelectedDocument(null);
+    setArchivedView(false);
   }, []);
 
   const onSend = useCallback(
@@ -237,6 +228,19 @@ export function useAiAdvisorWorkspace() {
           ? "Analyze the attached file and tell me what it contains."
           : "");
       if (!text || loading) return;
+      if (
+        selectedAttachments.some(
+          (file) =>
+            file.upload_status === "uploading" || file.upload_status === "failed",
+        )
+      ) {
+        setError(
+          selectedAttachments.some((file) => file.upload_status === "failed")
+            ? "Remove failed attachments before sending."
+            : "Wait for attachments to finish uploading.",
+        );
+        return;
+      }
 
       const invokedTools = parseInvokedToolsFromText(text);
       const shouldSearchWeb =
@@ -264,10 +268,13 @@ export function useAiAdvisorWorkspace() {
           id: userMsgId,
           role: "user",
           content: text,
-          attachments: selectedAttachments.map(({ name, mime_type }) => ({
-            name,
-            mime_type,
-          })),
+          attachments: selectedAttachments.map(
+            ({ name, mime_type, data_base64 }) => ({
+              name,
+              mime_type,
+              data_base64,
+            }),
+          ),
           created_at: new Date().toISOString(),
         },
         {
@@ -283,7 +290,13 @@ export function useAiAdvisorWorkspace() {
           {
             content: text,
             conversation_id: activeId || undefined,
-            attachments: selectedAttachments,
+            attachments: selectedAttachments.map(
+              ({ name, mime_type, data_base64 }) => ({
+                name,
+                mime_type,
+                data_base64,
+              }),
+            ),
             web_search: shouldSearchWeb || undefined,
             invoked_tools: invokedTools,
           },
@@ -327,9 +340,35 @@ export function useAiAdvisorWorkspace() {
                   for (const p of event.proposals || []) map.set(p.id, p);
                   return [...map.values()];
                 });
-                if (event.suggested_questions?.length) {
-                  setStarters(event.suggested_questions);
+                if (event.conversation_title) {
+                  const titled = event.conversation_title;
+                  setConversations((prev) => {
+                    const exists = prev.some(
+                      (c) => c.id === event.conversation_id,
+                    );
+                    if (!exists) {
+                      return [
+                        {
+                          id: event.conversation_id,
+                          title: titled,
+                          last_message_preview: event.message.content
+                            ?.replace(/\s+/g, " ")
+                            .trim()
+                            .slice(0, 160),
+                          created_at: new Date().toISOString(),
+                          updated_at: new Date().toISOString(),
+                        },
+                        ...prev,
+                      ];
+                    }
+                    return prev.map((c) =>
+                      c.id === event.conversation_id
+                        ? { ...c, title: titled, updated_at: new Date().toISOString() }
+                        : c,
+                    );
+                  });
                 }
+                setStarters([]);
                 setStatus("");
               } else if (event.type === "error") {
                 setError(humanizeAdvisorStatus(event.message));
@@ -339,7 +378,7 @@ export function useAiAdvisorWorkspace() {
           },
         );
         if (!ac.signal.aborted) {
-          await refreshLists({ silent: true });
+          await refreshLists({ silent: true, archived: archivedView, q: search });
         }
       } catch (err) {
         if ((err as Error)?.name === "AbortError" || ac.signal.aborted) {
@@ -380,20 +419,22 @@ export function useAiAdvisorWorkspace() {
     },
     [
       activeId,
+      archivedView,
       attachments,
       draft,
       loading,
       refreshLists,
+      search,
       webSearchEnabled,
     ],
   );
 
   const addFiles = useCallback(
-    async (files: FileList | null) => {
+    async (files: FileList | File[] | null) => {
       if (!files?.length) return;
       setError("");
-      const next: AiAttachment[] = [];
-      for (const file of Array.from(files).slice(0, 3 - attachments.length)) {
+      const slots = Math.max(0, 3 - attachments.length);
+      for (const file of Array.from(files).slice(0, slots)) {
         if (!ALLOWED_TYPES.has(file.type)) {
           setError(`${file.name}: unsupported file type.`);
           continue;
@@ -402,21 +443,65 @@ export function useAiAdvisorWorkspace() {
           setError(`${file.name}: file must be 5 MB or smaller.`);
           continue;
         }
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result || ""));
-          reader.onerror = () => reject(reader.error);
-          reader.readAsDataURL(file);
-        });
-        const data_base64 = dataUrl.split(",")[1] || "";
-        next.push({
-          name: file.name,
-          mime_type: file.type,
-          data_base64,
-        });
-        const optimisticId = `upload-${Date.now()}-${file.name}`;
+
+        const clientKey = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${file.name}`;
+        // Real progress only: file-read bytes → 0–20%, network upload bytes → 20–100%.
+        const setProgress = (percent: number) => {
+          setAttachments((current) =>
+            current.map((item) =>
+              item.client_key === clientKey
+                ? {
+                    ...item,
+                    upload_status: "uploading" as const,
+                    upload_progress: Math.max(0, Math.min(100, Math.round(percent))),
+                  }
+                : item,
+            ),
+          );
+        };
+
+        setAttachments((current) =>
+          [
+            ...current,
+            {
+              name: file.name,
+              mime_type: file.type,
+              client_key: clientKey,
+              upload_status: "uploading" as const,
+              upload_progress: 0,
+            },
+          ].slice(0, 3),
+        );
+
+        let data_base64 = "";
+        try {
+          data_base64 = await fileToBase64WithProgress(file, (readPercent) => {
+            // File read is a small slice of overall transfer progress.
+            setProgress(Math.round(readPercent * 0.15));
+          });
+        } catch {
+          setAttachments((current) =>
+            current.filter((item) => item.client_key !== clientKey),
+          );
+          setError(`${file.name}: could not read file.`);
+          continue;
+        }
+
+        setAttachments((current) =>
+          current.map((item) =>
+            item.client_key === clientKey
+              ? {
+                  ...item,
+                  data_base64,
+                  upload_status: "uploading",
+                  upload_progress: 15,
+                }
+              : item,
+          ),
+        );
+
         const optimisticDocument: AiDocument = {
-          id: optimisticId,
+          id: clientKey,
           name: file.name,
           mime_type: file.type,
           size_bytes: file.size,
@@ -425,28 +510,79 @@ export function useAiAdvisorWorkspace() {
           updated_at: new Date().toISOString(),
         };
         setDocuments((prev) => [optimisticDocument, ...prev]);
-        void uploadAiDocument({
-            name: file.name,
-            mime_type: file.type,
-            data_base64,
-            conversation_id: activeId || undefined,
-          })
-          .then((document) => {
-            setDocuments((prev) => [
-              document,
-              ...prev.filter(
-                (item) =>
-                  item.id !== optimisticId && item.id !== document.id,
-              ),
-            ]);
-          })
-          .catch(() => {
-            setDocuments((prev) =>
-              prev.filter((item) => item.id !== optimisticId),
-            );
-          });
+
+        try {
+          const document = await uploadAiDocument(
+            {
+              name: file.name,
+              mime_type: file.type,
+              data_base64,
+              conversation_id: activeId || undefined,
+            },
+            {
+              onProgress: (uploadPercent) => {
+                // Network bytes only — never fake the remaining AI analysis wait.
+                setProgress(15 + Math.round(uploadPercent * 0.85));
+              },
+            },
+          );
+          // Upload HTTP finished = file is stored. Clear the ring immediately.
+          setAttachments((current) =>
+            current.map((item) =>
+              item.client_key === clientKey
+                ? {
+                    ...item,
+                    upload_status: "ready",
+                    upload_progress: 100,
+                  }
+                : item,
+            ),
+          );
+          setDocuments((prev) => [
+            document,
+            ...prev.filter(
+              (item) => item.id !== clientKey && item.id !== document.id,
+            ),
+          ]);
+
+          // Provider analysis continues server-side; refresh until ready/failed.
+          if (document.status === "analyzing") {
+            void (async () => {
+              for (let attempt = 0; attempt < 40; attempt += 1) {
+                await new Promise((resolve) => window.setTimeout(resolve, 1500));
+                try {
+                  const latest = await getAiDocument(document.id);
+                  setDocuments((prev) =>
+                    prev.map((item) =>
+                      item.id === document.id ? latest : item,
+                    ),
+                  );
+                  if (
+                    latest.status === "ready" ||
+                    latest.status === "failed"
+                  ) {
+                    break;
+                  }
+                } catch {
+                  break;
+                }
+              }
+            })();
+          }
+        } catch (err) {
+          setAttachments((current) =>
+            current.map((item) =>
+              item.client_key === clientKey
+                ? { ...item, upload_status: "failed" }
+                : item,
+            ),
+          );
+          setDocuments((prev) => prev.filter((item) => item.id !== clientKey));
+          setError(
+            getErrorMessage(err, `${file.name}: upload failed. Remove and try again.`),
+          );
+        }
       }
-      setAttachments((current) => [...current, ...next].slice(0, 3));
     },
     [activeId, attachments.length],
   );
@@ -463,6 +599,7 @@ export function useAiAdvisorWorkspace() {
     setBusyProposal(confirming.id);
     try {
       await confirmAiProposal(confirming.id);
+      invalidateProposalNameMaps();
       setProposals((prev) =>
         prev.map((p) =>
           p.id === confirming.id ? { ...p, status: "confirmed" } : p,
@@ -508,6 +645,7 @@ export function useAiAdvisorWorkspace() {
       setBusyBulk(true);
       try {
         const result = await bulkDecideAiProposals(decision);
+        if (decision.confirm_ids.length) invalidateProposalNameMaps();
         const confirmed = new Set(
           (result.confirmed || []).map((row) => row.id),
         );
@@ -585,12 +723,29 @@ export function useAiAdvisorWorkspace() {
 
   const archiveConversation = useCallback(
     async (id: string) => {
-      await archiveAiConversation(id);
+      await archiveAiConversation(id, true);
       setConversations((prev) => prev.filter((item) => item.id !== id));
       if (activeId === id) startNewChat();
     },
     [activeId, startNewChat],
   );
+
+  const unarchiveConversation = useCallback(
+    async (id: string) => {
+      await archiveAiConversation(id, false);
+      setConversations((prev) => prev.filter((item) => item.id !== id));
+      if (activeId === id) {
+        setArchivedView(false);
+        await loadConversation(id);
+      }
+    },
+    [activeId, loadConversation],
+  );
+
+  const toggleArchivedView = useCallback(() => {
+    setArchivedView((current) => !current);
+    setSearch("");
+  }, []);
 
   const selectDocument = useCallback(async (id: string | null) => {
     setSelectedDocumentId(id);
@@ -705,6 +860,8 @@ export function useAiAdvisorWorkspace() {
     conversations,
     search,
     setSearch,
+    archivedView,
+    toggleArchivedView,
     activeId,
     messages,
     proposals,
@@ -758,76 +915,11 @@ export function useAiAdvisorWorkspace() {
     pinConversation,
     duplicateConversation,
     archiveConversation,
+    unarchiveConversation,
     removeConversation,
     selectDocument,
     removeDocument,
     toggleVoice,
     activateSavedProvider,
   };
-}
-
-function contextualFollowUps(messages: AiMessage[]): string[] {
-  const latestUser = [...messages]
-    .reverse()
-    .find((message) => message.role === "user")?.content;
-  const latestAssistant = [...messages]
-    .reverse()
-    .find((message) => message.role === "assistant")?.content;
-  const prompt = (latestUser || "").toLowerCase();
-  const conversation = `${latestUser || ""} ${latestAssistant || ""}`.toLowerCase();
-
-  if (/document|statement|pdf|csv|receipt|invoice|upload/.test(conversation)) {
-    return [
-      "Which transactions in this document need my attention?",
-      "Are there any unusual charges?",
-      "Compare this with my connected accounts.",
-      "What action should I take next?",
-    ];
-  }
-  if (/budget|overspend|spending limit/.test(prompt)) {
-    return [
-      "Which categories should I adjust first?",
-      "Show me a more conservative option.",
-      "How would this affect my savings goals?",
-      "Turn this into a budget I can confirm.",
-    ];
-  }
-  if (/spend|expense|transaction|money go|categor/.test(prompt)) {
-    return [
-      "Which expenses are unusual or avoidable?",
-      "Compare this with the previous month.",
-      "Where is the biggest saving opportunity?",
-      "Create an action plan to reduce this spending.",
-    ];
-  }
-  if (/goal|save|saving|emergency fund/.test(prompt)) {
-    return [
-      "How much should I save each month?",
-      "What could delay this goal?",
-      "Show me a faster and a safer plan.",
-      "Turn this into a goal I can track.",
-    ];
-  }
-  if (/debt|loan|liabilit|repay|credit/.test(prompt)) {
-    return [
-      "Which debt should I pay down first?",
-      "Compare avalanche and snowball plans.",
-      "How much interest could I save?",
-      "Build a monthly repayment plan.",
-    ];
-  }
-  if (/invest|portfolio|holding|stock|fund|return/.test(prompt)) {
-    return [
-      "Where is my portfolio most concentrated?",
-      "How has this performed over time?",
-      "What risks should I review first?",
-      "How does this affect my financial plan?",
-    ];
-  }
-  return [
-    "Explain the most important insight in more detail.",
-    "What is the biggest risk I should consider?",
-    "What should I do first based on this answer?",
-    "Show me an alternative approach.",
-  ];
 }

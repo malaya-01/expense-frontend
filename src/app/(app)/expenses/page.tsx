@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, SlidersHorizontal, X } from "lucide-react";
-import { PageHeader, EmptyState } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/page-header";
+import { ModuleHeader } from "@/components/ui/module-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -126,11 +127,11 @@ export default function ExpensesPage() {
 
   return (
     <div>
-      <PageHeader
+      <ModuleHeader
         title="Transactions"
         description={`${filtered.length} shown · ${formatCurrency(inflow, baseCurrency)} in · ${formatCurrency(outflow, baseCurrency)} out · ${baseCurrency}`}
         actions={
-          <Button onClick={openTransactionModal}>
+          <Button onClick={openTransactionModal} className="shrink-0">
             New transaction
           </Button>
         }
@@ -219,13 +220,13 @@ export default function ExpensesPage() {
       ) : null}
 
       {loading ? (
-        <div className="space-y-2 rounded-[14px] bg-[var(--ds-background-elevated)] p-4 ds-border">
+        <div className="space-y-2 rounded-[16px] bg-[var(--ds-background-elevated)] p-4 ds-border">
           {[0, 1, 2, 3, 4].map((item) => (
             <Skeleton key={item} className="h-14 w-full" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-[12px] bg-[var(--ds-background-elevated)] ds-border">
+        <div className="rounded-[16px] bg-[var(--ds-background-elevated)] ds-border">
           <EmptyState
             title={hasFilters ? "No matching transactions" : "No transactions yet"}
             description={

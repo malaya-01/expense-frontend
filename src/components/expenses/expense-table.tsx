@@ -1,8 +1,8 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
+import { ActionMenu } from "@/components/ui/action-menu";
 import { StatusDot } from "@/components/ui/status-dot";
-import { Button } from "@/components/ui/button";
 import { formatCurrency, formatRelativeDate } from "@/lib/format";
 import type { LedgerTransaction } from "@/types";
 
@@ -42,7 +42,7 @@ export function TransactionTable({
           return (
             <article
               key={tx.id}
-              className="rounded-[13px] bg-[var(--ds-background-elevated)] p-4 ds-border"
+              className="rounded-[16px] bg-[var(--ds-background-elevated)] p-4 ds-border"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-2.5">
@@ -78,30 +78,29 @@ export function TransactionTable({
                     {formatRelativeDate(tx.date)}
                   </p>
                 </div>
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => onEdit(tx)}
-                    aria-label={`Edit ${tx.description}`}
-                    className="flex size-9 items-center justify-center rounded-[8px] text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] ds-focus"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(tx.id)}
-                    aria-label={`Delete ${tx.description}`}
-                    className="flex size-9 items-center justify-center rounded-[8px] text-[var(--ds-status-red)] hover:bg-[var(--ds-danger-hover)] ds-focus"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+                <ActionMenu
+                  label={`Actions for ${tx.description}`}
+                  items={[
+                    { id: "edit", label: "Edit", onSelect: () => onEdit(tx) },
+                    {
+                      id: "delete",
+                      label: "Delete",
+                      tone: "danger",
+                      onSelect: () => onDelete(tx.id),
+                    },
+                  ]}
+                  trigger={
+                    <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)]">
+                      <MoreHorizontal size={16} />
+                    </span>
+                  }
+                />
               </div>
             </article>
           );
         })}
       </div>
-      <div className="hidden overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] ds-border md:block">
+      <div className="hidden overflow-hidden rounded-[16px] bg-[var(--ds-background-elevated)] ds-border md:block">
       <table className="w-full min-w-[720px] border-collapse text-left">
         <thead>
           <tr className="border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-background-100)] text-[11px] uppercase tracking-[0.08em] text-[var(--ds-gray-700)]">
@@ -165,22 +164,28 @@ export function TransactionTable({
                   ) : null}
                 </td>
                 <td className="px-5 py-3.5 text-right">
-                  <div className="inline-flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => onEdit(tx)}
-                      className="rounded-[6px] px-2 py-1 text-[12px] text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)]"
-                    >
-                      Edit
-                    </button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onDelete(tx.id)}
-                      className="text-[var(--ds-status-red)]"
-                    >
-                      Delete
-                    </Button>
+                  <div className="inline-flex justify-end">
+                    <ActionMenu
+                      label={`Actions for ${tx.description}`}
+                      items={[
+                        {
+                          id: "edit",
+                          label: "Edit",
+                          onSelect: () => onEdit(tx),
+                        },
+                        {
+                          id: "delete",
+                          label: "Delete",
+                          tone: "danger",
+                          onSelect: () => onDelete(tx.id),
+                        },
+                      ]}
+                      trigger={
+                        <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)]">
+                          <MoreHorizontal size={16} />
+                        </span>
+                      }
+                    />
                   </div>
                 </td>
               </tr>

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MetricCard } from "@/components/dashboard/metric-card";
-import { PageHeader, EmptyState } from "@/components/ui/page-header";
+import { ModuleHeader } from "@/components/ui/module-header";
+import { EmptyState } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -148,7 +149,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <PageHeader
+      <ModuleHeader
         title={firstName ? `${firstName}'s FinOS` : "Financial Twin"}
         description="Where is your money, where did it go, and what should you do next?"
         actions={

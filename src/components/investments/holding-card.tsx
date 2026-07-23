@@ -1,8 +1,8 @@
 "use client";
 
-import { StatusDot } from "@/components/ui/status-dot";
-import { Button } from "@/components/ui/button";
-import { Card, CardBody } from "@/components/ui/card";
+import { MoreHorizontal, TrendingUp } from "lucide-react";
+import { ActionMenu } from "@/components/ui/action-menu";
+import { cn } from "@/lib/cn";
 import { formatCurrency } from "@/lib/format";
 import { assetTypeLabel } from "@/lib/investments/meta";
 import type { InvestmentHolding } from "@/types";
@@ -17,30 +17,72 @@ export function HoldingCard({
   onDelete: () => void;
 }) {
   const positive = holding.gain >= 0;
+  const accent = positive ? "#7C3AED" : "#E5484D";
 
   return (
-    <Card>
-      <CardBody className="pt-5">
+    <article className="relative overflow-hidden rounded-[16px] bg-[var(--ds-background-elevated)] ds-border">
+      <div
+        className="absolute inset-y-0 left-0 w-[3px]"
+        style={{ background: accent }}
+        aria-hidden
+      />
+      <div className="p-4 pl-5 sm:p-5">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="truncate text-[var(--ds-gray-1000)]">
-              {holding.name}
-              {holding.symbol ? (
-                <span className="ml-1.5 text-sm font-normal text-[var(--ds-gray-700)]">
-                  {holding.symbol}
-                </span>
-              ) : null}
-            </h2>
-            <p className="mt-0.5 text-xs text-[var(--ds-gray-700)]">
-              {assetTypeLabel(holding.asset_type)}
-              {holding.container_name ? ` · ${holding.container_name}` : ""}
-            </p>
+          <div className="flex min-w-0 items-center gap-3">
+            <span
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-[12px]"
+              style={{
+                color: accent,
+                background: `color-mix(in srgb, ${accent} 14%, transparent)`,
+              }}
+            >
+              <TrendingUp size={17} strokeWidth={1.85} />
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate text-sm font-semibold text-[var(--ds-gray-1000)]">
+                {holding.name}
+                {holding.symbol ? (
+                  <span className="ml-1.5 text-xs font-normal text-[var(--ds-gray-700)]">
+                    {holding.symbol}
+                  </span>
+                ) : null}
+              </h2>
+              <p className="mt-0.5 truncate text-xs text-[var(--ds-gray-700)]">
+                {assetTypeLabel(holding.asset_type)}
+                {holding.container_name ? ` · ${holding.container_name}` : ""}
+              </p>
+            </div>
           </div>
-          <span className="inline-flex shrink-0 items-center gap-1.5 text-xs tabular-nums text-[var(--ds-gray-900)]">
-            <StatusDot tone={positive ? "green" : "red"} />
-            {positive ? "+" : ""}
-            {holding.gain_percent.toFixed(1)}%
-          </span>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-medium tabular-nums",
+                positive
+                  ? "bg-[color-mix(in_srgb,var(--ds-status-green)_12%,transparent)] text-[var(--ds-status-green)]"
+                  : "bg-[color-mix(in_srgb,var(--ds-status-red)_12%,transparent)] text-[var(--ds-status-red)]",
+              )}
+            >
+              {positive ? "+" : ""}
+              {holding.gain_percent.toFixed(1)}%
+            </span>
+            <ActionMenu
+              label={`Actions for ${holding.name}`}
+              items={[
+                { id: "edit", label: "Edit", onSelect: onEdit },
+                {
+                  id: "delete",
+                  label: "Delete",
+                  tone: "danger",
+                  onSelect: onDelete,
+                },
+              ]}
+              trigger={
+                <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)]">
+                  <MoreHorizontal size={16} />
+                </span>
+              }
+            />
+          </div>
         </div>
 
         <p className="mt-5 text-[22px] font-semibold leading-7 tracking-[-0.88px] tabular-nums text-[var(--ds-gray-1000)]">
@@ -49,11 +91,11 @@ export function HoldingCard({
         <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
           Cost {formatCurrency(holding.cost_basis, holding.currency)} ·{" "}
           <span
-            style={{
-              color: positive
-                ? "var(--ds-status-green)"
-                : "var(--ds-status-red)",
-            }}
+            className={
+              positive
+                ? "text-[var(--ds-status-green)]"
+                : "text-[var(--ds-status-red)]"
+            }
           >
             {positive ? "+" : ""}
             {formatCurrency(holding.gain, holding.currency)}
@@ -61,24 +103,11 @@ export function HoldingCard({
         </p>
 
         <p className="mt-3 text-[11px] tabular-nums text-[var(--ds-gray-700)]">
-          {holding.quantity} × {formatCurrency(holding.current_price, holding.currency)}
+          {holding.quantity} ×{" "}
+          {formatCurrency(holding.current_price, holding.currency)}
           {" · "}avg {formatCurrency(holding.avg_cost, holding.currency)}
         </p>
-
-        <div className="mt-4 flex gap-1">
-          <Button variant="ghost" size="sm" onClick={onEdit}>
-            Edit
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-[var(--ds-status-red)]"
-            onClick={onDelete}
-          >
-            Delete
-          </Button>
-        </div>
-      </CardBody>
-    </Card>
+      </div>
+    </article>
   );
 }

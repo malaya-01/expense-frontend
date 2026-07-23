@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Menu, PanelRight } from "lucide-react";
+import { Menu } from "lucide-react";
 import { ConversationSidebar } from "@/components/ai/conversation-sidebar";
 import { ChatWorkspace } from "@/components/ai/chat-workspace";
-import { ContextSidebar } from "@/components/ai/context-sidebar";
 import { ProposalConfirmModal } from "@/components/ai/proposal-confirm-modal";
 import { ProposalBatchReviewModal } from "@/components/ai/proposal-batch-review-modal";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,6 @@ export function AiAdvisorWorkspace() {
   const router = useRouter();
   const workspace = useAiAdvisorWorkspace();
   const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
-  const [mobileContextOpen, setMobileContextOpen] = useState(false);
 
   if (workspace.pageLoading) {
     return (
@@ -33,17 +31,12 @@ export function AiAdvisorWorkspace() {
           <div className="mx-auto my-auto w-full max-w-3xl">
             <Skeleton className="h-9 w-2/5 rounded-[10px]" />
             <Skeleton className="mt-3 h-5 w-1/3 rounded-[8px]" />
-            <div className="mt-8 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, index) => (
+            <div className="mt-8 grid gap-2 sm:grid-cols-2">
+              {Array.from({ length: 2 }).map((_, index) => (
                 <Skeleton key={index} className="h-16 rounded-[14px]" />
               ))}
             </div>
           </div>
-        </div>
-        <div className="hidden w-[320px] shrink-0 space-y-4 border-l border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] p-4 xl:block">
-          <Skeleton className="h-28 w-full rounded-[16px]" />
-          <Skeleton className="h-20 w-full rounded-[14px]" />
-          <Skeleton className="h-32 w-full rounded-[14px]" />
         </div>
       </div>
     );
@@ -88,8 +81,8 @@ export function AiAdvisorWorkspace() {
                 3
               </span>
               <span>
-                <strong className="font-medium">Ask</strong> — Start with a
-                suggested question
+                <strong className="font-medium">Ask</strong> — Start chatting
+                with your financial twin
               </span>
             </li>
           </ol>
@@ -118,7 +111,7 @@ export function AiAdvisorWorkspace() {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--ds-background-100)]">
-      <div className="flex h-10 items-center justify-between px-3 md:hidden">
+      <div className="flex h-10 items-center gap-3 px-3 md:hidden">
         <button
           type="button"
           onClick={() => setMobileConversationsOpen(true)}
@@ -130,14 +123,6 @@ export function AiAdvisorWorkspace() {
         <p className="text-sm font-medium text-[var(--ds-gray-1000)]">
           AI Advisor
         </p>
-        <button
-          type="button"
-          onClick={() => setMobileContextOpen(true)}
-          className="flex size-9 items-center justify-center rounded-[9px] text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] ds-focus"
-          aria-label="Open context panel"
-        >
-          <PanelRight size={16} />
-        </button>
       </div>
 
       {workspace.error ? (
@@ -174,6 +159,7 @@ export function AiAdvisorWorkspace() {
             activeId={workspace.activeId}
             search={workspace.search}
             collapsed={workspace.railCollapsed}
+            archivedView={workspace.archivedView}
             onSearchChange={workspace.setSearch}
             onToggleCollapsed={() =>
               workspace.setRailCollapsed((value) => !value)
@@ -184,19 +170,19 @@ export function AiAdvisorWorkspace() {
             onPin={workspace.pinConversation}
             onDuplicate={workspace.duplicateConversation}
             onArchive={workspace.archiveConversation}
+            onUnarchive={workspace.unarchiveConversation}
             onDelete={workspace.removeConversation}
+            onToggleArchivedView={workspace.toggleArchivedView}
           />
         </div>
 
         <ChatWorkspace
           messages={workspace.messages}
           proposals={workspace.proposals}
-          starters={workspace.starters}
           draft={workspace.draft}
           attachments={workspace.attachments}
           loading={workspace.loading}
           streamingId={workspace.streamingId}
-          status={workspace.status}
           dragActive={workspace.dragActive}
           listening={workspace.listening}
           voiceSupported={workspace.voiceSupported}
@@ -221,25 +207,6 @@ export function AiAdvisorWorkspace() {
             workspace.setWebSearchEnabled((enabled) => !enabled)
           }
         />
-
-        <div className="hidden h-full xl:flex">
-          <ContextSidebar
-            overview={workspace.overview}
-            activeId={workspace.activeId}
-            messages={workspace.messages}
-            pending={workspace.pendingProposals}
-            documents={workspace.documents}
-            selectedDocument={workspace.selectedDocument}
-            busyProposal={workspace.busyProposal}
-            onReview={(p) => workspace.setConfirming(p)}
-            onReject={workspace.onReject}
-            onReviewBatch={(ids) => workspace.openBatchReview(ids)}
-            onSelectDocument={(id) => void workspace.selectDocument(id)}
-            onDeleteDocument={(id) => void workspace.removeDocument(id)}
-            onClearDocument={() => void workspace.selectDocument(null)}
-            onSendFollowUp={(prompt) => void workspace.onSend(undefined, prompt)}
-          />
-        </div>
       </div>
 
       <Drawer
@@ -256,6 +223,7 @@ export function AiAdvisorWorkspace() {
             activeId={workspace.activeId}
             search={workspace.search}
             collapsed={false}
+            archivedView={workspace.archivedView}
             onSearchChange={workspace.setSearch}
             onToggleCollapsed={() => setMobileConversationsOpen(false)}
             onNewChat={() => {
@@ -270,44 +238,9 @@ export function AiAdvisorWorkspace() {
             onPin={workspace.pinConversation}
             onDuplicate={workspace.duplicateConversation}
             onArchive={workspace.archiveConversation}
+            onUnarchive={workspace.unarchiveConversation}
             onDelete={workspace.removeConversation}
-          />
-        </div>
-      </Drawer>
-
-      <Drawer
-        open={mobileContextOpen}
-        title="Context"
-        side="right"
-        onClose={() => setMobileContextOpen(false)}
-        className="w-[min(92vw,340px)]"
-        contentClassName="p-0 overflow-hidden"
-      >
-        <div className="h-full [&_aside]:w-full [&_aside]:border-0">
-          <ContextSidebar
-            overview={workspace.overview}
-            activeId={workspace.activeId}
-            messages={workspace.messages}
-            pending={workspace.pendingProposals}
-            documents={workspace.documents}
-            selectedDocument={workspace.selectedDocument}
-            busyProposal={workspace.busyProposal}
-            onReview={(p) => {
-              workspace.setConfirming(p);
-              setMobileContextOpen(false);
-            }}
-            onReject={workspace.onReject}
-            onReviewBatch={(ids) => {
-              workspace.openBatchReview(ids);
-              setMobileContextOpen(false);
-            }}
-            onSelectDocument={(id) => void workspace.selectDocument(id)}
-            onDeleteDocument={(id) => void workspace.removeDocument(id)}
-            onClearDocument={() => void workspace.selectDocument(null)}
-            onSendFollowUp={(prompt) => {
-              void workspace.onSend(undefined, prompt);
-              setMobileContextOpen(false);
-            }}
+            onToggleArchivedView={workspace.toggleArchivedView}
           />
         </div>
       </Drawer>

@@ -1,11 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { PageHeader, EmptyState } from "@/components/ui/page-header";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Briefcase,
+  CircleDollarSign,
+  PieChart,
+  Plus,
+  TrendingUp,
+} from "lucide-react";
+import { EmptyState } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { MetricCard } from "@/components/dashboard/metric-card";
-import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { ModuleHeader } from "@/components/ui/module-header";
+import { SummaryKpiCard } from "@/components/ui/summary-kpi-card";
 import { HoldingCard } from "@/components/investments/holding-card";
 import { HoldingFormModal } from "@/components/investments/holding-form-modal";
 import {
@@ -20,7 +27,7 @@ import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
 import { CardGridSkeleton } from "@/components/ui/feedback";
-import { assetTypeLabel } from "@/lib/investments/meta";
+import { ASSET_TYPES, assetTypeLabel } from "@/lib/investments/meta";
 import type {
   CreateInvestmentInput,
   FinancialContainer,
@@ -50,6 +57,8 @@ export default function InvestmentsPage() {
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<InvestmentHolding | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [assetFilter, setAssetFilter] = useState("all");
 
   const baseCurrency = user?.currency || summary.base_currency || "USD";
 
@@ -77,6 +86,34 @@ export default function InvestmentsPage() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  const filterOptions = useMemo(() => {
+    const present = new Set(holdings.map((h) => h.asset_type));
+    const fromMeta = ASSET_TYPES.filter((t) => present.has(t.value));
+    const extras = [...present]
+      .filter((t) => !ASSET_TYPES.some((a) => a.value === t))
+      .map((t) => ({ value: t, label: assetTypeLabel(t) }));
+    return [
+      { value: "all", label: "All asset types" },
+      ...fromMeta,
+      ...extras,
+    ];
+  }, [holdings]);
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return holdings.filter((holding) => {
+      if (assetFilter !== "all" && holding.asset_type !== assetFilter) {
+        return false;
+      }
+      if (!q) return true;
+      return (
+        holding.name.toLowerCase().includes(q) ||
+        (holding.symbol || "").toLowerCase().includes(q) ||
+        assetTypeLabel(holding.asset_type).toLowerCase().includes(q)
+      );
+    });
+  }, [holdings, search, assetFilter]);
 
   function openCreate() {
     setEditing(null);
@@ -107,35 +144,59 @@ export default function InvestmentsPage() {
 
   return (
     <div>
-      <PageHeader
+      <ModuleHeader
         title="Investments"
         description="Where is my wealth growing? Holdings, cost basis, and allocation inside your twin."
-        actions={<Button onClick={openCreate}>New holding</Button>}
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search holdings..."
+        filter={assetFilter}
+        onFilterChange={setAssetFilter}
+        filterOptions={filterOptions}
+        filterLabel="Asset type"
+        actions={
+          <Button onClick={openCreate} className="shrink-0">
+            <Plus size={16} />
+            New holding
+          </Button>
+        }
       />
 
       {error ? (
         <p className="mb-4 text-sm text-[var(--ds-status-red)]">{error}</p>
       ) : null}
 
-      <div className="mb-8 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryKpiCard
           title="Portfolio value"
           value={formatCurrency(summary.total_value, baseCurrency)}
           subtitle={`${summary.holding_count} holding${summary.holding_count === 1 ? "" : "s"} · ${baseCurrency}`}
+          icon={Briefcase}
           tone="purple"
+          footerLeft={{
+            label: "Holdings",
+            value: String(summary.holding_count),
+          }}
+          footerRight={{
+            label: "Currency",
+            value: baseCurrency,
+          }}
         />
-        <MetricCard
+        <SummaryKpiCard
           title="Cost basis"
           value={formatCurrency(summary.total_cost, baseCurrency)}
           subtitle="Total invested"
+          icon={CircleDollarSign}
+          tone="blue"
         />
-        <MetricCard
+        <SummaryKpiCard
           title="Unrealized P/L"
           value={`${gainPositive ? "+" : ""}${formatCurrency(summary.total_gain, baseCurrency)}`}
           subtitle={`${gainPositive ? "+" : ""}${summary.gain_percent.toFixed(1)}%`}
+          icon={TrendingUp}
           tone={gainPositive ? "green" : "red"}
         />
-        <MetricCard
+        <SummaryKpiCard
           title="Top allocation"
           value={
             summary.allocation[0]
@@ -147,16 +208,17 @@ export default function InvestmentsPage() {
               ? `${summary.allocation[0].percent.toFixed(0)}% of portfolio`
               : "Add holdings"
           }
+          icon={PieChart}
           tone="cyan"
         />
       </div>
 
       {summary.allocation.length > 0 ? (
-        <Card className="mb-8">
-          <CardHeader>
-            <h2>Allocation</h2>
-          </CardHeader>
-          <CardBody className="space-y-3">
+        <div className="mb-6 rounded-[16px] bg-[var(--ds-background-elevated)] p-4 ds-border sm:p-5">
+          <h2 className="text-sm font-medium text-[var(--ds-gray-1000)]">
+            Allocation
+          </h2>
+          <div className="mt-4 space-y-3">
             {summary.allocation.map((row) => (
               <div key={row.asset_type}>
                 <div className="mb-1 flex items-center justify-between text-sm">
@@ -176,14 +238,14 @@ export default function InvestmentsPage() {
                 </div>
               </div>
             ))}
-          </CardBody>
-        </Card>
+          </div>
+        </div>
       ) : null}
 
       {loading ? (
         <CardGridSkeleton />
       ) : holdings.length === 0 ? (
-        <div className="rounded-[12px] bg-[var(--ds-background-elevated)] ds-border">
+        <div className="rounded-[16px] bg-[var(--ds-background-elevated)] ds-border">
           <EmptyState
             title="No holdings yet"
             description="Add stocks, funds, gold, or crypto. Link an investment container to keep net worth in sync."
@@ -191,9 +253,15 @@ export default function InvestmentsPage() {
             onAction={openCreate}
           />
         </div>
+      ) : visible.length === 0 ? (
+        <div className="rounded-[16px] bg-[var(--ds-background-elevated)] px-5 py-10 text-center ds-border">
+          <p className="text-sm font-medium text-[var(--ds-gray-1000)]">
+            No holdings match your filters
+          </p>
+        </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
-          {holdings.map((h) => (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {visible.map((h) => (
             <HoldingCard
               key={h.id}
               holding={h}

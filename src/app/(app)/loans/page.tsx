@@ -8,8 +8,14 @@ import {
   useMemo,
   useState,
 } from "react";
-import { CalendarDays, Landmark, Plus } from "lucide-react";
-import { PageHeader, EmptyState } from "@/components/ui/page-header";
+import {
+  CalendarDays,
+  CreditCard,
+  Percent,
+  Plus,
+  Scale,
+} from "lucide-react";
+import { EmptyState } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
@@ -17,13 +23,11 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Alert,
-  Badge,
-  CardGridSkeleton,
-  Progress,
-} from "@/components/ui/feedback";
+import { Alert, CardGridSkeleton } from "@/components/ui/feedback";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ModuleHeader } from "@/components/ui/module-header";
+import { SummaryKpiCard } from "@/components/ui/summary-kpi-card";
+import { LoanCard } from "@/components/loans/loan-card";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { listAccounts } from "@/lib/api/accounts";
@@ -79,6 +83,10 @@ export default function LoansPage() {
   const [schedule, setSchedule] = useState<LoanAmortizationRow[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<Loan | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "paused" | "closed" | "archived"
+  >("all");
 
   const refresh = useCallback(async () => {
     if (!user?.id) return;
@@ -125,6 +133,19 @@ export default function LoansPage() {
     };
   }, [loans]);
   const currency = user?.currency || loans[0]?.currency || "USD";
+
+  const visibleLoans = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return loans.filter((loan) => {
+      if (statusFilter !== "all" && loan.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        loan.name.toLowerCase().includes(q) ||
+        (loan.lender || "").toLowerCase().includes(q) ||
+        (loan.container_name || "").toLowerCase().includes(q)
+      );
+    });
+  }, [loans, search, statusFilter]);
 
   function openCreate() {
     setEditing(null);
@@ -190,12 +211,26 @@ export default function LoansPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Loans & debts"
+      <ModuleHeader
+        title="Loans & Debts"
         description="Understand every liability, repayment obligation, and path to becoming debt-free."
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search debts..."
+        filter={statusFilter}
+        onFilterChange={(value) =>
+          setStatusFilter(value as typeof statusFilter)
+        }
+        filterOptions={[
+          { value: "all", label: "All statuses" },
+          { value: "active", label: "Active" },
+          { value: "paused", label: "Paused" },
+          { value: "closed", label: "Closed" },
+          { value: "archived", label: "Archived" },
+        ]}
         actions={
-          <Button onClick={openCreate}>
-            <Plus size={15} />
+          <Button onClick={openCreate} className="shrink-0">
+            <Plus size={16} />
             Add debt plan
           </Button>
         }
@@ -212,24 +247,30 @@ export default function LoansPage() {
         />
       ) : null}
 
-      <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <SummaryCard
-          label="Outstanding debt"
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryKpiCard
+          title="Outstanding debt"
           value={formatCurrency(summary.outstanding, currency)}
-          detail={`${summary.count} active ${summary.count === 1 ? "plan" : "plans"}`}
+          subtitle={`${summary.count} active ${summary.count === 1 ? "plan" : "plans"}`}
+          icon={Scale}
+          tone="orange"
         />
-        <SummaryCard
-          label="Monthly obligation"
+        <SummaryKpiCard
+          title="Monthly obligation"
           value={formatCurrency(summary.monthly, currency)}
-          detail="Estimated scheduled payments"
+          subtitle="Estimated scheduled payments"
+          icon={CreditCard}
+          tone="red"
         />
-        <SummaryCard
-          label="Highest rate"
+        <SummaryKpiCard
+          title="Highest rate"
           value={`${summary.highestRate.toFixed(2)}%`}
-          detail="Prioritize costly debt first"
+          subtitle="Prioritize costly debt first"
+          icon={Percent}
+          tone="orange"
         />
-        <SummaryCard
-          label="Debt health"
+        <SummaryKpiCard
+          title="Debt health"
           value={
             summary.count === 0
               ? "Clear"
@@ -237,14 +278,22 @@ export default function LoansPage() {
                 ? "High cost"
                 : "Managed"
           }
-          detail="Based on active interest rates"
+          subtitle="Based on active interest rates"
+          icon={CalendarDays}
+          tone={
+            summary.count === 0
+              ? "green"
+              : summary.highestRate > 15
+                ? "red"
+                : "green"
+          }
         />
       </div>
 
       {loading ? (
         <CardGridSkeleton />
       ) : loans.length === 0 ? (
-        <Card>
+        <div className="rounded-[16px] bg-[var(--ds-background-elevated)] ds-border">
           <EmptyState
             title="No debt plans yet"
             description={
@@ -259,99 +308,35 @@ export default function LoansPage() {
                 : window.location.assign("/accounts")
             }
           />
-        </Card>
+        </div>
+      ) : visibleLoans.length === 0 ? (
+        <div className="rounded-[16px] bg-[var(--ds-background-elevated)] px-5 py-10 text-center ds-border">
+          <p className="text-sm font-medium text-[var(--ds-gray-1000)]">
+            No debts match your filters
+          </p>
+        </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
-          {loans.map((loan) => (
-            <Card key={loan.id}>
-              <CardBody className="pt-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-[var(--ds-background-100)] text-[var(--ds-gray-900)] ds-border">
-                      <Landmark size={17} />
-                    </span>
-                    <div className="min-w-0">
-                      <h2 className="truncate text-sm">{loan.name}</h2>
-                      <p className="mt-0.5 truncate text-[11px] text-[var(--ds-gray-700)]">
-                        {loan.lender || loan.container_name}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge
-                    tone={
-                      loan.status === "active"
-                        ? "success"
-                        : loan.status === "closed"
-                          ? "info"
-                          : "neutral"
-                    }
-                  >
-                    {loan.status}
-                  </Badge>
-                </div>
-                <div className="mt-5 flex items-end justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wide text-[var(--ds-gray-700)]">
-                      Outstanding
-                    </p>
-                    <p className="mt-1 text-xl font-semibold tracking-[-0.5px] tabular-nums">
-                      {formatCurrency(loan.outstanding_balance, loan.currency)}
-                    </p>
-                  </div>
-                  <div className="text-right text-[11px] text-[var(--ds-gray-700)]">
-                    <p>{loan.annual_interest_rate.toFixed(2)}% APR</p>
-                    <p className="mt-1">
-                      {formatCurrency(loan.monthly_payment, loan.currency)}/mo
-                    </p>
-                  </div>
-                </div>
-                <Progress
-                  className="mt-4"
-                  value={loan.payoff_percent}
-                  label="Paid off"
-                  tone="var(--ds-status-green)"
-                />
-                <div className="mt-4 flex flex-wrap gap-1">
-                  {loan.status === "active" ? (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setPaymentLoan(loan);
-                        setPayment({
-                          source_container_id: fundingAccounts[0]?.id || "",
-                          amount: Math.min(
-                            loan.monthly_payment,
-                            loan.outstanding_balance,
-                          ),
-                          date: todayISO(),
-                          notes: "",
-                        });
-                      }}
-                    >
-                      Record payment
-                    </Button>
-                  ) : null}
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => void openSchedule(loan)}
-                  >
-                    <CalendarDays size={13} />
-                    Schedule
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => openEdit(loan)}>
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setArchiveTarget(loan)}
-                  >
-                    Archive
-                  </Button>
-                </div>
-              </CardBody>
-            </Card>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {visibleLoans.map((loan) => (
+            <LoanCard
+              key={loan.id}
+              loan={loan}
+              onPay={() => {
+                setPaymentLoan(loan);
+                setPayment({
+                  source_container_id: fundingAccounts[0]?.id || "",
+                  amount: Math.min(
+                    loan.monthly_payment,
+                    loan.outstanding_balance,
+                  ),
+                  date: todayISO(),
+                  notes: "",
+                });
+              }}
+              onSchedule={() => void openSchedule(loan)}
+              onEdit={() => openEdit(loan)}
+              onArchive={() => setArchiveTarget(loan)}
+            />
           ))}
         </div>
       )}
@@ -681,30 +666,6 @@ export default function LoansPage() {
         }}
       />
     </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <Card>
-      <CardBody className="pt-5">
-        <p className="text-[11px] font-medium text-[var(--ds-gray-700)]">
-          {label}
-        </p>
-        <p className="mt-2 text-xl font-semibold tracking-[-0.5px] tabular-nums">
-          {value}
-        </p>
-        <p className="mt-1 text-[11px] text-[var(--ds-gray-700)]">{detail}</p>
-      </CardBody>
-    </Card>
   );
 }
 

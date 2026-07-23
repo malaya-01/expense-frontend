@@ -33,6 +33,8 @@ export type Category = {
   is_system?: boolean;
   budget_amount?: number | null;
   budget_period?: string | null;
+  spent_amount?: number | null;
+  transaction_count?: number | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -590,6 +592,11 @@ export type AiAttachment = {
   name: string;
   mime_type: string;
   data_base64?: string;
+  /** Client-only upload lifecycle for composer gating/UI. */
+  client_key?: string;
+  upload_status?: "uploading" | "ready" | "failed";
+  /** 0–100 while upload_status is uploading. */
+  upload_progress?: number;
 };
 
 export type AiConversation = {
@@ -599,6 +606,7 @@ export type AiConversation = {
   model?: string | null;
   pinned_at?: string | null;
   archived_at?: string | null;
+  auto_titled_at?: string | null;
   last_message_preview?: string | null;
   created_at: string;
   updated_at: string;
@@ -640,6 +648,7 @@ export type AiMemory = {
 
 export type AiChatResponse = {
   conversation_id: string;
+  conversation_title?: string | null;
   message: AiMessage;
   proposals: AiActionProposal[];
   provider: string;

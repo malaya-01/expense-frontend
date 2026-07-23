@@ -1,20 +1,16 @@
 "use client";
 
 import { memo } from "react";
-import Link from "next/link";
 import {
-  Check,
   CircleAlert,
   Copy,
   ExternalLink,
   Globe2,
   RefreshCw,
-  X,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/ai/markdown-renderer";
-import { toolActivityLabel } from "@/components/ai/tool-labels";
 import { cn } from "@/lib/cn";
 import type { AiActionProposal, AiCitation, AiMessage } from "@/types";
 
@@ -36,15 +32,10 @@ export const AssistantMessage = memo(function AssistantMessage({
   streaming?: boolean;
 }) {
   const hasContent = Boolean(message.content?.trim());
-  const showTools =
-    Boolean(message.tool_activity?.length) && (hasContent || !streaming);
   const citations = (message.citations || []) as AiCitation[];
   const webSources = citations.filter(
     (citation) =>
       citation.source_type === "web" || /^https?:\/\//i.test(citation.href),
-  );
-  const moduleSources = citations.filter(
-    (citation) => !webSources.includes(citation),
   );
   const referenceImages = [
     ...new Map(
@@ -81,38 +72,6 @@ export const AssistantMessage = memo(function AssistantMessage({
                   {file.name}
                 </span>
               ))}
-            </div>
-          ) : null}
-
-          {showTools ? (
-            <div
-              className="mb-3 flex flex-wrap gap-x-3 gap-y-1.5"
-              aria-label="Connected sources"
-            >
-              {message.tool_activity!.map((tool) => {
-                const ok = tool.status !== "error";
-                return (
-                  <span
-                    key={`${tool.name}-${tool.summary}`}
-                    className={cn(
-                      "inline-flex items-center gap-1 text-[11px]",
-                      ok
-                        ? "text-[var(--ds-gray-700)]"
-                        : "text-[var(--ds-status-red)]",
-                    )}
-                  >
-                    {ok ? (
-                      <Check
-                        size={11}
-                        className="text-[var(--ds-status-green)]"
-                      />
-                    ) : (
-                      <X size={11} className="text-[var(--ds-status-red)]" />
-                    )}
-                    {toolActivityLabel(tool)}
-                  </span>
-                );
-              })}
             </div>
           ) : null}
 
@@ -153,17 +112,10 @@ export const AssistantMessage = memo(function AssistantMessage({
 
           <div aria-live={streaming ? "polite" : undefined}>
             {hasContent || streaming ? (
-              <>
-                <MarkdownRenderer
-                  content={message.content || (streaming ? " " : "")}
-                />
-                {streaming ? (
-                  <span
-                    className="ml-0.5 inline-block h-3 w-1.5 animate-pulse rounded-sm bg-[var(--ds-gray-700)] align-middle motion-reduce:animate-none"
-                    aria-label="Typing"
-                  />
-                ) : null}
-              </>
+              <MarkdownRenderer
+                content={message.content || (streaming ? " " : "")}
+                streaming={streaming}
+              />
             ) : null}
           </div>
 
@@ -199,20 +151,6 @@ export const AssistantMessage = memo(function AssistantMessage({
                 ))}
               </div>
             </section>
-          ) : null}
-
-          {moduleSources.length ? (
-            <div className="mt-3 flex flex-wrap gap-1.5 pt-1">
-              {moduleSources.map((c) => (
-                <Link
-                  key={c.href}
-                  href={c.href}
-                  className="rounded-full bg-[var(--ds-background-elevated)] px-2.5 py-1 text-[11px] text-[var(--ds-focus-color)] shadow-[var(--ds-shadow-sm,0_1px_2px_rgba(0,0,0,0.06))] ds-focus"
-                >
-                  {c.label}
-                </Link>
-              ))}
-            </div>
           ) : null}
 
           {proposals.length ? (

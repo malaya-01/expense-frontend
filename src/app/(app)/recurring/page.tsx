@@ -8,16 +8,18 @@ import {
   useMemo,
   useState,
 } from "react";
-import { CalendarClock, Pause, Play, Plus, Zap } from "lucide-react";
-import { PageHeader, EmptyState } from "@/components/ui/page-header";
+import { AlertTriangle, CalendarClock, Plus, Zap } from "lucide-react";
+import { EmptyState } from "@/components/ui/page-header";
+import { ModuleHeader } from "@/components/ui/module-header";
+import { SummaryKpiCard } from "@/components/ui/summary-kpi-card";
+import { RecurringCard } from "@/components/recurring/recurring-card";
 import { Button } from "@/components/ui/button";
-import { Card, CardBody } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Alert, Badge, CardGridSkeleton } from "@/components/ui/feedback";
+import { Alert, CardGridSkeleton } from "@/components/ui/feedback";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
@@ -31,7 +33,7 @@ import {
   updateRecurringSchedule,
 } from "@/lib/api/recurring";
 import { getErrorMessage } from "@/lib/api/client";
-import { formatCurrency, formatDate, todayISO } from "@/lib/format";
+import { todayISO } from "@/lib/format";
 import type {
   Category,
   CreateRecurringScheduleInput,
@@ -65,6 +67,8 @@ const FREQUENCIES: Array<[RecurringSchedule["frequency"], string]> = [
   ["annual", "Annually"],
 ];
 
+type StatusFilter = "all" | "active" | "paused" | "archived";
+
 export default function RecurringPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -78,6 +82,8 @@ export default function RecurringPage() {
   const [form, setForm] = useState<CreateRecurringScheduleInput>(EMPTY);
   const [archiveTarget, setArchiveTarget] =
     useState<RecurringSchedule | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const refresh = useCallback(async () => {
     if (!user?.id) return;
@@ -114,6 +120,23 @@ export default function RecurringPage() {
         .length,
     };
   }, [schedules]);
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return schedules.filter((schedule) => {
+      const matchesStatus =
+        statusFilter === "all" || schedule.status === statusFilter;
+      const matchesSearch =
+        !q ||
+        schedule.name.toLowerCase().includes(q) ||
+        schedule.description?.toLowerCase().includes(q) ||
+        schedule.source_name?.toLowerCase().includes(q) ||
+        schedule.destination_name?.toLowerCase().includes(q) ||
+        schedule.transaction_type.includes(q) ||
+        schedule.frequency.includes(q);
+      return matchesStatus && matchesSearch;
+    });
+  }, [schedules, search, statusFilter]);
 
   async function create(event: FormEvent) {
     event.preventDefault();
@@ -154,19 +177,55 @@ export default function RecurringPage() {
     }));
   }
 
+  async function handlePost(schedule: RecurringSchedule) {
+    try {
+      await executeRecurringSchedule(schedule.id);
+      showToast({
+        title: "Scheduled transaction posted",
+        tone: "success",
+      });
+      await refresh();
+    } catch (err) {
+      setError(getErrorMessage(err, "Execution could not run"));
+    }
+  }
+
+  async function handlePause(schedule: RecurringSchedule) {
+    await updateRecurringSchedule(schedule.id, { status: "paused" });
+    await refresh();
+  }
+
+  async function handleResume(schedule: RecurringSchedule) {
+    await updateRecurringSchedule(schedule.id, { status: "active" });
+    await refresh();
+  }
+
   return (
     <div>
-      <PageHeader
-        title="Recurring transactions"
+      <ModuleHeader
+        title="Recurring"
         description="Automate predictable money movement while keeping every execution traceable and reversible."
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search schedules..."
+        filter={statusFilter}
+        onFilterChange={(value) => setStatusFilter(value as StatusFilter)}
+        filterLabel="Status"
+        filterOptions={[
+          { value: "all", label: "All statuses" },
+          { value: "active", label: "Active" },
+          { value: "paused", label: "Paused" },
+          { value: "archived", label: "Archived" },
+        ]}
         actions={
           <Button
+            className="shrink-0"
             onClick={() => {
               setForm({ ...EMPTY, start_date: todayISO() });
               setOpen(true);
             }}
           >
-            <Plus size={15} />
+            <Plus size={16} />
             New schedule
           </Button>
         }
@@ -183,151 +242,60 @@ export default function RecurringPage() {
         />
       ) : null}
 
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Metric label="Active schedules" value={String(metrics.active)} />
-        <Metric label="Automatic" value={String(metrics.automatic)} />
-        <Metric label="Due for posting" value={String(metrics.due)} />
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <SummaryKpiCard
+          title="Active schedules"
+          value={String(metrics.active)}
+          subtitle="Currently running"
+          icon={CalendarClock}
+          tone="blue"
+        />
+        <SummaryKpiCard
+          title="Automatic"
+          value={String(metrics.automatic)}
+          subtitle="Post without review"
+          icon={Zap}
+          tone="teal"
+        />
+        <SummaryKpiCard
+          title="Due for posting"
+          value={String(metrics.due)}
+          subtitle="Ready to execute"
+          icon={AlertTriangle}
+          tone={metrics.due > 0 ? "orange" : "green"}
+        />
       </div>
 
       {loading ? (
         <CardGridSkeleton />
       ) : schedules.length === 0 ? (
-        <Card>
+        <div className="rounded-[16px] bg-[var(--ds-background-elevated)] ds-border">
           <EmptyState
             title="No recurring schedules"
             description="Automate salary, rent, subscriptions, savings transfers, EMIs, and other predictable events."
             actionLabel="Create schedule"
             onAction={() => setOpen(true)}
           />
-        </Card>
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="rounded-[16px] bg-[var(--ds-background-elevated)] px-5 py-10 text-center ds-border">
+          <p className="text-sm font-medium text-[var(--ds-gray-1000)]">
+            No schedules match your filters
+          </p>
+        </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
-          {schedules.map((schedule) => {
-            const due =
-              schedule.status === "active" &&
-              schedule.next_execution <= todayISO();
-            return (
-              <Card key={schedule.id}>
-                <CardBody className="pt-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-[var(--ds-background-100)] ds-border">
-                        <CalendarClock size={17} />
-                      </span>
-                      <div className="min-w-0">
-                        <h2 className="truncate text-sm">{schedule.name}</h2>
-                        <p className="mt-0.5 truncate text-[11px] text-[var(--ds-gray-700)]">
-                          {schedule.source_name || "External"}
-                          {schedule.destination_name
-                            ? ` → ${schedule.destination_name}`
-                            : ""}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge
-                      tone={
-                        schedule.status === "active"
-                          ? due
-                            ? "warning"
-                            : "success"
-                          : schedule.status === "paused"
-                            ? "warning"
-                            : "neutral"
-                      }
-                    >
-                      {due ? "due" : schedule.status}
-                    </Badge>
-                  </div>
-                  <div className="mt-5 flex items-end justify-between">
-                    <div>
-                      <p className="text-xl font-semibold tabular-nums">
-                        {formatCurrency(
-                          schedule.amount,
-                          schedule.currency || user?.currency || "USD",
-                        )}
-                      </p>
-                      <p className="mt-1 text-[11px] capitalize text-[var(--ds-gray-700)]">
-                        {schedule.frequency} · {schedule.transaction_type}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] uppercase tracking-wide text-[var(--ds-gray-700)]">
-                        Next
-                      </p>
-                      <p className="mt-1 text-xs">
-                        {formatDate(schedule.next_execution)}
-                      </p>
-                    </div>
-                  </div>
-                  {schedule.last_error ? (
-                    <p className="mt-3 rounded-[8px] bg-[var(--ds-danger-hover)] p-2 text-[11px] leading-4 text-[var(--ds-status-red)]">
-                      {schedule.last_error}
-                    </p>
-                  ) : null}
-                  <div className="mt-4 flex flex-wrap gap-1">
-                    {due ? (
-                      <Button
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            await executeRecurringSchedule(schedule.id);
-                            showToast({
-                              title: "Scheduled transaction posted",
-                              tone: "success",
-                            });
-                            await refresh();
-                          } catch (err) {
-                            setError(
-                              getErrorMessage(err, "Execution could not run"),
-                            );
-                          }
-                        }}
-                      >
-                        <Zap size={13} />
-                        Post now
-                      </Button>
-                    ) : null}
-                    {schedule.status === "active" ? (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={async () => {
-                          await updateRecurringSchedule(schedule.id, {
-                            status: "paused",
-                          });
-                          await refresh();
-                        }}
-                      >
-                        <Pause size={13} />
-                        Pause
-                      </Button>
-                    ) : schedule.status === "paused" ? (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={async () => {
-                          await updateRecurringSchedule(schedule.id, {
-                            status: "active",
-                          });
-                          await refresh();
-                        }}
-                      >
-                        <Play size={13} />
-                        Resume
-                      </Button>
-                    ) : null}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setArchiveTarget(schedule)}
-                    >
-                      Archive
-                    </Button>
-                  </div>
-                </CardBody>
-              </Card>
-            );
-          })}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {visible.map((schedule) => (
+            <RecurringCard
+              key={schedule.id}
+              schedule={schedule}
+              currency={user?.currency || "USD"}
+              onPost={() => void handlePost(schedule)}
+              onPause={() => void handlePause(schedule)}
+              onResume={() => void handleResume(schedule)}
+              onArchive={() => setArchiveTarget(schedule)}
+            />
+          ))}
         </div>
       )}
 
@@ -563,17 +531,6 @@ export default function RecurringPage() {
         }}
       />
     </div>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <Card>
-      <CardBody className="pt-5">
-        <p className="text-[11px] text-[var(--ds-gray-700)]">{label}</p>
-        <p className="mt-2 text-2xl font-semibold tabular-nums">{value}</p>
-      </CardBody>
-    </Card>
   );
 }
 

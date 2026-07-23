@@ -89,9 +89,13 @@ export async function setAiMemoryEnabled(enabled: boolean) {
 
 export async function listAiConversations(
   q?: string,
+  options?: { archived?: boolean },
 ): Promise<AiConversation[]> {
   const res = await api.get("/ai/conversations", {
-    params: q ? { q } : undefined,
+    params: {
+      ...(q ? { q } : {}),
+      ...(options?.archived ? { archived: "true" } : {}),
+    },
   });
   return unwrap<AiConversation[]>(res);
 }
@@ -145,13 +149,31 @@ export async function getAiDocument(id: string): Promise<AiDocument> {
   return unwrap<AiDocument>(res);
 }
 
-export async function uploadAiDocument(payload: {
-  name: string;
-  mime_type: string;
-  data_base64: string;
-  conversation_id?: string;
-}): Promise<AiDocument> {
-  const res = await api.post("/ai/documents", payload);
+export async function uploadAiDocument(
+  payload: {
+    name: string;
+    mime_type: string;
+    data_base64: string;
+    conversation_id?: string;
+  },
+  options?: {
+    onProgress?: (percent: number) => void;
+  },
+): Promise<AiDocument> {
+  // Send a pre-sized JSON body so XHR can report real loaded/total bytes.
+  // (Posting a plain object often skips useful upload progress events.)
+  const body = JSON.stringify(payload);
+  const res = await api.post("/ai/documents", body, {
+    headers: { "Content-Type": "application/json" },
+    onUploadProgress: (event) => {
+      if (!options?.onProgress || !event.total) return;
+      options.onProgress(
+        Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100))),
+      );
+    },
+  });
+  // Do not force 100% here — caller maps progress from upload events and
+  // treats HTTP completion as "stored" (analysis may still be running).
   return unwrap<AiDocument>(res);
 }
 
@@ -237,7 +259,6 @@ export async function streamAiChat(
     buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
     const parts = buffer.split("\n\n");
     buffer = parts.pop() || "";
-    const events: AiStreamEvent[] = [];
 
     for (const part of parts) {
       const line = part
@@ -253,29 +274,16 @@ export async function streamAiChat(
       } catch {
         continue;
       }
-      events.push(event);
-    }
 
-    let pendingText = "";
-    for (const event of events) {
       if (event.type === "delta") {
-        pendingText += event.text;
+        await emitStreamingText(event.text, handlers.onEvent);
         continue;
-      }
-
-      if (pendingText) {
-        await emitStreamingText(pendingText, handlers.onEvent);
-        pendingText = "";
       }
 
       await handlers.onEvent(event);
       if (event.type === "error") {
         throw new Error(event.message);
       }
-    }
-
-    if (pendingText) {
-      await emitStreamingText(pendingText, handlers.onEvent);
     }
   }
   } finally {
@@ -287,8 +295,10 @@ async function emitStreamingText(
   text: string,
   onEvent: (event: AiStreamEvent) => void | Promise<void>,
 ) {
+  // Small chunks + short delay so replies feel continuous instead of batched.
   const characters = Array.from(text);
-  const chunkSize = 28;
+  const chunkSize = 3;
+  const delayMs = 10;
 
   for (let index = 0; index < characters.length; index += chunkSize) {
     await onEvent({
@@ -297,18 +307,14 @@ async function emitStreamingText(
     });
 
     if (index + chunkSize < characters.length) {
-      await waitForPaint();
+      await sleep(delayMs);
     }
   }
 }
 
-function waitForPaint() {
+function sleep(ms: number) {
   return new Promise<void>((resolve) => {
-    if (typeof window === "undefined") {
-      setTimeout(resolve, 0);
-      return;
-    }
-    window.requestAnimationFrame(() => resolve());
+    setTimeout(resolve, ms);
   });
 }
 

@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { ProposalPayloadView } from "@/components/ai/proposal-payload-view";
 import type { AiActionProposal } from "@/types";
 
 export function ProposalConfirmModal({
@@ -32,20 +33,7 @@ export function ProposalConfirmModal({
         </>
       }
     >
-      {proposal ? (
-        <div className="space-y-3 text-sm">
-          <p className="text-[var(--ds-gray-900)]">
-            {proposal.summary ||
-              "Review the exact payload FinOS will apply."}
-          </p>
-          <p className="text-xs text-[var(--ds-gray-700)]">
-            Type: <code>{proposal.action_type}</code>
-          </p>
-          <pre className="max-h-64 overflow-auto rounded-[8px] bg-[var(--ds-background-100)] p-3 text-[11px] leading-4 text-[var(--ds-gray-900)]">
-            {JSON.stringify(proposal.payload, null, 2)}
-          </pre>
-        </div>
-      ) : null}
+      {proposal ? <ProposalPayloadView proposal={proposal} /> : null}
     </Modal>
   );
 }

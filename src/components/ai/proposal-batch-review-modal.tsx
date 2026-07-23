@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { ProposalPayloadView } from "@/components/ai/proposal-payload-view";
 import { cn } from "@/lib/cn";
 import type { AiActionProposal } from "@/types";
 
@@ -201,9 +202,9 @@ export function ProposalBatchReviewModal({
                         </div>
                       </div>
                       {expanded ? (
-                        <pre className="mt-2 max-h-40 overflow-auto rounded-[8px] bg-[var(--ds-background-elevated)] p-2.5 text-[10px] leading-4 text-[var(--ds-gray-900)]">
-                          {JSON.stringify(proposal.payload, null, 2)}
-                        </pre>
+                        <div className="mt-2 rounded-[8px] bg-[var(--ds-background-elevated)] p-1">
+                          <ProposalPayloadView proposal={proposal} />
+                        </div>
                       ) : null}
                     </div>
                   </div>

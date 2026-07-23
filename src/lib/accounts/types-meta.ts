@@ -57,9 +57,9 @@ export function isLiquidType(type: ContainerType) {
 }
 
 export const GROUP_LABELS: Record<string, string> = {
-  liquid: "Cash & banks",
+  liquid: "Cash & Bank Accounts",
   invest: "Investments",
-  credit: "Credit & loans",
+  credit: "Credit Cards & Loans",
   people: "People",
   other: "Other",
 };
