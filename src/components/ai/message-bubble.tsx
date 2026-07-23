@@ -23,6 +23,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   proposals,
   onConfirm,
   onReject,
+  onReviewBatch,
   busyProposal,
   streaming,
 }: {
@@ -30,6 +31,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   proposals: AiActionProposal[];
   onConfirm: (p: AiActionProposal) => void;
   onReject: (id: string) => void;
+  onReviewBatch?: (ids: string[]) => void;
   busyProposal: string | null;
   streaming?: boolean;
 }) {
@@ -213,10 +215,32 @@ export const AssistantMessage = memo(function AssistantMessage({
             </div>
           ) : null}
 
-          {proposals.map((p) => (
+          {proposals.length ? (
+            <div className="mt-3 space-y-2">
+              {proposals.filter((p) => p.status === "pending").length > 1 ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-[12px] bg-[var(--ds-background-elevated)] px-3 py-2 shadow-[var(--ds-shadow-sm,0_1px_2px_rgba(0,0,0,0.06))]">
+                  <p className="text-[11px] text-[var(--ds-gray-800)]">
+                    {proposals.filter((p) => p.status === "pending").length}{" "}
+                    pending actions
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      onReviewBatch?.(
+                        proposals
+                          .filter((p) => p.status === "pending")
+                          .map((p) => p.id),
+                      )
+                    }
+                  >
+                    Review all
+                  </Button>
+                </div>
+              ) : null}
+              {proposals.map((p) => (
             <div
               key={p.id}
-              className="mt-3 rounded-[14px] bg-[var(--ds-background-elevated)] p-3 shadow-[var(--ds-shadow-sm,0_1px_2px_rgba(0,0,0,0.06))]"
+              className="rounded-[14px] bg-[var(--ds-background-elevated)] p-3 shadow-[var(--ds-shadow-sm,0_1px_2px_rgba(0,0,0,0.06))]"
             >
               <p className="text-xs font-medium">{p.title}</p>
               {p.summary ? (
@@ -244,7 +268,9 @@ export const AssistantMessage = memo(function AssistantMessage({
                 </p>
               )}
             </div>
-          ))}
+              ))}
+            </div>
+          ) : null}
         </div>
 
         {!streaming && hasContent ? (
@@ -303,6 +329,7 @@ export const MessageBubble = memo(function MessageBubble({
   proposals,
   onConfirm,
   onReject,
+  onReviewBatch,
   busyProposal,
   streaming,
 }: {
@@ -310,6 +337,7 @@ export const MessageBubble = memo(function MessageBubble({
   proposals: AiActionProposal[];
   onConfirm: (p: AiActionProposal) => void;
   onReject: (id: string) => void;
+  onReviewBatch?: (ids: string[]) => void;
   busyProposal: string | null;
   streaming?: boolean;
 }) {
@@ -325,6 +353,7 @@ export const MessageBubble = memo(function MessageBubble({
       proposals={proposals}
       onConfirm={onConfirm}
       onReject={onReject}
+      onReviewBatch={onReviewBatch}
       busyProposal={busyProposal}
       streaming={streaming}
     />

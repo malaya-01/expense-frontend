@@ -7,6 +7,7 @@ import { ConversationSidebar } from "@/components/ai/conversation-sidebar";
 import { ChatWorkspace } from "@/components/ai/chat-workspace";
 import { ContextSidebar } from "@/components/ai/context-sidebar";
 import { ProposalConfirmModal } from "@/components/ai/proposal-confirm-modal";
+import { ProposalBatchReviewModal } from "@/components/ai/proposal-batch-review-modal";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/feedback";
@@ -207,6 +208,7 @@ export function AiAdvisorWorkspace() {
           onStop={() => workspace.abortRef.current?.abort()}
           onConfirm={(p) => workspace.setConfirming(p)}
           onReject={workspace.onReject}
+          onReviewBatch={(ids) => workspace.openBatchReview(ids)}
           onAddFiles={workspace.addFiles}
           onRemoveAttachment={(index) =>
             workspace.setAttachments((items) =>
@@ -231,6 +233,7 @@ export function AiAdvisorWorkspace() {
             busyProposal={workspace.busyProposal}
             onReview={(p) => workspace.setConfirming(p)}
             onReject={workspace.onReject}
+            onReviewBatch={(ids) => workspace.openBatchReview(ids)}
             onSelectDocument={(id) => void workspace.selectDocument(id)}
             onDeleteDocument={(id) => void workspace.removeDocument(id)}
             onClearDocument={() => void workspace.selectDocument(null)}
@@ -294,6 +297,10 @@ export function AiAdvisorWorkspace() {
               setMobileContextOpen(false);
             }}
             onReject={workspace.onReject}
+            onReviewBatch={(ids) => {
+              workspace.openBatchReview(ids);
+              setMobileContextOpen(false);
+            }}
             onSelectDocument={(id) => void workspace.selectDocument(id)}
             onDeleteDocument={(id) => void workspace.removeDocument(id)}
             onClearDocument={() => void workspace.selectDocument(null)}
@@ -310,6 +317,18 @@ export function AiAdvisorWorkspace() {
         busy={workspace.busyProposal === workspace.confirming?.id}
         onClose={() => workspace.setConfirming(null)}
         onConfirm={workspace.onConfirm}
+      />
+
+      <ProposalBatchReviewModal
+        open={workspace.batchReviewOpen}
+        proposals={workspace.batchReviewProposals}
+        busy={workspace.busyBulk}
+        onClose={workspace.closeBatchReview}
+        onDecide={workspace.onBulkDecide}
+        onReviewOne={(proposal) => {
+          workspace.closeBatchReview();
+          workspace.setConfirming(proposal);
+        }}
       />
     </div>
   );

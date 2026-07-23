@@ -10,9 +10,11 @@ import {
 } from "react";
 import { useSearchParams } from "next/navigation";
 import { humanizeAdvisorStatus } from "@/components/ai/tool-labels";
+import { parseInvokedToolsFromText } from "@/lib/ai/command-catalog";
 import { getErrorMessage } from "@/lib/api/client";
 import {
   archiveAiConversation,
+  bulkDecideAiProposals,
   confirmAiProposal,
   deleteAiConversation,
   deleteAiDocument,
@@ -86,7 +88,10 @@ export function useAiAdvisorWorkspace() {
   const [pageLoading, setPageLoading] = useState(true);
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<AiActionProposal | null>(null);
+  const [batchReviewOpen, setBatchReviewOpen] = useState(false);
+  const [batchReviewIds, setBatchReviewIds] = useState<string[] | null>(null);
   const [busyProposal, setBusyProposal] = useState<string | null>(null);
+  const [busyBulk, setBusyBulk] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
@@ -226,13 +231,16 @@ export function useAiAdvisorWorkspace() {
     async (e?: FormEvent, content?: string) => {
       e?.preventDefault();
       const selectedAttachments = attachments;
-      const shouldSearchWeb = webSearchEnabled;
       const text =
         (content ?? draft).trim() ||
         (selectedAttachments.length
           ? "Analyze the attached file and tell me what it contains."
           : "");
       if (!text || loading) return;
+
+      const invokedTools = parseInvokedToolsFromText(text);
+      const shouldSearchWeb =
+        webSearchEnabled || invokedTools.includes("search_public_web");
 
       abortRef.current?.abort();
       const ac = new AbortController();
@@ -277,6 +285,7 @@ export function useAiAdvisorWorkspace() {
             conversation_id: activeId || undefined,
             attachments: selectedAttachments,
             web_search: shouldSearchWeb || undefined,
+            invoked_tools: invokedTools,
           },
           {
             signal: ac.signal,
@@ -483,6 +492,54 @@ export function useAiAdvisorWorkspace() {
     }
   }, []);
 
+  const openBatchReview = useCallback((ids?: string[]) => {
+    setBatchReviewIds(ids?.length ? ids : null);
+    setBatchReviewOpen(true);
+  }, []);
+
+  const closeBatchReview = useCallback(() => {
+    setBatchReviewOpen(false);
+    setBatchReviewIds(null);
+  }, []);
+
+  const onBulkDecide = useCallback(
+    async (decision: { confirm_ids: string[]; reject_ids: string[] }) => {
+      if (!decision.confirm_ids.length && !decision.reject_ids.length) return;
+      setBusyBulk(true);
+      try {
+        const result = await bulkDecideAiProposals(decision);
+        const confirmed = new Set(
+          (result.confirmed || []).map((row) => row.id),
+        );
+        const rejected = new Set((result.rejected || []).map((row) => row.id));
+        setProposals((prev) =>
+          prev.map((p) => {
+            if (confirmed.has(p.id)) return { ...p, status: "confirmed" };
+            if (rejected.has(p.id)) return { ...p, status: "rejected" };
+            return p;
+          }),
+        );
+        setPendingGlobal((prev) =>
+          prev.filter((p) => !confirmed.has(p.id) && !rejected.has(p.id)),
+        );
+        if (result.failed?.length) {
+          setError(
+            `${result.failed.length} action${result.failed.length === 1 ? "" : "s"} failed. Others were applied.`,
+          );
+        } else {
+          setBatchReviewOpen(false);
+          setBatchReviewIds(null);
+        }
+        await refreshLists({ silent: true });
+      } catch (err) {
+        setError(getErrorMessage(err, "Bulk review failed"));
+      } finally {
+        setBusyBulk(false);
+      }
+    },
+    [refreshLists],
+  );
+
   const renameConversation = useCallback(
     async (id: string, title: string) => {
       const updated = await renameAiConversation(id, title);
@@ -630,6 +687,12 @@ export function useAiAdvisorWorkspace() {
     return [...map.values()];
   }, [pendingGlobal, proposals]);
 
+  const batchReviewProposals = useMemo(() => {
+    if (!batchReviewIds?.length) return pendingProposals;
+    const allow = new Set(batchReviewIds);
+    return pendingProposals.filter((p) => allow.has(p.id));
+  }, [batchReviewIds, pendingProposals]);
+
   const needsProvider = !settings?.active_provider;
   const savedProvider = settings?.providers.find(
     (provider) =>
@@ -666,7 +729,14 @@ export function useAiAdvisorWorkspace() {
     streamingId,
     confirming,
     setConfirming,
+    batchReviewOpen,
+    setBatchReviewOpen,
+    batchReviewProposals,
+    openBatchReview,
+    closeBatchReview,
+    onBulkDecide,
     busyProposal,
+    busyBulk,
     listening,
     voiceSupported,
     webSearchEnabled,

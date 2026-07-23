@@ -74,6 +74,7 @@ export const ContextSidebar = memo(function ContextSidebar({
   busyProposal,
   onReview,
   onReject,
+  onReviewBatch,
   onSelectDocument,
   onDeleteDocument,
   onClearDocument,
@@ -88,6 +89,7 @@ export const ContextSidebar = memo(function ContextSidebar({
   busyProposal: string | null;
   onReview: (p: AiActionProposal) => void;
   onReject: (id: string) => void;
+  onReviewBatch?: (ids: string[]) => void;
   onSelectDocument: (id: string) => void;
   onDeleteDocument: (id: string) => void;
   onClearDocument: () => void;
@@ -338,9 +340,20 @@ export const ContextSidebar = memo(function ContextSidebar({
 
         {pending.length ? (
           <section>
-            <div className="mb-2 flex items-center justify-between">
+            <div className="mb-2 flex items-center justify-between gap-2">
               <p className="text-sm font-semibold">Pending Actions</p>
-              <Badge tone="warning">{pending.length}</Badge>
+              <div className="flex items-center gap-1.5">
+                <Badge tone="warning">{pending.length}</Badge>
+                {pending.length > 1 ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => onReviewBatch?.(pending.map((p) => p.id))}
+                  >
+                    Review all
+                  </Button>
+                ) : null}
+              </div>
             </div>
             <div className="space-y-2">
               {pending.map((proposal) => (

@@ -165,6 +165,7 @@ export async function sendAiChat(payload: {
   conversation_id?: string;
   attachments?: AiAttachment[];
   web_search?: boolean;
+  invoked_tools?: string[];
 }): Promise<AiChatResponse> {
   const res = await api.post("/ai/chat", payload);
   return unwrap<AiChatResponse>(res);
@@ -189,6 +190,7 @@ export async function streamAiChat(
     conversation_id?: string;
     attachments?: AiAttachment[];
     web_search?: boolean;
+    invoked_tools?: string[];
   },
   handlers: {
     onEvent: (event: AiStreamEvent) => void | Promise<void>;
@@ -317,5 +319,18 @@ export async function confirmAiProposal(id: string) {
 
 export async function rejectAiProposal(id: string) {
   const res = await api.post(`/ai/proposals/${id}/reject`);
+  return unwrap(res);
+}
+
+export async function bulkDecideAiProposals(payload: {
+  confirm_ids?: string[];
+  reject_ids?: string[];
+}): Promise<{
+  confirmed: Array<{ id: string; status: string }>;
+  rejected: Array<{ id: string; status: string }>;
+  failed: Array<{ id: string; action: string; error: string }>;
+  summary: { confirmed: number; rejected: number; failed: number };
+}> {
+  const res = await api.post("/ai/proposals/bulk", payload);
   return unwrap(res);
 }

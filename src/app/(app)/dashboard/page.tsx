@@ -406,7 +406,7 @@ export default function DashboardPage() {
             <CardBody className="space-y-3">
               <AiInsight
                 tone="blue"
-                href={`/ai?q=${encodeURIComponent("Summarize my financial twin in 5 bullets.")}`}
+                href={`/ai?q=${encodeURIComponent("/health Summarize my financial twin in 5 bullets.")}`}
                 text={
                   twin.containerCount === 0
                     ? "Create financial containers to unlock real net worth."
@@ -415,7 +415,7 @@ export default function DashboardPage() {
               />
               <AiInsight
                 tone="green"
-                href={`/ai?q=${encodeURIComponent("Where is my liquid cash and is it enough?")}`}
+                href={`/ai?q=${encodeURIComponent("@accounts Where is my liquid cash and is it enough?")}`}
                 text={
                   twin.totalCash > 0
                     ? `Liquid cash on hand: ${formatCurrency(twin.totalCash, baseCurrency)}.`
@@ -424,7 +424,7 @@ export default function DashboardPage() {
               />
               <AiInsight
                 tone="orange"
-                href={`/ai?q=${encodeURIComponent("How risky are my liabilities right now?")}`}
+                href={`/ai?q=${encodeURIComponent("/loans How risky are my liabilities right now?")}`}
                 text={
                   twin.totalLiabilities > 0
                     ? `Outstanding liabilities: ${formatCurrency(twin.totalLiabilities, baseCurrency)}.`
@@ -437,7 +437,7 @@ export default function DashboardPage() {
                     ? "orange"
                     : "blue"
                 }
-                href={`/ai?q=${encodeURIComponent("Am I overspending against my budgets this month?")}`}
+                href={`/ai?q=${encodeURIComponent("/budget Am I overspending against my budgets this month?")}`}
                 text={
                   budgets.length === 0
                     ? "Set a budget to see if spending stays on track this month."
@@ -454,7 +454,7 @@ export default function DashboardPage() {
                     ? "orange"
                     : "green"
                 }
-                href={`/ai?q=${encodeURIComponent("How are my goals progressing?")}`}
+                href={`/ai?q=${encodeURIComponent("/goal How are my goals progressing?")}`}
                 text={
                   goals.length === 0
                     ? "Create a goal (emergency fund, vacation, house) to track where savings should go."
@@ -467,7 +467,7 @@ export default function DashboardPage() {
               />
               <AiInsight
                 tone="purple"
-                href={`/ai?q=${encodeURIComponent("How is my investment portfolio allocated and performing?")}`}
+                href={`/ai?q=${encodeURIComponent("@investments How is my investment portfolio allocated and performing?")}`}
                 text={
                   !investSummary || investSummary.holding_count === 0
                     ? "Add investment holdings to see unrealized gains and allocation."
@@ -481,7 +481,7 @@ export default function DashboardPage() {
                 className="w-full"
                 onClick={() =>
                   router.push(
-                    `/ai?q=${encodeURIComponent("What should I do next financially?")}`,
+                    `/ai?q=${encodeURIComponent("/scenario What should I do next financially?")}`,
                   )
                 }
               >

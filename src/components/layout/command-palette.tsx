@@ -99,6 +99,8 @@ export function CommandPalette() {
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const paletteRef = useRef<HTMLElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const previousFocus = useRef<HTMLElement | null>(null);
   const [recordItems, setRecordItems] = useState<PaletteItem[]>([]);
   const [indexLoaded, setIndexLoaded] = useState(false);
@@ -298,6 +300,14 @@ export function CommandPalette() {
     setActiveIndex(0);
   }, [query]);
 
+  useEffect(() => {
+    if (!open) return;
+    itemRefs.current[activeIndex]?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [activeIndex, open, visibleItems.length]);
+
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
@@ -345,6 +355,7 @@ export function CommandPalette() {
           </kbd>
         </div>
         <div
+          ref={listRef}
           id="finos-command-results"
           role="listbox"
           className="max-h-[min(420px,60vh)] overflow-y-auto p-2"
@@ -358,6 +369,9 @@ export function CommandPalette() {
             visibleItems.map((item, index) => (
               <button
                 key={item.id}
+                ref={(el) => {
+                  itemRefs.current[index] = el;
+                }}
                 type="button"
                 role="option"
                 aria-selected={index === activeIndex}

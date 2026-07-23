@@ -10,8 +10,11 @@ const TOOL_LABELS: Record<string, string> = {
   list_holdings: "Investments",
   list_expenses: "Expenses",
   list_recurring: "Recurring payments",
+  list_loans: "Loans",
   list_categories: "Categories",
+  list_uncategorized: "Uncategorized",
   get_cash_flow: "Cash flow",
+  simulate_scenario: "Scenario",
   search_public_web: "Live web sources",
 };
 

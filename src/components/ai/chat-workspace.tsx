@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useRef, type FormEvent, type RefObject } from "react";
+import { memo, useCallback, useRef, useState, type FormEvent, type RefObject } from "react";
 import {
   Mic,
   Send,
@@ -19,8 +19,17 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover } from "@/components/ui/popover";
 import { MessageBubble, TypingIndicator } from "@/components/ai/message-bubble";
+import {
+  ChatCommandMenu,
+  type CommandMenuState,
+} from "@/components/ai/chat-command-menu";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/cn";
+import {
+  detectCommandTrigger,
+  type AiAtToolDef,
+  type AiSlashCommandDef,
+} from "@/lib/ai/command-catalog";
 import type {
   AiActionProposal,
   AiAttachment,
@@ -33,36 +42,36 @@ const SUGGESTION_CARDS = [
     title: "Analyze Spending",
     description: "Find leaks and unusual expenses",
     icon: PieChart,
-    prompt: "Analyze my spending this month and highlight unusual expenses.",
+    prompt: "/spend",
   },
   {
     id: "budget",
     title: "Build Budget",
     description: "Propose a monthly plan",
     icon: Wallet,
-    prompt: "Build a practical monthly budget I can confirm.",
+    prompt: "/budget",
   },
   {
     id: "goal",
     title: "Set a Goal",
     description: "Create a savings target",
     icon: Target,
-    prompt: "Help me set a realistic savings goal for the next 90 days.",
+    prompt: "/goal",
   },
   {
     id: "document",
     title: "Analyze Document",
     description: "Extract insights from a file",
     icon: FileSearch,
-    prompt: "I'll attach a document. Analyze it for financial insights.",
+    prompt: "/receipt",
   },
 ] as const;
 
 const DEFAULT_PROMPTS = [
-  "Summarize my finances",
-  "Find unusual expenses",
-  "Create budget",
-  "Analyze my statement",
+  "/categories",
+  "/receipt",
+  "/categorize",
+  "/spend",
 ];
 
 export const ChatWorkspace = memo(function ChatWorkspace({
@@ -85,6 +94,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
   onStop,
   onConfirm,
   onReject,
+  onReviewBatch,
   onAddFiles,
   onRemoveAttachment,
   onDragState,
@@ -110,6 +120,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
   onStop: () => void;
   onConfirm: (p: AiActionProposal) => void;
   onReject: (id: string) => void;
+  onReviewBatch?: (ids: string[]) => void;
   onAddFiles: (files: FileList | null) => void;
   onRemoveAttachment: (index: number) => void;
   onDragState: (active: boolean) => void;
@@ -118,12 +129,52 @@ export const ChatWorkspace = memo(function ChatWorkspace({
 }) {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [menu, setMenu] = useState<CommandMenuState>(null);
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const firstName = user?.full_name?.trim().split(/\s+/)[0];
   const hasConversation = messages.length > 0;
   const promptChips = (starters.length ? starters : DEFAULT_PROMPTS).slice(0, 4);
+
+  const refreshMenu = useCallback((value: string, caret: number) => {
+    setMenu(detectCommandTrigger(value, caret));
+  }, []);
+
+  const replaceRange = useCallback(
+    (start: number, end: number, insert: string) => {
+      const next = `${draft.slice(0, start)}${insert}${draft.slice(end)}`;
+      onDraftChange(next);
+      setMenu(null);
+      requestAnimationFrame(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        const pos = start + insert.length;
+        el.focus();
+        el.setSelectionRange(pos, pos);
+      });
+    },
+    [draft, onDraftChange],
+  );
+
+  const onPickAt = useCallback(
+    (tool: AiAtToolDef) => {
+      if (!menu) return;
+      replaceRange(menu.start, menu.end, `@${tool.id} `);
+      if (tool.id === "web" && !webSearchEnabled) onToggleWebSearch();
+    },
+    [menu, onToggleWebSearch, replaceRange, webSearchEnabled],
+  );
+
+  const onPickSlash = useCallback(
+    (cmd: AiSlashCommandDef) => {
+      if (!menu) return;
+      replaceRange(menu.start, menu.end, `${cmd.command} `);
+      if (cmd.web_search && !webSearchEnabled) onToggleWebSearch();
+    },
+    [menu, onToggleWebSearch, replaceRange, webSearchEnabled],
+  );
 
   return (
     <section
@@ -140,7 +191,15 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                 <span aria-hidden>👋</span>
               </h1>
               <p className="mt-2 text-sm text-[var(--ds-gray-700)]">
-                How can I help with your finances today?
+                How can I help with your finances today? Type{" "}
+                <kbd className="rounded bg-[var(--ds-gray-100)] px-1.5 py-0.5 text-[11px]">
+                  /
+                </kbd>{" "}
+                for commands or{" "}
+                <kbd className="rounded bg-[var(--ds-gray-100)] px-1.5 py-0.5 text-[11px]">
+                  @
+                </kbd>{" "}
+                to attach data.
               </p>
               <div className="mt-6 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 {SUGGESTION_CARDS.map((card) => {
@@ -181,6 +240,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                   )}
                   onConfirm={onConfirm}
                   onReject={onReject}
+                  onReviewBatch={onReviewBatch}
                   busyProposal={busyProposal}
                 />
               ))}
@@ -245,6 +305,12 @@ export const ChatWorkspace = memo(function ChatWorkspace({
           )}
           aria-label="Message composer"
         >
+          <ChatCommandMenu
+            state={menu}
+            onPickAt={onPickAt}
+            onPickSlash={onPickSlash}
+          />
+
           <input
             ref={fileInputRef}
             type="file"
@@ -353,12 +419,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                 <button
                   type="button"
                   disabled={loading}
-                  onClick={() =>
-                    onSend(
-                      undefined,
-                      "Analyze my spending and identify unusual transactions.",
-                    )
-                  }
+                  onClick={() => onSend(undefined, "/spend")}
                   className="flex min-h-12 w-full items-center gap-3 rounded-[12px] px-3 text-left hover:bg-[var(--ds-gray-100)] disabled:opacity-50 ds-focus"
                 >
                   <PieChart
@@ -367,18 +428,13 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                   />
                   <span className="text-sm font-medium">Analyze spending</span>
                   <span className="text-xs text-[var(--ds-gray-700)]">
-                    Find trends and unusual expenses
+                    /spend
                   </span>
                 </button>
                 <button
                   type="button"
                   disabled={loading}
-                  onClick={() =>
-                    onSend(
-                      undefined,
-                      "Give me a detailed financial health report with prioritized next steps.",
-                    )
-                  }
+                  onClick={() => onSend(undefined, "/health")}
                   className="flex min-h-12 w-full items-center gap-3 rounded-[12px] px-3 text-left hover:bg-[var(--ds-gray-100)] disabled:opacity-50 ds-focus"
                 >
                   <FileSearch
@@ -387,18 +443,13 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                   />
                   <span className="text-sm font-medium">Financial deep dive</span>
                   <span className="text-xs text-[var(--ds-gray-700)]">
-                    Get a detailed report
+                    /health
                   </span>
                 </button>
                 <button
                   type="button"
                   disabled={loading}
-                  onClick={() =>
-                    onSend(
-                      undefined,
-                      "Build a practical monthly budget I can review and confirm.",
-                    )
-                  }
+                  onClick={() => onSend(undefined, "/budget")}
                   className="flex min-h-12 w-full items-center gap-3 rounded-[12px] px-3 text-left hover:bg-[var(--ds-gray-100)] disabled:opacity-50 ds-focus"
                 >
                   <Wallet
@@ -407,22 +458,55 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                   />
                   <span className="text-sm font-medium">Create budget</span>
                   <span className="text-xs text-[var(--ds-gray-700)]">
-                    Build a personalized plan
+                    /budget
                   </span>
                 </button>
               </div>
             </Popover>
 
             <Textarea
+              ref={textareaRef}
               value={draft}
-              onChange={(e) => onDraftChange(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                onDraftChange(value);
+                refreshMenu(value, e.target.selectionStart ?? value.length);
+              }}
+              onClick={(e) => {
+                const el = e.currentTarget;
+                refreshMenu(el.value, el.selectionStart ?? el.value.length);
+              }}
+              onKeyUp={(e) => {
+                const el = e.currentTarget;
+                if (
+                  e.key === "ArrowLeft" ||
+                  e.key === "ArrowRight" ||
+                  e.key === "Home" ||
+                  e.key === "End"
+                ) {
+                  refreshMenu(el.value, el.selectionStart ?? el.value.length);
+                }
+              }}
               onKeyDown={(event) => {
+                if (menu && ["ArrowDown", "ArrowUp", "Tab"].includes(event.key)) {
+                  event.preventDefault();
+                  return;
+                }
+                if (menu && event.key === "Escape") {
+                  event.preventDefault();
+                  setMenu(null);
+                  return;
+                }
+                if (menu && event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  return;
+                }
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
                   void onSend();
                 }
               }}
-              placeholder="Ask anything"
+              placeholder="Ask anything — try /spend or @loans"
               rows={1}
               aria-label="Message"
               style={{
