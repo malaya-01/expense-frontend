@@ -9,6 +9,7 @@ import {
   Flag,
   RefreshCw,
   Target,
+  UsersRound,
 } from "lucide-react";
 import { Popover } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,8 @@ import {
 
 function iconFor(notice: Notice) {
   if (notice.kind === "goal") return Target;
+  if (notice.kind === "space") return UsersRound;
+  if (notice.kind === "recurring") return RefreshCw;
   if (notice.tone === "danger") return CircleAlert;
   return Flag;
 }

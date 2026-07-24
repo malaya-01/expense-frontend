@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import {
   Check,
   CircleAlert,
@@ -112,13 +113,22 @@ export function ToastViewport() {
 
 export function useToast() {
   const dispatch = useAppDispatch();
-  return {
-    showToast: (toast: ToastInput) => {
+  const showToast = useCallback(
+    (toast: ToastInput) => {
       dispatch(showToastAction(toast));
     },
-    dismissToast: (id: string) => {
+    [dispatch],
+  );
+  const dismiss = useCallback(
+    (id: string) => {
       dispatch(dismissToast(id));
     },
+    [dispatch],
+  );
+
+  return {
+    showToast,
+    dismissToast: dismiss,
     success: (title: string, description?: string) => {
       dispatch(showToastAction({ title, description, tone: "success" }));
     },

@@ -19,6 +19,7 @@ import {
   Settings,
   Target,
   TrendingUp,
+  UsersRound,
   WalletCards,
 } from "lucide-react";
 import { PRIMARY_NAV, SECONDARY_NAV } from "./app-sidebar";
@@ -30,6 +31,7 @@ import { listAccounts } from "@/lib/api/accounts";
 import { listBudgets } from "@/lib/api/budgets";
 import { listGoals } from "@/lib/api/goals";
 import { listInvestments } from "@/lib/api/investments";
+import { listSpaces } from "@/lib/api/spaces";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { getAppStore } from "@/lib/store/store-ref";
 import {
@@ -169,7 +171,8 @@ export function CommandPalette() {
       listBudgets().catch(() => []),
       listGoals().catch(() => []),
       listInvestments().catch(() => null),
-    ]).then(([transactions, accounts, budgets, goals, investments]) => {
+      listSpaces().catch(() => []),
+    ]).then(([transactions, accounts, budgets, goals, investments, spaces]) => {
       const records: PaletteItem[] = [
         ...transactions.map((transaction) => ({
           id: `transaction-${transaction.id}`,
@@ -211,6 +214,14 @@ export function CommandPalette() {
           icon: TrendingUp,
           run: () => router.push("/investments"),
         })),
+        ...spaces.map((space) => ({
+          id: `space-${space.id}`,
+          title: space.name,
+          subtitle: `Space · ${space.role || "member"} · ${space.member_count || 1} members`,
+          keywords: `collaborative space shared workspace trip family ${space.slug || ""}`,
+          icon: UsersRound,
+          run: () => router.push(`/spaces/${space.id}`),
+        })),
       ];
       setRecordItems(records);
       setIndexLoaded(true);
@@ -249,6 +260,14 @@ export function CommandPalette() {
         run: openTransactionModal,
       },
       {
+        id: "new-space",
+        title: "New collaborative space",
+        subtitle: "Create a shared financial workspace",
+        keywords: "space trip family roommate shared split",
+        icon: UsersRound,
+        run: () => router.push("/spaces?create=1"),
+      },
+      {
         id: "ask-advisor",
         title: "Ask AI Advisor",
         subtitle: "Open your Personal CFO workspace",
@@ -271,6 +290,14 @@ export function CommandPalette() {
         keywords: "preferences configuration settings",
         icon: Settings,
         run: () => router.push("/settings"),
+      },
+      {
+        id: "nav-spaces",
+        title: "Collaborative Spaces",
+        subtitle: "Go to module",
+        keywords: "spaces collaborative shared workspace navigation",
+        icon: UsersRound,
+        run: () => router.push("/spaces"),
       },
       ...navigation,
       ...recordItems,

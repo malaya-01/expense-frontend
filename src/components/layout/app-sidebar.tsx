@@ -30,6 +30,7 @@ import { Drawer } from "@/components/ui/drawer";
 import { NotificationCenter } from "@/components/layout/notification-center";
 import { ThemeMenu } from "@/components/layout/theme-menu";
 import { openCommandPalette } from "@/components/layout/command-palette";
+import { SpacesSidebarSection } from "@/components/layout/spaces-sidebar-section";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { useAuth } from "@/lib/auth-context";
 import { initials } from "@/lib/format";
@@ -190,6 +191,7 @@ function SidebarContents({
             <NavLink key={item.href} item={item} onNavigate={onNavigate} />
           ))}
         </div>
+        <SpacesSidebarSection onNavigate={onNavigate} />
         <div className="mt-5 space-y-0.5">
           <p className="mb-1 px-2 text-[10px] font-medium text-[var(--ds-gray-700)]">
             Workspace

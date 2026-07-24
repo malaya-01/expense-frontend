@@ -7,11 +7,12 @@ import {
 import { listBudgets } from "@/lib/api/budgets";
 import { listGoals } from "@/lib/api/goals";
 import { listRecurringSchedules } from "@/lib/api/recurring";
+import { listSpaceNotifications } from "@/lib/api/spaces";
 
 export const DISMISSED_NOTIFICATIONS_KEY = "finos:dismissed-notifications";
 
 export type NoticeTone = "warning" | "danger" | "success";
-export type NoticeKind = "budget" | "goal" | "recurring";
+export type NoticeKind = "budget" | "goal" | "recurring" | "space";
 
 export type Notice = {
   id: string;
@@ -54,10 +55,11 @@ export const fetchNotifications = createAsyncThunk<
 >(
   "notifications/fetch",
   async () => {
-    const [budgets, goals, schedules] = await Promise.all([
+    const [budgets, goals, schedules, spaceNotices] = await Promise.all([
       listBudgets().catch(() => []),
       listGoals().catch(() => []),
       listRecurringSchedules().catch(() => []),
+      listSpaceNotifications().catch(() => []),
     ]);
 
     const next: Notice[] = [];
@@ -132,6 +134,23 @@ export const fetchNotifications = createAsyncThunk<
           kind: "recurring",
         });
       }
+    }
+
+    for (const notice of spaceNotices as any[]) {
+      const isInvite = notice.kind === "invite" || notice.type === "invite";
+      next.push({
+        id: `space-${notice.id}`,
+        title: notice.title || (isInvite ? "Space invite" : "Space update"),
+        description:
+          notice.body ||
+          notice.message ||
+          (isInvite
+            ? "Open to accept this Collaborative Space invite."
+            : "Open Collaborative Spaces"),
+        href: notice.href || "/spaces",
+        tone: isInvite ? "success" : "warning",
+        kind: "space",
+      });
     }
 
     return next;
