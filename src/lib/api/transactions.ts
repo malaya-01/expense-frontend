@@ -66,20 +66,20 @@ async function enrichTransactionFields(
     ...apiPayload(payload, derivedCurrency || undefined),
     currency: derivedCurrency || undefined,
     source_name:
-      (source as { name?: string } | undefined)?.name ??
-      payload.source_name ??
+      (source as { name?: string } | undefined)?.name ||
+      payload.source_name ||
       null,
     source_currency:
       (source as { currency?: string } | undefined)?.currency ?? null,
     destination_name:
-      (destination as { name?: string } | undefined)?.name ??
-      payload.destination_name ??
+      (destination as { name?: string } | undefined)?.name ||
+      payload.destination_name ||
       null,
     destination_currency:
       (destination as { currency?: string } | undefined)?.currency ?? null,
     category_name:
-      (category as { name?: string } | undefined)?.name ??
-      payload.category_name ??
+      (category as { name?: string } | undefined)?.name ||
+      payload.category_name ||
       null,
     amount_base:
       payload.amount != null ? Number(payload.amount) : undefined,
@@ -155,7 +155,11 @@ export async function getTransactionJournal(
 }
 
 export async function createTransaction(
-  payload: CreateTransactionInput,
+  payload: CreateTransactionInput & {
+    source_name?: string | null;
+    destination_name?: string | null;
+    category_name?: string | null;
+  },
 ): Promise<LedgerTransaction> {
   const enriched = await enrichTransactionFields(payload);
   // Outbox keeps API fields only; local row keeps join/display fields.
@@ -167,13 +171,20 @@ export async function createTransaction(
 
 export async function updateTransaction(
   id: string,
-  payload: Partial<CreateTransactionInput>,
+  payload: Partial<CreateTransactionInput> & {
+    source_name?: string | null;
+    destination_name?: string | null;
+    category_name?: string | null;
+  },
 ): Promise<LedgerTransaction> {
   const existing = (await offlineDb.transactions.get(id)) as
     | TxRow
     | undefined;
   const enriched = await enrichTransactionFields({
     type: payload.type || existing?.type,
+    source_name: existing?.source_name,
+    destination_name: existing?.destination_name,
+    category_name: existing?.category_name,
     ...payload,
   });
   const updated = (await transactionsRepo.update(

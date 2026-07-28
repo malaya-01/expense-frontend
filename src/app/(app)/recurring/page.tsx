@@ -393,6 +393,13 @@ export default function RecurringPage() {
               </Select>
             </Field>
           </div>
+          <div
+            className={
+              form.transaction_type === "transfer"
+                ? "grid gap-4 rounded-[10px] bg-[var(--ds-background-100)] p-3.5 sm:grid-cols-2"
+                : "contents"
+            }
+          >
           {form.transaction_type !== "income" ? (
             <Field label="Source container" id="recurring-source">
               <Select
@@ -403,11 +410,21 @@ export default function RecurringPage() {
                   setForm((current) => ({
                     ...current,
                     source_container_id: event.target.value,
+                    destination_container_id:
+                      current.destination_container_id === event.target.value
+                        ? ""
+                        : current.destination_container_id,
                   }))
                 }
               >
                 <option value="">Select source</option>
-                {accounts.map((account) => (
+                {accounts
+                  .filter(
+                    (account) =>
+                      form.transaction_type !== "transfer" ||
+                      account.id !== form.destination_container_id,
+                  )
+                  .map((account) => (
                   <option key={account.id} value={account.id}>
                     {account.name}
                   </option>
@@ -425,11 +442,21 @@ export default function RecurringPage() {
                   setForm((current) => ({
                     ...current,
                     destination_container_id: event.target.value,
+                    source_container_id:
+                      current.source_container_id === event.target.value
+                        ? ""
+                        : current.source_container_id,
                   }))
                 }
               >
                 <option value="">Select destination</option>
-                {accounts.map((account) => (
+                {accounts
+                  .filter(
+                    (account) =>
+                      form.transaction_type !== "transfer" ||
+                      account.id !== form.source_container_id,
+                  )
+                  .map((account) => (
                   <option key={account.id} value={account.id}>
                     {account.name}
                   </option>
@@ -437,6 +464,7 @@ export default function RecurringPage() {
               </Select>
             </Field>
           ) : null}
+          </div>
           {form.transaction_type !== "transfer" ? (
             <Field label="Category" id="recurring-category">
               <Select

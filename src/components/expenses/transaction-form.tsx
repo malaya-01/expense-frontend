@@ -37,6 +37,10 @@ type TransactionFormProps = {
   onBusyChange?: (busy: boolean) => void;
 };
 
+function containerLabel(c: FinancialContainer) {
+  return `${c.name} · ${c.currency} · ${getContainerMeta(c.type).label}`;
+}
+
 export function TransactionForm({
   initial,
   mode = "create",
@@ -79,6 +83,26 @@ export function TransactionForm({
   const destination = containers.find(
     (c) => c.id === form.destination_container_id,
   );
+  const category = categories.find((c) => c.id === form.category_id);
+
+  const needsSource =
+    form.type === "expense" || form.type === "transfer";
+  const needsDestination =
+    form.type === "income" || form.type === "transfer";
+
+  const sourceOptions = useMemo(() => {
+    if (form.type !== "transfer" || !form.destination_container_id) {
+      return containers;
+    }
+    return containers.filter((c) => c.id !== form.destination_container_id);
+  }, [containers, form.type, form.destination_container_id]);
+
+  const destinationOptions = useMemo(() => {
+    if (form.type !== "transfer" || !form.source_container_id) {
+      return containers;
+    }
+    return containers.filter((c) => c.id !== form.source_container_id);
+  }, [containers, form.type, form.source_container_id]);
 
   const crossCurrency =
     form.type === "transfer" &&
@@ -115,6 +139,18 @@ export function TransactionForm({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function setType(type: TransactionType) {
+    setForm((prev) => ({
+      ...prev,
+      type,
+      source_container_id:
+        type === "income" ? "" : prev.source_container_id,
+      destination_container_id:
+        type === "expense" ? "" : prev.destination_container_id,
+      exchange_rate: undefined,
+    }));
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -130,17 +166,11 @@ export function TransactionForm({
       setError("Create a financial container in Accounts first.");
       return;
     }
-    if (
-      (form.type === "expense" || form.type === "transfer") &&
-      !form.source_container_id
-    ) {
+    if (needsSource && !form.source_container_id) {
       setError("Select the source container (where money left).");
       return;
     }
-    if (
-      (form.type === "income" || form.type === "transfer") &&
-      !form.destination_container_id
-    ) {
+    if (needsDestination && !form.destination_container_id) {
       setError("Select the destination container (where money arrived).");
       return;
     }
@@ -151,6 +181,10 @@ export function TransactionForm({
       setError("Transfer source and destination must be different.");
       return;
     }
+    if (form.type === "transfer" && containers.length < 2) {
+      setError("Transfers need at least two containers. Create another in Accounts.");
+      return;
+    }
     if (crossCurrency && (!form.exchange_rate || form.exchange_rate <= 0)) {
       setError("Enter an exchange rate for this cross-currency transfer.");
       return;
@@ -159,7 +193,11 @@ export function TransactionForm({
     setLoading(true);
     onBusyChange?.(true);
     try {
-      const payload: CreateTransactionInput = {
+      const payload: CreateTransactionInput & {
+        source_name?: string;
+        destination_name?: string;
+        category_name?: string;
+      } = {
         type: form.type,
         amount: Number(form.amount),
         description: form.description.trim(),
@@ -182,6 +220,10 @@ export function TransactionForm({
         exchange_rate: crossCurrency
           ? Number(form.exchange_rate || suggestedRate)
           : undefined,
+        // Keep list labels correct even if Dexie account cache is stale.
+        source_name: source?.name,
+        destination_name: destination?.name,
+        category_name: category?.name,
       };
 
       if (mode === "edit" && initial) {
@@ -221,19 +263,111 @@ export function TransactionForm({
         <Select
           id="type"
           value={form.type}
-          onChange={(e) => update("type", e.target.value as TransactionType)}
+          onChange={(e) => setType(e.target.value as TransactionType)}
         >
           <option value="expense">Expense — money left a container</option>
           <option value="income">Income — money entered a container</option>
           <option value="transfer">Transfer — move between containers</option>
         </Select>
+        {form.type === "transfer" ? (
+          <p className="mt-1.5 text-[11px] text-[var(--ds-gray-700)]">
+            Choose both containers below: money leaves From and arrives in To.
+          </p>
+        ) : null}
       </div>
+
+      {/* Containers immediately under type so transfer To is not buried off-screen. */}
+      {(needsSource || needsDestination) && (
+        <div
+          className={
+            needsSource && needsDestination
+              ? "grid gap-4 rounded-[10px] bg-[var(--ds-background-100)] p-3.5 sm:grid-cols-2 sm:gap-5 sm:p-4"
+              : undefined
+          }
+        >
+          {needsSource ? (
+            <div>
+              <Label htmlFor="source">From (source container)</Label>
+              <Select
+                id="source"
+                value={form.source_container_id || ""}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    source_container_id: next,
+                    destination_container_id:
+                      prev.destination_container_id === next
+                        ? ""
+                        : prev.destination_container_id,
+                    exchange_rate: undefined,
+                  }));
+                }}
+                required
+              >
+                <option value="">Select container</option>
+                {sourceOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {containerLabel(c)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ) : null}
+
+          {needsDestination ? (
+            <div>
+              <Label htmlFor="destination">To (destination container)</Label>
+              <Select
+                id="destination"
+                value={form.destination_container_id || ""}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    destination_container_id: next,
+                    source_container_id:
+                      prev.source_container_id === next
+                        ? ""
+                        : prev.source_container_id,
+                    exchange_rate: undefined,
+                  }));
+                }}
+                required
+              >
+                <option value="">Select container</option>
+                {destinationOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {containerLabel(c)}
+                  </option>
+                ))}
+              </Select>
+              {form.type === "transfer" && containers.length < 2 ? (
+                <p className="mt-1.5 text-[11px] text-[var(--ds-status-orange)]">
+                  You need a second container for transfers.{" "}
+                  <button
+                    type="button"
+                    className="text-[var(--ds-focus-color)]"
+                    onClick={() => router.push("/accounts")}
+                  >
+                    Create one in Accounts
+                  </button>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      )}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
           <Label htmlFor="amount">
             Amount
-            {source ? ` (${source.currency})` : destination ? ` (${destination.currency})` : ""}
+            {source
+              ? ` (${source.currency})`
+              : destination
+                ? ` (${destination.currency})`
+                : ""}
           </Label>
           <Input
             id="amount"
@@ -269,50 +403,6 @@ export function TransactionForm({
           placeholder="Coffee, salary, rent transfer…"
         />
       </div>
-
-      {(form.type === "expense" || form.type === "transfer") && (
-        <div>
-          <Label htmlFor="source">From (source container)</Label>
-          <Select
-            id="source"
-            value={form.source_container_id || ""}
-            onChange={(e) => {
-              update("source_container_id", e.target.value);
-              update("exchange_rate", undefined);
-            }}
-            required
-          >
-            <option value="">Select container</option>
-            {containers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} · {c.currency} · {getContainerMeta(c.type).label}
-              </option>
-            ))}
-          </Select>
-        </div>
-      )}
-
-      {(form.type === "income" || form.type === "transfer") && (
-        <div>
-          <Label htmlFor="destination">To (destination container)</Label>
-          <Select
-            id="destination"
-            value={form.destination_container_id || ""}
-            onChange={(e) => {
-              update("destination_container_id", e.target.value);
-              update("exchange_rate", undefined);
-            }}
-            required
-          >
-            <option value="">Select container</option>
-            {containers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} · {c.currency} · {getContainerMeta(c.type).label}
-              </option>
-            ))}
-          </Select>
-        </div>
-      )}
 
       {crossCurrency ? (
         <div className="rounded-[8px] bg-[var(--ds-background-100)] p-4 space-y-3">
