@@ -4,28 +4,26 @@ import type {
   LoanAmortizationRow,
 } from "@/types";
 import { api, unwrap } from "./client";
+import { loanPaymentLocal, loansRepo } from "@/lib/offline/repos";
+import { isOnline } from "@/lib/offline/network";
 
 export async function listLoans(): Promise<Loan[]> {
-  const response = await api.get("/loans");
-  const data = unwrap<Loan[] | Loan>(response);
-  return Array.isArray(data) ? data : data ? [data] : [];
+  return (await loansRepo.list()) as Loan[];
 }
 
 export async function createLoan(input: CreateLoanInput): Promise<Loan> {
-  const response = await api.post("/loans", input);
-  return unwrap<Loan>(response);
+  return (await loansRepo.create(input as any)) as Loan;
 }
 
 export async function updateLoan(
   id: string,
   input: Partial<CreateLoanInput> & { status?: Loan["status"] },
 ): Promise<Loan> {
-  const response = await api.patch(`/loans/${id}`, input);
-  return unwrap<Loan>(response);
+  return (await loansRepo.update(id, input as any)) as Loan;
 }
 
 export async function archiveLoan(id: string): Promise<void> {
-  await api.delete(`/loans/${id}`);
+  await loansRepo.remove(id);
 }
 
 export async function recordLoanPayment(
@@ -38,8 +36,17 @@ export async function recordLoanPayment(
     notes?: string;
   },
 ): Promise<{ loan: Loan }> {
-  const response = await api.post(`/loans/${id}/payments`, input);
-  return unwrap<{ loan: Loan }>(response);
+  if (isOnline()) {
+    try {
+      const response = await api.post(`/loans/${id}/payments`, input);
+      return unwrap<{ loan: Loan }>(response);
+    } catch {
+      /* queue offline */
+    }
+  }
+  await loanPaymentLocal(id, input);
+  const loan = (await loansRepo.get(id).catch(() => ({ id }))) as Loan;
+  return { loan };
 }
 
 export async function getLoanAmortization(

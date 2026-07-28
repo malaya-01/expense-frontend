@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Bot,
+  Cloud,
   Database,
   Info,
   Keyboard,
@@ -21,6 +22,7 @@ import { Select } from "@/components/ui/select";
 import { PasswordInput } from "@/components/ui/password-input";
 import { AppearanceSection } from "@/components/settings/theme-settings";
 import { AiProvidersSection } from "@/components/settings/ai-providers-section";
+import { SyncSettingsSection } from "@/components/settings/sync-settings-section";
 import { useAuth } from "@/lib/auth-context";
 import {
   COUNTRIES,
@@ -45,6 +47,7 @@ const SECTIONS = [
   { id: "ai", label: "AI & Models", icon: Bot },
   { id: "security", label: "Security", icon: ShieldCheck },
   { id: "data", label: "Data & Backup", icon: Database },
+  { id: "sync", label: "Offline & Sync", icon: Cloud },
   { id: "shortcuts", label: "Shortcuts", icon: Keyboard },
   { id: "session", label: "Session", icon: LogOut },
   { id: "about", label: "About", icon: Info },
@@ -465,6 +468,8 @@ export default function SettingsPage() {
               </Card>
             </div>
           ) : null}
+
+          {section === "sync" ? <SyncSettingsSection /> : null}
 
           {section === "shortcuts" ? (
             <Card>

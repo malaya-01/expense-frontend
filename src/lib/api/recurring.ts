@@ -2,19 +2,18 @@ import type {
   CreateRecurringScheduleInput,
   RecurringSchedule,
 } from "@/types";
-import { api, unwrap } from "./client";
+import { api } from "./client";
+import { recurringExecuteLocal, recurringRepo } from "@/lib/offline/repos";
+import { isOnline } from "@/lib/offline/network";
 
 export async function listRecurringSchedules(): Promise<RecurringSchedule[]> {
-  const response = await api.get("/recurring");
-  const data = unwrap<RecurringSchedule[] | RecurringSchedule>(response);
-  return Array.isArray(data) ? data : data ? [data] : [];
+  return (await recurringRepo.list()) as RecurringSchedule[];
 }
 
 export async function createRecurringSchedule(
   input: CreateRecurringScheduleInput,
 ): Promise<RecurringSchedule> {
-  const response = await api.post("/recurring", input);
-  return unwrap<RecurringSchedule>(response);
+  return (await recurringRepo.create(input as any)) as RecurringSchedule;
 }
 
 export async function updateRecurringSchedule(
@@ -23,14 +22,21 @@ export async function updateRecurringSchedule(
     status?: RecurringSchedule["status"];
   },
 ): Promise<RecurringSchedule> {
-  const response = await api.patch(`/recurring/${id}`, input);
-  return unwrap<RecurringSchedule>(response);
+  return (await recurringRepo.update(id, input as any)) as RecurringSchedule;
 }
 
 export async function executeRecurringSchedule(id: string): Promise<void> {
-  await api.post(`/recurring/${id}/execute`);
+  if (isOnline()) {
+    try {
+      await api.post(`/recurring/${id}/execute`);
+      return;
+    } catch {
+      /* queue */
+    }
+  }
+  await recurringExecuteLocal(id);
 }
 
 export async function archiveRecurringSchedule(id: string): Promise<void> {
-  await api.delete(`/recurring/${id}`);
+  await recurringRepo.remove(id);
 }

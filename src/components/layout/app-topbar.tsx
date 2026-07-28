@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { openCommandPalette } from "@/components/layout/command-palette";
 import { NotificationCenter } from "@/components/layout/notification-center";
+import { SyncStatusButton } from "@/components/sync/sync-status";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import {
@@ -109,6 +110,7 @@ export function AppTopbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-0.5">
+        <SyncStatusButton />
         <button
           type="button"
           onClick={openCommandPalette}

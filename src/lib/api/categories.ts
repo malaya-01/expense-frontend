@@ -1,29 +1,26 @@
 import { api, unwrap } from "./client";
 import type { Category, CreateCategoryInput } from "@/types";
+import { categoriesRepo } from "@/lib/offline/repos";
 
 export async function listCategories(): Promise<Category[]> {
-  const res = await api.get("/categories");
-  const data = unwrap<Category[] | Category>(res);
-  return Array.isArray(data) ? data : data ? [data] : [];
+  return categoriesRepo.list() as Promise<Category[]>;
 }
 
 export async function createCategory(
   payload: CreateCategoryInput,
 ): Promise<Category> {
-  const res = await api.post("/categories", payload);
-  return unwrap<Category>(res);
+  return categoriesRepo.create(payload as any) as Promise<Category>;
 }
 
 export async function updateCategory(
   id: string,
   payload: Partial<CreateCategoryInput>,
 ): Promise<Category> {
-  const res = await api.patch(`/categories/${id}`, payload);
-  return unwrap<Category>(res);
+  return categoriesRepo.update(id, payload as any) as Promise<Category>;
 }
 
 export async function deleteCategory(id: string): Promise<void> {
-  await api.delete(`/categories/${id}`);
+  await categoriesRepo.remove(id);
 }
 
 export async function listCategoryIcons(): Promise<Array<{ id: string }>> {

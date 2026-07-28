@@ -58,6 +58,11 @@ export type Expense = {
 
 export type TransactionType = "expense" | "income" | "transfer";
 
+export type SyncLocalMeta = {
+  _pending?: boolean;
+  _sync_failed?: boolean;
+};
+
 export type LedgerTransaction = {
   id: string;
   user_id: string;
@@ -81,7 +86,7 @@ export type LedgerTransaction = {
   category_name?: string | null;
   created_at: string;
   updated_at: string;
-};
+} & SyncLocalMeta;
 
 export type LedgerJournalLine = {
   id: string;
@@ -172,7 +177,7 @@ export type FinancialContainer = {
   include_in_net_worth: boolean;
   created_at: string;
   updated_at: string;
-};
+} & SyncLocalMeta;
 
 export type CreateContainerInput = {
   name: string;
@@ -306,7 +311,7 @@ export type Budget = {
   status: BudgetStatus;
   created_at: string;
   updated_at: string;
-};
+} & SyncLocalMeta;
 
 export type CreateBudgetInput = {
   name: string;
@@ -351,7 +356,7 @@ export type Goal = {
   predicted_date?: string | null;
   created_at: string;
   updated_at: string;
-};
+} & SyncLocalMeta;
 
 export type CreateGoalInput = {
   name: string;

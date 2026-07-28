@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# Android local machine config
+/android/local.properties
+
 # production
 /build
 

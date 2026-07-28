@@ -55,8 +55,23 @@ export async function selectActiveAiProvider(payload: {
 }
 
 export async function updateMasterPrompt(master_prompt: string) {
-  const res = await api.patch("/ai/master-prompt", { master_prompt });
-  return unwrap(res);
+  try {
+    const res = await api.patch("/ai/master-prompt", { master_prompt });
+    const data = unwrap(res);
+    const userRaw = localStorage.getItem("expense-tracker:user");
+    const userId = userRaw ? JSON.parse(userRaw)?.id : null;
+    if (userId) {
+      const { saveAiPreferences } = await import("@/lib/offline/repos");
+      await saveAiPreferences(userId, { master_prompt });
+    }
+    return data;
+  } catch {
+    const userRaw = localStorage.getItem("expense-tracker:user");
+    const userId = userRaw ? JSON.parse(userRaw)?.id : null;
+    if (!userId) throw new Error("Offline: user required");
+    const { saveAiPreferences } = await import("@/lib/offline/repos");
+    return saveAiPreferences(userId, { master_prompt });
+  }
 }
 
 export async function getAiStarters() {
@@ -73,18 +88,58 @@ export async function getAiMemories(): Promise<{
 }
 
 export async function addAiMemory(content: string): Promise<AiMemory> {
-  const res = await api.post("/ai/memories", { content });
-  return unwrap(res);
+  try {
+    const res = await api.post("/ai/memories", { content });
+    return unwrap(res);
+  } catch {
+    const userRaw = localStorage.getItem("expense-tracker:user");
+    const userId = userRaw ? JSON.parse(userRaw)?.id : null;
+    if (!userId) throw new Error("Offline: user required");
+    const { addAiMemoryLocal } = await import("@/lib/offline/repos");
+    return addAiMemoryLocal(userId, content) as Promise<AiMemory>;
+  }
 }
 
 export async function deleteAiMemory(id: string) {
-  const res = await api.delete(`/ai/memories/${id}`);
-  return unwrap(res);
+  try {
+    const res = await api.delete(`/ai/memories/${id}`);
+    return unwrap(res);
+  } catch {
+    const { offlineDb } = await import("@/lib/offline/db");
+    const { enqueueOutbox } = await import("@/lib/offline/outbox");
+    const { isOnline } = await import("@/lib/offline/network");
+    const { runSync } = await import("@/lib/offline/sync-engine");
+    const existing = await offlineDb.ai_memories.get(id);
+    await offlineDb.ai_memories.put({
+      ...(existing || { id }),
+      id,
+      deleted_at: new Date().toISOString(),
+      _pending: true,
+    } as any);
+    await enqueueOutbox({
+      entity_type: "ai_memory",
+      entity_id: id,
+      op: "delete",
+      payload: {},
+      base_sync_version: Number(existing?.sync_version || 1),
+    });
+    if (isOnline()) void runSync("ai_memory_delete");
+    return { id };
+  }
 }
 
 export async function setAiMemoryEnabled(enabled: boolean) {
-  const res = await api.patch("/ai/memories/preference", { enabled });
-  return unwrap<{ enabled: boolean }>(res);
+  try {
+    const res = await api.patch("/ai/memories/preference", { enabled });
+    return unwrap<{ enabled: boolean }>(res);
+  } catch {
+    const userRaw = localStorage.getItem("expense-tracker:user");
+    const userId = userRaw ? JSON.parse(userRaw)?.id : null;
+    if (!userId) throw new Error("Offline: user required");
+    const { saveAiPreferences } = await import("@/lib/offline/repos");
+    await saveAiPreferences(userId, { memory_enabled: enabled });
+    return { enabled };
+  }
 }
 
 export async function listAiConversations(

@@ -9,6 +9,8 @@ import { TransactionModalProvider } from "@/components/expenses/transaction-moda
 import { useAuth } from "@/lib/auth-context";
 import { getAccessToken } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
+import { bootstrapOfflineSync } from "@/lib/offline/sync-engine";
+import { NetworkStatusBanner } from "@/components/sync/network-status-banner";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -20,6 +22,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     if (!ready) return;
     if (!isAuthenticated && !getAccessToken()) {
       router.replace("/signin");
+      return;
+    }
+    if (isAuthenticated || getAccessToken()) {
+      void bootstrapOfflineSync();
     }
   }, [ready, isAuthenticated, router]);
 
@@ -47,11 +53,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <div
             className={cn(
               isAiWorkspace
-                ? "h-full w-full max-w-none"
+                ? "flex h-full w-full max-w-none flex-col"
                 : "mx-auto w-full max-w-[var(--ds-page-width)]",
             )}
           >
-            {children}
+            <div className={cn(isAiWorkspace ? "shrink-0" : "mb-3")}>
+              <NetworkStatusBanner />
+            </div>
+            <div className={cn(isAiWorkspace && "min-h-0 flex-1")}>{children}</div>
           </div>
         </main>
         <MobileNav />

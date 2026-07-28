@@ -5,6 +5,7 @@ import { ActionMenu } from "@/components/ui/action-menu";
 import { StatusDot } from "@/components/ui/status-dot";
 import { formatCurrency, formatRelativeDate } from "@/lib/format";
 import type { LedgerTransaction } from "@/types";
+import { SyncBadge } from "@/components/sync/sync-badge";
 
 const TYPE_TONE = {
   expense: "orange" as const,
@@ -51,7 +52,10 @@ export function TransactionTable({
                     className="mt-1.5"
                   />
                   <div className="min-w-0">
-                    <h2 className="truncate text-sm">{tx.description}</h2>
+                    <div className="flex items-center gap-1.5">
+                      <h2 className="truncate text-sm">{tx.description}</h2>
+                      <SyncBadge row={tx as any} />
+                    </div>
                     <p className="mt-1 text-[11px] capitalize text-[var(--ds-gray-700)]">
                       {tx.type}
                       {tx.category_name ? ` · ${tx.category_name}` : ""}
@@ -134,8 +138,9 @@ export function TransactionTable({
                   <div className="flex items-center gap-2.5">
                     <StatusDot tone={TYPE_TONE[tx.type]} />
                     <div>
-                      <div className="text-[13px] font-medium text-[var(--ds-gray-1000)]">
+                      <div className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--ds-gray-1000)]">
                         {tx.description}
+                        <SyncBadge row={tx as any} />
                       </div>
                       <div className="mt-0.5 text-[11px] capitalize text-[var(--ds-gray-700)]">
                         {tx.type}

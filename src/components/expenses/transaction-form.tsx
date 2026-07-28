@@ -169,6 +169,16 @@ export function TransactionForm({
         destination_container_id: form.destination_container_id || undefined,
         merchant: form.merchant || undefined,
         notes: form.notes || undefined,
+        // Match server: native currency comes from the primary container.
+        currency: (
+          (form.type === "expense" || form.type === "transfer"
+            ? source?.currency
+            : destination?.currency) ||
+          source?.currency ||
+          destination?.currency ||
+          form.currency ||
+          undefined
+        )?.toUpperCase(),
         exchange_rate: crossCurrency
           ? Number(form.exchange_rate || suggestedRate)
           : undefined,

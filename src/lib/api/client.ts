@@ -8,6 +8,46 @@ import { beginApiActivity, endApiActivity } from "@/lib/api/activity";
 
 const ACCESS_COOKIE = "access_token";
 const REFRESH_COOKIE = "refresh_token";
+const ACCESS_STORAGE_KEY = "finos:access_token";
+export const API_BASE_STORAGE_KEY = "finos:api_base_url";
+
+const DEFAULT_API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:9000/api";
+
+/** Runtime override (useful on Capacitor when rebuild isn't handy). */
+export function getApiBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    try {
+      const override = localStorage.getItem(API_BASE_STORAGE_KEY)?.trim();
+      if (override) return override.replace(/\/$/, "");
+    } catch {
+      /* ignore */
+    }
+  }
+  return DEFAULT_API_BASE.replace(/\/$/, "");
+}
+
+export function setApiBaseUrl(url: string) {
+  const cleaned = url.trim().replace(/\/$/, "");
+  if (typeof window !== "undefined") {
+    try {
+      if (cleaned) localStorage.setItem(API_BASE_STORAGE_KEY, cleaned);
+      else localStorage.removeItem(API_BASE_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+  // `api` is created below; update if already initialized.
+  try {
+    api.defaults.baseURL = cleaned || DEFAULT_API_BASE.replace(/\/$/, "");
+  } catch {
+    /* api not ready yet */
+  }
+}
+
+export function isLocalhostApiUrl(url = getApiBaseUrl()): boolean {
+  return /localhost|127\.0\.0\.1|10\.0\.2\.2/i.test(url);
+}
 
 function readCookie(name: string): string | undefined {
   if (typeof document === "undefined") return undefined;
@@ -30,12 +70,57 @@ function removeCookie(name: string) {
   document.cookie = `${encodeURIComponent(name)}=; Path=/; Max-Age=0; SameSite=Lax`;
 }
 
+function readLocalToken(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    return localStorage.getItem(ACCESS_STORAGE_KEY) || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeLocalToken(value: string) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(ACCESS_STORAGE_KEY, value);
+  } catch {
+    /* ignore */
+  }
+  void persistNativeToken(value);
+}
+
+function clearLocalToken() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(ACCESS_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+  void persistNativeToken(null);
+}
+
+async function persistNativeToken(value: string | null) {
+  try {
+    const { Capacitor } = await import("@capacitor/core");
+    if (!Capacitor.isNativePlatform()) return;
+    const { Preferences } = await import("@capacitor/preferences");
+    if (value) {
+      await Preferences.set({ key: ACCESS_STORAGE_KEY, value });
+    } else {
+      await Preferences.remove({ key: ACCESS_STORAGE_KEY });
+    }
+  } catch {
+    /* Capacitor optional at build time */
+  }
+}
+
 export function getAccessToken(): string | undefined {
-  return readCookie(ACCESS_COOKIE);
+  return readCookie(ACCESS_COOKIE) || readLocalToken();
 }
 
 export function setTokens(accessToken: string, _refreshToken?: string) {
   writeCookie(ACCESS_COOKIE, accessToken, 2);
+  writeLocalToken(accessToken);
   // Refresh tokens remain in the server-issued HttpOnly cookie.
   removeCookie(REFRESH_COOKIE);
 }
@@ -43,6 +128,7 @@ export function setTokens(accessToken: string, _refreshToken?: string) {
 export function clearTokens() {
   removeCookie(ACCESS_COOKIE);
   removeCookie(REFRESH_COOKIE);
+  clearLocalToken();
 }
 
 type AuthFailureHandler = (() => void) | null;
@@ -65,14 +151,17 @@ export function registerAuthFailureHandler(handler: AuthFailureHandler) {
 
 function createClient(): AxiosInstance {
   const instance = axios.create({
-    baseURL:
-      process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:9000/api",
+    baseURL: getApiBaseUrl(),
     headers: { "Content-Type": "application/json" },
     withCredentials: true,
+    // Free-tier backends (e.g. Render) can take a long time to wake.
+    timeout: 90_000,
   });
 
   instance.interceptors.request.use(
     (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
+      // Always use latest runtime override (Capacitor / settings).
+      config.baseURL = getApiBaseUrl();
       const trackedConfig = config as TrackedRequestConfig;
       if (!trackedConfig._activityTracked) {
         beginApiActivity();
@@ -152,6 +241,16 @@ export function unwrap<T>(response: AxiosResponse<ApiResponse<T>>): T {
 
 export function getErrorMessage(error: unknown, fallback = "Something went wrong"): string {
   if (axios.isAxiosError(error)) {
+    if (!error.response) {
+      const base = getApiBaseUrl();
+      if (isLocalhostApiUrl(base)) {
+        return `Cannot reach API at ${base}. This phone build points at localhost — rebuild with your Render URL or set it in Settings → Offline & Sync.`;
+      }
+      return (
+        error.message ||
+        `Cannot reach ${base}. Check mobile data / Wi‑Fi, and that the server is awake.`
+      );
+    }
     const data = error.response?.data as { message?: string } | undefined;
     return data?.message || error.message || fallback;
   }

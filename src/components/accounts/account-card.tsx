@@ -17,6 +17,7 @@ import {
   isLiabilityType,
 } from "@/lib/accounts/types-meta";
 import type { FinancialContainer } from "@/types";
+import { SyncBadge } from "@/components/sync/sync-badge";
 
 function typeIcon(type: FinancialContainer["type"]) {
   switch (type) {
@@ -95,6 +96,7 @@ export function AccountCard({
             <h3 className="truncate text-sm font-semibold text-[var(--ds-gray-1000)]">
               {container.name}
             </h3>
+            <SyncBadge row={container} />
             {!container.include_in_net_worth ? (
               <span className="rounded-full bg-[var(--ds-gray-100)] px-2 py-0.5 text-[10px] font-medium text-[var(--ds-gray-700)]">
                 Excluded

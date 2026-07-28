@@ -1,67 +1,34 @@
-import { api, unwrap } from "./client";
 import type { CreateContainerInput, FinancialContainer } from "@/types";
-import {
-  createContainer as createLocal,
-  deleteContainer as deleteLocal,
-  listContainers as listLocal,
-  updateContainer as updateLocal,
-} from "@/lib/accounts/store";
-
-function normalize(row: FinancialContainer): FinancialContainer {
-  return {
-    ...row,
-    balance: Number(row.balance),
-    include_in_net_worth: Boolean(row.include_in_net_worth),
-  };
-}
+import { accountsRepo } from "@/lib/offline/repos";
 
 export async function listAccounts(
-  userId?: string,
+  _userId?: string,
 ): Promise<FinancialContainer[]> {
-  try {
-    const res = await api.get("/accounts");
-    const data = unwrap<FinancialContainer[] | FinancialContainer>(res);
-    const list = Array.isArray(data) ? data : data ? [data] : [];
-    return list.map(normalize);
-  } catch {
-    return listLocal(userId);
-  }
+  return accountsRepo.list() as Promise<FinancialContainer[]>;
 }
 
 export async function createAccount(
-  userId: string,
+  _userId: string,
   payload: CreateContainerInput,
 ): Promise<FinancialContainer> {
-  try {
-    const res = await api.post("/accounts", payload);
-    return normalize(unwrap<FinancialContainer>(res));
-  } catch {
-    return createLocal(userId, payload);
-  }
+  return accountsRepo.create(payload as any) as Promise<FinancialContainer>;
 }
 
 export async function updateAccount(
-  userId: string,
+  _userId: string,
   id: string,
   payload: Partial<CreateContainerInput>,
 ): Promise<FinancialContainer> {
-  try {
-    const res = await api.patch(`/accounts/${id}`, payload);
-    return normalize(unwrap<FinancialContainer>(res));
-  } catch {
-    const updated = updateLocal(id, payload);
-    if (!updated) throw new Error("Container not found");
-    return updated;
-  }
+  return accountsRepo.update(id, payload as any) as Promise<FinancialContainer>;
 }
 
 export async function deleteAccount(
-  userId: string,
+  _userId: string,
   id: string,
 ): Promise<void> {
-  try {
-    await api.delete(`/accounts/${id}`);
-  } catch {
-    deleteLocal(id);
-  }
+  await accountsRepo.remove(id);
+}
+
+export async function getAccount(id: string): Promise<FinancialContainer> {
+  return accountsRepo.get(id) as Promise<FinancialContainer>;
 }
