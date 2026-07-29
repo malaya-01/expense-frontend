@@ -109,8 +109,8 @@ export function HoldingFormModal({
         </>
       }
     >
-      <form id="holding-form" onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+      <form id="holding-form" onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
           <div className="sm:col-span-2">
             <Label htmlFor="hold-name">Name</Label>
             <Input
@@ -201,7 +201,7 @@ export function HoldingFormModal({
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
           <div>
             <Label htmlFor="hold-currency">Currency</Label>
             <Select

@@ -23,6 +23,11 @@ import {
   isSyncApiMissing,
   pushOutboxItemViaRest,
 } from "./rest-fallback";
+import {
+  bindDurableBackupUser,
+  persistDurableBackup,
+  restoreDurableBackup,
+} from "./durable-backup";
 import axios from "axios";
 
 /** Free-tier hosts (Render) often need a long wake-up window. */
@@ -167,10 +172,12 @@ export async function runSync(reason = "manual"): Promise<void> {
     await pullChanges();
     await setMeta("last_sync_at", new Date().toISOString());
     lastError = null;
+    await persistDurableBackup();
   } catch (error: any) {
     lastError = error?.message || `Sync failed (${reason})`;
     // Never delete local data on sync failure — only requeue outbox.
     await recoverStuckSyncing();
+    await persistDurableBackup();
   } finally {
     syncing = false;
     await emitStatus();
@@ -551,8 +558,17 @@ async function loadLocalRow(
   return (row as Record<string, unknown>) || null;
 }
 
-export async function bootstrapOfflineSync(): Promise<void> {
-  if (bootstrapped || typeof window === "undefined") return;
+export async function bootstrapOfflineSync(userId?: string | null): Promise<void> {
+  if (typeof window === "undefined") return;
+  if (userId) {
+    bindDurableBackupUser(userId);
+    const result = await restoreDurableBackup(userId);
+    if (result.restored > 0) {
+      lastError = null;
+      await emitStatus();
+    }
+  }
+  if (bootstrapped) return;
   bootstrapped = true;
   const { initNetworkMonitor, subscribeNetwork } = await import("./network");
   await initNetworkMonitor();

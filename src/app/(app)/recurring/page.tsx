@@ -242,7 +242,7 @@ export default function RecurringPage() {
         />
       ) : null}
 
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:mb-6 sm:grid-cols-3 sm:gap-3">
         <SummaryKpiCard
           title="Active schedules"
           value={String(metrics.active)}
@@ -284,7 +284,7 @@ export default function RecurringPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
           {visible.map((schedule) => (
             <RecurringCard
               key={schedule.id}

@@ -257,7 +257,7 @@ export function TransactionForm({
   }
 
   return (
-    <form id={formId} onSubmit={onSubmit} className="w-full space-y-5">
+    <form id={formId} onSubmit={onSubmit} className="w-full space-y-3.5 sm:space-y-5">
       <div>
         <Label htmlFor="type">Type</Label>
         <Select
@@ -281,7 +281,7 @@ export function TransactionForm({
         <div
           className={
             needsSource && needsDestination
-              ? "grid gap-4 rounded-[10px] bg-[var(--ds-background-100)] p-3.5 sm:grid-cols-2 sm:gap-5 sm:p-4"
+              ? "grid gap-3 rounded-[10px] bg-[var(--ds-background-100)] p-3 sm:grid-cols-2 sm:gap-5 sm:p-4"
               : undefined
           }
         >
@@ -359,7 +359,7 @@ export function TransactionForm({
         </div>
       )}
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-5">
         <div>
           <Label htmlFor="amount">
             Amount
@@ -437,7 +437,7 @@ export function TransactionForm({
         </div>
       ) : null}
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-5">
         <div>
           <Label htmlFor="category">Category</Label>
           <Select

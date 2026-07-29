@@ -20,17 +20,17 @@ export function HoldingCard({
   const accent = positive ? "#7C3AED" : "#E5484D";
 
   return (
-    <article className="relative overflow-hidden rounded-[16px] bg-[var(--ds-background-elevated)] ds-border">
+    <article className="relative overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] ds-border sm:rounded-[16px]">
       <div
         className="absolute inset-y-0 left-0 w-[3px]"
         style={{ background: accent }}
         aria-hidden
       />
-      <div className="p-4 pl-5 sm:p-5">
+      <div className="p-3 pl-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <span
-              className="inline-flex size-10 shrink-0 items-center justify-center rounded-[12px]"
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-[10px] sm:size-10 sm:rounded-[12px]"
               style={{
                 color: accent,
                 background: `color-mix(in srgb, ${accent} 14%, transparent)`,
@@ -85,7 +85,7 @@ export function HoldingCard({
           </div>
         </div>
 
-        <p className="mt-5 text-[22px] font-semibold leading-7 tracking-[-0.88px] tabular-nums text-[var(--ds-gray-1000)]">
+        <p className="mt-3 sm:mt-5 text-[18px] font-semibold leading-6 sm:text-[22px] sm:leading-7 tracking-[-0.88px] tabular-nums text-[var(--ds-gray-1000)]">
           {formatCurrency(holding.market_value, holding.currency)}
         </p>
         <p className="mt-1 text-xs text-[var(--ds-gray-700)]">

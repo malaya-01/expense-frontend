@@ -20,6 +20,7 @@ import {
   resolveKeepRemote,
 } from "@/lib/offline/conflicts";
 import type { ConflictItem } from "@/lib/offline/db";
+import { useAuth } from "@/lib/auth-context";
 
 const EMPTY_STATUS: SyncStatusSnapshot = {
   online: true,
@@ -32,14 +33,15 @@ const EMPTY_STATUS: SyncStatusSnapshot = {
 };
 
 export function SyncStatusButton() {
+  const { user } = useAuth();
   const [status, setStatus] = useState<SyncStatusSnapshot>(EMPTY_STATUS);
   const [open, setOpen] = useState(false);
   const [conflicts, setConflicts] = useState<ConflictItem[]>([]);
 
   useEffect(() => {
-    void bootstrapOfflineSync();
+    void bootstrapOfflineSync(user?.id);
     return subscribeSyncStatus(setStatus);
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!open) return;

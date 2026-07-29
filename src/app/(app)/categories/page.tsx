@@ -242,7 +242,7 @@ export default function CategoriesPage() {
           </CardBody>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
           {visible.map((category) => (
             <CategoryCard
               key={category.id}

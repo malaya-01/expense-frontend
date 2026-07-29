@@ -166,7 +166,7 @@ export default function InvestmentsPage() {
         <p className="mb-4 text-sm text-[var(--ds-status-red)]">{error}</p>
       ) : null}
 
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:mb-6 sm:gap-3 xl:grid-cols-4">
         <SummaryKpiCard
           title="Portfolio value"
           value={formatCurrency(summary.total_value, baseCurrency)}
@@ -214,7 +214,7 @@ export default function InvestmentsPage() {
       </div>
 
       {summary.allocation.length > 0 ? (
-        <div className="mb-6 rounded-[16px] bg-[var(--ds-background-elevated)] p-4 ds-border sm:p-5">
+        <div className="mb-6 rounded-[12px] bg-[var(--ds-background-elevated)] p-3 sm:rounded-[16px] sm:p-4 ds-border sm:p-5">
           <h2 className="text-sm font-medium text-[var(--ds-gray-1000)]">
             Allocation
           </h2>
@@ -260,7 +260,7 @@ export default function InvestmentsPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
           {visible.map((h) => (
             <HoldingCard
               key={h.id}

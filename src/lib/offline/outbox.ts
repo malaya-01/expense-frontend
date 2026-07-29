@@ -4,6 +4,7 @@ import {
   type OutboxOp,
   type SyncEntityType,
 } from "./db";
+import { scheduleDurableBackup } from "./durable-backup";
 
 /** Longer backoff for free-tier cold starts (Render can take 30–60s). */
 const RETRY_MS = [5_000, 15_000, 45_000, 120_000, 300_000];
@@ -40,6 +41,7 @@ export async function enqueueOutbox(input: {
     updated_at: now,
   };
   const id = await offlineDb.outbox.add(row);
+  scheduleDurableBackup();
   return { ...row, id };
 }
 
@@ -100,6 +102,7 @@ export async function markOutboxSynced(id: number): Promise<void> {
     next_retry_at: null,
     updated_at: new Date().toISOString(),
   });
+  scheduleDurableBackup();
 }
 
 export async function markOutboxFailed(
@@ -115,6 +118,7 @@ export async function markOutboxFailed(
     next_retry_at: new Date(Date.now() + delay).toISOString(),
     updated_at: new Date().toISOString(),
   });
+  scheduleDurableBackup();
 }
 
 /** Re-queue all failed/pending immediately (manual Sync now). */

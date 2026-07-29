@@ -15,7 +15,7 @@ import { NetworkStatusBanner } from "@/components/sync/network-status-banner";
 export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { ready, isAuthenticated } = useAuth();
+  const { ready, isAuthenticated, user } = useAuth();
   const isAiWorkspace = pathname === "/ai" || pathname.startsWith("/ai/");
 
   useEffect(() => {
@@ -25,9 +25,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       return;
     }
     if (isAuthenticated || getAccessToken()) {
-      void bootstrapOfflineSync();
+      void bootstrapOfflineSync(user?.id);
     }
-  }, [ready, isAuthenticated, router]);
+  }, [ready, isAuthenticated, router, user?.id]);
 
   if (!ready) {
     return (
@@ -47,7 +47,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             "h-[calc(100dvh-2.75rem)] translate-y-11 transition-[margin-left] duration-200 md:ml-[var(--app-sidebar-offset)]",
             isAiWorkspace
               ? "overflow-hidden p-0 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0"
-              : "app-scrollbar overflow-y-auto overscroll-contain px-4 py-6 pb-24 sm:px-6 sm:py-8 md:pb-10",
+              : "app-scrollbar overflow-y-auto overscroll-contain px-3 py-4 pb-24 sm:px-6 sm:py-6 md:pb-10",
           )}
         >
           <div

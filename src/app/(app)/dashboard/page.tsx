@@ -180,7 +180,7 @@ export default function DashboardPage() {
 
       <Card className="mb-4 overflow-hidden">
         <CardBody className="py-5">
-          <div className="grid gap-5 lg:grid-cols-[auto_minmax(0,1fr)_minmax(220px,0.7fr)] lg:items-center">
+          <div className="grid gap-3 sm:gap-5 lg:grid-cols-[auto_minmax(0,1fr)_minmax(220px,0.7fr)] lg:items-center">
             <div className="flex items-center gap-4">
               <div className="relative flex size-20 shrink-0 items-center justify-center rounded-full bg-[var(--ds-background-100)] ds-strong-border">
                 <span className="text-2xl font-semibold tabular-nums">

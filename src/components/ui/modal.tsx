@@ -95,8 +95,8 @@ export function Modal({
           className,
         )}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] px-5 py-4 sm:px-7 sm:py-5">
-          <h2 id={titleId} className="text-base font-semibold text-[var(--ds-gray-1000)]">
+        <div className="flex shrink-0 items-center justify-between border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] px-4 py-3 sm:px-7 sm:py-5">
+          <h2 id={titleId} className="text-[15px] font-semibold text-[var(--ds-gray-1000)] sm:text-base">
             {title}
           </h2>
           <button
@@ -111,12 +111,12 @@ export function Modal({
         </div>
         <div
           data-modal-body
-          className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6"
+          className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-7 sm:py-6"
         >
           {children}
         </div>
         {footer ? (
-          <div className="flex shrink-0 flex-wrap justify-end gap-2.5 border-t border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] bg-[var(--ds-background-elevated)] px-5 py-4 sm:px-7 sm:py-5">
+          <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] bg-[var(--ds-background-elevated)] px-4 py-3 sm:gap-2.5 sm:px-7 sm:py-5">
             {footer}
           </div>
         ) : null}

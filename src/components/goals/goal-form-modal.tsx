@@ -107,7 +107,7 @@ export function GoalFormModal({
         </>
       }
     >
-      <form id="goal-form" onSubmit={handleSubmit} className="space-y-4">
+      <form id="goal-form" onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
         <div>
           <Label htmlFor="goal-name">Name</Label>
           <Input
@@ -119,7 +119,7 @@ export function GoalFormModal({
           />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
           <div>
             <Label htmlFor="goal-type">Type</Label>
             <Select
@@ -160,7 +160,7 @@ export function GoalFormModal({
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
           <div>
             <Label htmlFor="goal-target">Target amount</Label>
             <Input

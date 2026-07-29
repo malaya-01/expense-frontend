@@ -10,6 +10,7 @@ import {
 } from "@/lib/offline/sync-engine";
 import { cn } from "@/lib/cn";
 import { getApiBaseUrl, isLocalhostApiUrl } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 
 const EMPTY: SyncStatusSnapshot = {
   online: true,
@@ -25,14 +26,15 @@ const EMPTY: SyncStatusSnapshot = {
  * Global connection strip — visible on web and Capacitor mobile.
  */
 export function NetworkStatusBanner() {
+  const { user } = useAuth();
   const [status, setStatus] = useState<SyncStatusSnapshot>(EMPTY);
   const [badApi, setBadApi] = useState(false);
 
   useEffect(() => {
-    void bootstrapOfflineSync();
+    void bootstrapOfflineSync(user?.id);
     setBadApi(isLocalhostApiUrl(getApiBaseUrl()));
     return subscribeSyncStatus(setStatus);
-  }, []);
+  }, [user?.id]);
 
   const show =
     badApi ||

@@ -10,7 +10,7 @@ export function Select({
     <div className="relative w-full">
       <select
         className={cn(
-          "h-11 w-full appearance-none rounded-[9px] bg-[var(--ds-background-elevated)] px-3.5 pr-9 text-[13px] text-[var(--ds-gray-1000)]",
+          "h-10 w-full appearance-none rounded-[9px] bg-[var(--ds-background-elevated)] px-3 pr-9 text-[13px] text-[var(--ds-gray-1000)] sm:h-11 sm:px-3.5",
           "ds-border outline-none",
           "transition-[box-shadow,background-color] focus:shadow-none focus:outline focus:outline-2 focus:outline-[var(--ds-focus-input)]",
           className,

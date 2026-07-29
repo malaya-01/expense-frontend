@@ -27,18 +27,18 @@ export function ModuleHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="mb-4 flex flex-col gap-2.5 sm:mb-5 sm:gap-3 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0">
-        <h1 className="text-[28px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[32px]">
+        <h1 className="text-[22px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
           {title}
         </h1>
-        <p className="mt-1 max-w-xl text-sm text-[var(--ds-gray-700)]">
+        <p className="mt-0.5 line-clamp-2 max-w-xl text-xs text-[var(--ds-gray-700)] sm:mt-1 sm:line-clamp-none sm:text-sm">
           {description}
         </p>
       </div>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="grid grid-cols-[1fr_auto] gap-2 sm:flex sm:flex-row sm:items-center">
         {onSearchChange ? (
-          <div className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
+          <div className="relative min-w-0 sm:w-56 sm:flex-none">
             <Search
               size={14}
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ds-gray-700)]"
@@ -53,7 +53,7 @@ export function ModuleHeader({
           </div>
         ) : null}
         {onFilterChange && filterOptions?.length ? (
-          <div className="relative sm:w-44">
+          <div className="relative min-w-[7.5rem] sm:w-44">
             <Filter
               size={14}
               className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-[var(--ds-gray-700)]"
@@ -72,7 +72,9 @@ export function ModuleHeader({
             </Select>
           </div>
         ) : null}
-        {actions}
+        {actions ? (
+          <div className="col-span-2 sm:col-span-1 sm:contents">{actions}</div>
+        ) : null}
       </div>
     </div>
   );

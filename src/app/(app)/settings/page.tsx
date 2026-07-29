@@ -276,7 +276,7 @@ export default function SettingsPage() {
                 </Button>
               </CardHeader>
               <CardBody>
-                <form onSubmit={saveDefaults} className="space-y-4">
+                <form onSubmit={saveDefaults} className="space-y-3 sm:space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
                       <Label htmlFor="country">Country</Label>
@@ -340,7 +340,7 @@ export default function SettingsPage() {
           {section === "appearance" ? <AppearanceSection /> : null}
 
           {section === "security" ? (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <Card>
                 <CardHeader>
                   <h2 className="font-heading text-base font-semibold">
@@ -351,7 +351,7 @@ export default function SettingsPage() {
                   </p>
                 </CardHeader>
                 <CardBody>
-                  <form onSubmit={onChangePassword} className="space-y-4">
+                  <form onSubmit={onChangePassword} className="space-y-3 sm:space-y-4">
                     <div>
                       <Label htmlFor="currentPassword">Current password</Label>
                       <PasswordInput
@@ -419,7 +419,7 @@ export default function SettingsPage() {
           ) : null}
 
           {section === "data" ? (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <Card>
                 <CardHeader>
                   <h2 className="font-heading text-base font-semibold">

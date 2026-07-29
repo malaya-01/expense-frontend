@@ -26,7 +26,7 @@ export function TransactionTable({
 }) {
   return (
     <>
-      <div className="space-y-2 md:hidden">
+      <div className="space-y-1.5 md:hidden">
         {transactions.map((tx) => {
           const nativeCurrency = tx.currency || "USD";
           const baseAmount = Number(tx.amount_base ?? tx.amount);
@@ -43,62 +43,58 @@ export function TransactionTable({
           return (
             <article
               key={tx.id}
-              className="rounded-[16px] bg-[var(--ds-background-elevated)] p-4 ds-border"
+              className="rounded-[12px] bg-[var(--ds-background-elevated)] px-3 py-2.5 ds-border"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-start gap-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                   <StatusDot
                     tone={TYPE_TONE[tx.type]}
-                    className="mt-1.5"
+                    className="shrink-0"
                   />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <h2 className="truncate text-sm">{tx.description}</h2>
+                      <h2 className="truncate text-[13px] font-medium">{tx.description}</h2>
                       <SyncBadge row={tx as any} />
                     </div>
-                    <p className="mt-1 text-[11px] capitalize text-[var(--ds-gray-700)]">
-                      {tx.type}
+                    <p className="mt-0.5 truncate text-[10px] text-[var(--ds-gray-700)]">
+                      {flow}
+                      {" · "}
+                      {formatRelativeDate(tx.date)}
                       {tx.category_name ? ` · ${tx.category_name}` : ""}
                     </p>
                   </div>
                 </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-sm font-semibold tabular-nums">
-                    {sign}
-                    {formatCurrency(tx.amount, nativeCurrency)}
-                  </p>
-                  {showBase ? (
-                    <p className="mt-0.5 text-[10px] text-[var(--ds-gray-700)]">
-                      ≈ {sign}
-                      {formatCurrency(baseAmount, baseCurrency)}
+                <div className="flex shrink-0 items-center gap-1">
+                  <div className="text-right">
+                    <p className="text-[13px] font-semibold tabular-nums">
+                      {sign}
+                      {formatCurrency(tx.amount, nativeCurrency)}
                     </p>
-                  ) : null}
+                    {showBase ? (
+                      <p className="text-[9px] text-[var(--ds-gray-700)]">
+                        ≈ {sign}
+                        {formatCurrency(baseAmount, baseCurrency)}
+                      </p>
+                    ) : null}
+                  </div>
+                  <ActionMenu
+                    label={`Actions for ${tx.description}`}
+                    items={[
+                      { id: "edit", label: "Edit", onSelect: () => onEdit(tx) },
+                      {
+                        id: "delete",
+                        label: "Delete",
+                        tone: "danger",
+                        onSelect: () => onDelete(tx.id),
+                      },
+                    ]}
+                    trigger={
+                      <span className="inline-flex size-7 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)]">
+                        <MoreHorizontal size={15} />
+                      </span>
+                    }
+                  />
                 </div>
-              </div>
-              <div className="mt-3 flex items-center justify-between border-t border-[var(--ds-gray-200)] pt-3">
-                <div>
-                  <p className="text-[11px] text-[var(--ds-gray-900)]">{flow}</p>
-                  <p className="mt-0.5 text-[10px] text-[var(--ds-gray-700)]">
-                    {formatRelativeDate(tx.date)}
-                  </p>
-                </div>
-                <ActionMenu
-                  label={`Actions for ${tx.description}`}
-                  items={[
-                    { id: "edit", label: "Edit", onSelect: () => onEdit(tx) },
-                    {
-                      id: "delete",
-                      label: "Delete",
-                      tone: "danger",
-                      onSelect: () => onDelete(tx.id),
-                    },
-                  ]}
-                  trigger={
-                    <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)]">
-                      <MoreHorizontal size={16} />
-                    </span>
-                  }
-                />
               </div>
             </article>
           );

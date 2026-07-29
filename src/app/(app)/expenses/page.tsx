@@ -137,15 +137,15 @@ export default function ExpensesPage() {
         }
       />
 
-      <Card className="mb-5">
-        <CardBody className="pt-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
+      <Card className="mb-4 sm:mb-5">
+        <CardBody className="pt-3.5 sm:pt-5">
+          <div className="mb-2.5 flex items-center justify-between gap-3 sm:mb-3">
             <div className="flex items-center gap-2">
               <SlidersHorizontal
                 size={15}
                 className="text-[var(--ds-gray-700)]"
               />
-              <h2>Find transactions</h2>
+              <h2 className="text-sm font-medium sm:text-base">Find transactions</h2>
               {hasFilters ? <Badge tone="info">Filtered</Badge> : null}
             </div>
             {hasFilters ? (
@@ -155,18 +155,18 @@ export default function ExpensesPage() {
               </Button>
             ) : null}
           </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(240px,1.5fr)_160px_130px_150px_150px]">
-            <div className="relative">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-[minmax(240px,1.5fr)_160px_130px_150px_150px]">
+            <div className="relative col-span-2 xl:col-span-1">
               <Search
                 size={15}
-                className="pointer-events-none absolute left-3.5 top-3.5 z-10 text-[var(--ds-gray-700)]"
+                className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[var(--ds-gray-700)]"
               />
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Merchant, category, account, notes…"
                 aria-label="Search transactions"
-                className="pl-10"
+                className="pl-9"
               />
             </div>
             <Select

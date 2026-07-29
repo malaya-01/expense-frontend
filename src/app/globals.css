@@ -74,6 +74,10 @@
   --geist-form-height: 40px;
   --geist-form-font: 0.875rem;
 
+  /* Mobile density */
+  --ds-card-pad-mobile: 0.75rem;
+  --ds-section-gap-mobile: 1rem;
+
   /* Motion */
   --ds-motion-timing-swift: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ds-motion-popover-duration: 160ms;

@@ -175,6 +175,45 @@ export function SyncSettingsSection() {
       <Card>
         <CardHeader>
           <h2 className="font-heading text-base font-semibold">
+            Unsynced data safety
+          </h2>
+          <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
+            Pending changes are copied to a durable backup (device preferences +
+            shared FinOS folder when allowed). After uninstall, reinstall and sign
+            in with the same account to restore them. Once synced, that backup is
+            removed. Best protection is still Sync now before removing the app.
+          </p>
+        </CardHeader>
+        <CardBody>
+          <Button
+            variant="secondary"
+            onClick={async () => {
+              if (!user?.id) return;
+              const { persistDurableBackup, restoreDurableBackup } =
+                await import("@/lib/offline/durable-backup");
+              const restored = await restoreDurableBackup(user.id);
+              await persistDurableBackup(user.id);
+              showToast({
+                title:
+                  restored.restored > 0
+                    ? `Restored ${restored.restored} pending change${restored.restored === 1 ? "" : "s"}`
+                    : "Backup refreshed",
+                description:
+                  restored.restored > 0
+                    ? "Unsynced items were recovered. Tap Sync now when online."
+                    : "Current pending items are saved to the durable backup.",
+                tone: "success",
+              });
+            }}
+          >
+            Restore / refresh durable backup
+          </Button>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h2 className="font-heading text-base font-semibold">
             Notification preferences
           </h2>
         </CardHeader>

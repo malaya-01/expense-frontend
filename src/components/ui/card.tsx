@@ -13,7 +13,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-[14px] bg-[var(--ds-background-elevated)]",
+        "rounded-[12px] bg-[var(--ds-background-elevated)] sm:rounded-[14px]",
         elevated ? "ds-border-medium" : "ds-border",
         className,
       )}
@@ -30,7 +30,10 @@ export function CardHeader({
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("px-5 pt-5 pb-2 sm:px-6 sm:pt-6", className)} {...props}>
+    <div
+      className={cn("px-3.5 pt-3.5 pb-1.5 sm:px-6 sm:pt-6 sm:pb-2", className)}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -42,7 +45,7 @@ export function CardBody({
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("px-5 pb-5 sm:px-6 sm:pb-6", className)} {...props}>
+    <div className={cn("px-3.5 pb-3.5 sm:px-6 sm:pb-6", className)} {...props}>
       {children}
     </div>
   );

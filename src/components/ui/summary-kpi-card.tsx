@@ -38,48 +38,49 @@ export function SummaryKpiCard({
   return (
     <article
       className={cn(
-        "rounded-[16px] bg-[var(--ds-background-elevated)] p-4 ds-border sm:p-5",
+        "rounded-[12px] bg-[var(--ds-background-elevated)] p-3 ds-border sm:rounded-[16px] sm:p-5",
         className,
       )}
     >
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2">
         {Icon ? (
           <span
-            className="inline-flex size-9 shrink-0 items-center justify-center rounded-[10px]"
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-[8px] sm:size-9 sm:rounded-[10px]"
             style={{
               color,
               background: `color-mix(in srgb, ${color} 14%, transparent)`,
             }}
           >
-            <Icon size={17} strokeWidth={1.9} />
+            <Icon size={15} strokeWidth={1.9} className="sm:hidden" />
+            <Icon size={17} strokeWidth={1.9} className="hidden sm:block" />
           </span>
         ) : (
           <span
-            className="size-2.5 shrink-0 rounded-full"
+            className="size-2 shrink-0 rounded-full sm:size-2.5"
             style={{ background: color }}
             aria-hidden
           />
         )}
-        <h2 className="truncate text-sm font-medium text-[var(--ds-gray-900)]">
+        <h2 className="truncate text-[11px] font-medium text-[var(--ds-gray-900)] sm:text-sm">
           {title}
         </h2>
       </div>
-      <p className="mt-4 text-[26px] font-semibold leading-8 tracking-[-1px] tabular-nums text-[var(--ds-gray-1000)] sm:text-[28px]">
+      <p className="mt-2 text-[20px] font-semibold leading-6 tracking-[-1px] tabular-nums text-[var(--ds-gray-1000)] sm:mt-4 sm:text-[28px] sm:leading-8">
         {value}
       </p>
       {subtitle ? (
-        <p className="mt-2 text-xs leading-4 text-[var(--ds-gray-700)]">
+        <p className="mt-1 line-clamp-2 text-[10px] leading-3.5 text-[var(--ds-gray-700)] sm:mt-2 sm:line-clamp-none sm:text-xs sm:leading-4">
           {subtitle}
         </p>
       ) : null}
       {footerLeft || footerRight ? (
-        <div className="mt-4 flex items-end justify-between gap-3 border-t border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] pt-3">
+        <div className="mt-2 flex items-end justify-between gap-2 border-t border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] pt-2 sm:mt-4 sm:gap-3 sm:pt-3">
           {footerLeft ? (
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.04em] text-[var(--ds-gray-700)]">
+            <div className="min-w-0">
+              <p className="truncate text-[9px] uppercase tracking-[0.04em] text-[var(--ds-gray-700)] sm:text-[10px]">
                 {footerLeft.label}
               </p>
-              <p className="mt-0.5 text-xs font-medium tabular-nums text-[var(--ds-gray-1000)]">
+              <p className="mt-0.5 truncate text-[11px] font-medium tabular-nums text-[var(--ds-gray-1000)] sm:text-xs">
                 {footerLeft.value}
               </p>
             </div>
@@ -87,11 +88,11 @@ export function SummaryKpiCard({
             <span />
           )}
           {footerRight ? (
-            <div className="text-right">
-              <p className="text-[10px] uppercase tracking-[0.04em] text-[var(--ds-gray-700)]">
+            <div className="min-w-0 text-right">
+              <p className="truncate text-[9px] uppercase tracking-[0.04em] text-[var(--ds-gray-700)] sm:text-[10px]">
                 {footerRight.label}
               </p>
-              <p className="mt-0.5 text-xs font-medium tabular-nums text-[var(--ds-gray-1000)]">
+              <p className="mt-0.5 truncate text-[11px] font-medium tabular-nums text-[var(--ds-gray-1000)] sm:text-xs">
                 {footerRight.value}
               </p>
             </div>

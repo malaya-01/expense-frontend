@@ -100,7 +100,7 @@ export function AccountFormModal({
         </>
       }
     >
-      <form id="account-form" onSubmit={handleSubmit} className="space-y-4">
+      <form id="account-form" onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
         <div>
           <Label htmlFor="acc-name">Name</Label>
           <Input
@@ -112,7 +112,7 @@ export function AccountFormModal({
           />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
           <div>
             <Label htmlFor="acc-type">Type</Label>
             <Select
@@ -148,7 +148,7 @@ export function AccountFormModal({
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
           <div>
             <Label htmlFor="acc-currency">Currency</Label>
             <Select

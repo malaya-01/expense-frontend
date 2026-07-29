@@ -20,7 +20,7 @@ export function Input({
           id={id}
           suppressHydrationWarning
           className={cn(
-            "h-11 w-full rounded-[9px] bg-[var(--ds-background-elevated)] px-3.5 text-[13px] text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-700)]",
+            "h-10 w-full rounded-[9px] bg-[var(--ds-background-elevated)] px-3 text-[13px] text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-700)] sm:h-11 sm:px-3.5",
             "ds-border outline-none",
             "transition-[box-shadow,background-color] focus:bg-[var(--ds-background-elevated)] focus:shadow-none focus:outline focus:outline-2 focus:outline-[var(--ds-focus-input)]",
             Boolean(endAdornment) && "pr-11",

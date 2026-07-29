@@ -218,7 +218,7 @@ export default function SpaceDetailPage() {
     return (
       <div className="space-y-4">
         <div className="h-10 w-64 animate-pulse rounded-[10px] bg-[var(--ds-gray-100)]" />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
@@ -330,7 +330,7 @@ export default function SpaceDetailPage() {
 
       {tab === "overview" ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
             <SummaryKpiCard
               title="Total spent"
               value={formatCurrency(data.metrics.total_spent, currency)}
@@ -1016,7 +1016,7 @@ function BudgetsPanel({
           return (
             <article
               key={b.id}
-              className="rounded-[16px] bg-[var(--ds-background-elevated)] p-4 ds-border sm:p-5"
+              className="rounded-[12px] bg-[var(--ds-background-elevated)] p-3 sm:rounded-[16px] sm:p-4 ds-border sm:p-5"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1111,7 +1111,7 @@ function GoalsPanel({
           return (
             <article
               key={g.id}
-              className="rounded-[16px] bg-[var(--ds-background-elevated)] p-4 ds-border sm:p-5"
+              className="rounded-[12px] bg-[var(--ds-background-elevated)] p-3 sm:rounded-[16px] sm:p-4 ds-border sm:p-5"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>

@@ -66,15 +66,15 @@ export function AccountCard({
     : "—";
 
   return (
-    <article className="group relative overflow-hidden rounded-[16px] bg-[var(--ds-background-elevated)] ds-border">
+    <article className="group relative overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] ds-border sm:rounded-[16px]">
       <div
         className="absolute inset-y-0 left-0 w-[3px]"
         style={{ background: accent }}
         aria-hidden
       />
-      <div className="flex items-center gap-3 px-4 py-3.5 pl-5 sm:gap-4 sm:px-5 sm:py-4">
+      <div className="flex items-center gap-2.5 px-3 py-2.5 pl-4 sm:gap-4 sm:px-5 sm:py-4">
         <div
-          className="relative flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+          className="relative flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold sm:size-11 sm:text-sm"
           style={{
             color: accent,
             background: `color-mix(in srgb, ${accent} 14%, transparent)`,

@@ -93,7 +93,7 @@ export function BudgetFormModal({
         </>
       }
     >
-      <form id="budget-form" onSubmit={handleSubmit} className="space-y-4">
+      <form id="budget-form" onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
         <div>
           <Label htmlFor="budget-name">Name</Label>
           <Input
@@ -105,7 +105,7 @@ export function BudgetFormModal({
           />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
           <div>
             <Label htmlFor="budget-amount">Limit</Label>
             <Input
@@ -142,7 +142,7 @@ export function BudgetFormModal({
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
           <div>
             <Label htmlFor="budget-period">Period</Label>
             <Select
