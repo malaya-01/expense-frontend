@@ -62,7 +62,7 @@ export function Popover({
 
   useEffect(() => {
     if (!open) return;
-    const onPointer = (e: MouseEvent) => {
+    const onPointer = (e: MouseEvent | TouchEvent) => {
       const target = e.target as Node;
       if (
         !triggerRef.current?.contains(target) &&
@@ -78,12 +78,13 @@ export function Popover({
         onOpenChange?.(false);
       }
     };
-    window.addEventListener("mousedown", onPointer);
+    // Capture phase so we close even if a child stops bubbling.
+    window.addEventListener("pointerdown", onPointer, true);
     window.addEventListener("keydown", onKey);
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
     return () => {
-      window.removeEventListener("mousedown", onPointer);
+      window.removeEventListener("pointerdown", onPointer, true);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
@@ -117,17 +118,19 @@ export function Popover({
           id={panelId}
           role="dialog"
           style={{ top: position.top, left: position.left }}
-          onClick={(event) => {
+          onClickCapture={(event) => {
             if (
               closeOnSelect &&
-              (event.target as HTMLElement).closest("button")
+              (event.target as HTMLElement).closest(
+                "button, [role='menuitem']",
+              )
             ) {
               setOpen(false);
               onOpenChange?.(false);
             }
           }}
           className={cn(
-            "fixed z-[110] w-[320px] max-w-[calc(100vw-24px)] rounded-[14px] bg-[var(--ds-background-elevated)] p-4 ds-border-menu ds-strong-border ds-overlay-enter",
+            "fixed z-[90] w-[320px] max-w-[calc(100vw-24px)] rounded-[14px] bg-[var(--ds-background-elevated)] p-4 ds-border-menu ds-strong-border ds-overlay-enter",
             className,
           )}
         >

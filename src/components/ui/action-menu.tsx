@@ -29,6 +29,7 @@ export function ActionMenu({
       align={align}
       className="w-44 p-1.5"
       triggerLabel={label}
+      closeOnSelect
       trigger={
         trigger || (
           <span
@@ -47,7 +48,10 @@ export function ActionMenu({
             type="button"
             role="menuitem"
             disabled={item.disabled}
-            onClick={item.onSelect}
+            onClick={() => {
+              // Defer so the popover unmounts before a modal opens on top.
+              queueMicrotask(() => item.onSelect());
+            }}
             className={cn(
               "flex w-full items-center rounded-[8px] px-2.5 py-2 text-left text-xs transition-colors ds-focus disabled:opacity-40",
               item.tone === "danger"
