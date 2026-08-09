@@ -13,8 +13,8 @@ export function HoldingCard({
   onDelete,
 }: {
   holding: InvestmentHolding;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   const positive = holding.gain >= 0;
   const accent = positive ? "#7C3AED" : "#E5484D";
@@ -68,13 +68,19 @@ export function HoldingCard({
             <ActionMenu
               label={`Actions for ${holding.name}`}
               items={[
-                { id: "edit", label: "Edit", onSelect: onEdit },
-                {
-                  id: "delete",
-                  label: "Delete",
-                  tone: "danger",
-                  onSelect: onDelete,
-                },
+                ...(onEdit
+                  ? [{ id: "edit", label: "Edit", onSelect: onEdit }]
+                  : []),
+                ...(onDelete
+                  ? [
+                      {
+                        id: "delete",
+                        label: "Delete",
+                        tone: "danger" as const,
+                        onSelect: onDelete,
+                      },
+                    ]
+                  : []),
               ]}
               trigger={
                 <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)]">

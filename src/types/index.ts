@@ -14,6 +14,8 @@ export type User = {
   timezone?: string;
   locale?: string;
   avatar_url?: string | null;
+  is_admin?: boolean;
+  permissions?: string[];
 };
 
 export type AuthTokens = {

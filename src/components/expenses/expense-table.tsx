@@ -20,10 +20,31 @@ export function TransactionTable({
   baseCurrency = "USD",
 }: {
   transactions: LedgerTransaction[];
-  onEdit: (transaction: LedgerTransaction) => void;
-  onDelete: (id: string) => void;
+  onEdit?: (transaction: LedgerTransaction) => void;
+  onDelete?: (id: string) => void;
   baseCurrency?: string;
 }) {
+  function menuItems(tx: LedgerTransaction) {
+    const items: {
+      id: string;
+      label: string;
+      onSelect: () => void;
+      tone?: "default" | "danger";
+    }[] = [];
+    if (onEdit) {
+      items.push({ id: "edit", label: "Edit", onSelect: () => onEdit(tx) });
+    }
+    if (onDelete) {
+      items.push({
+        id: "delete",
+        label: "Delete",
+        tone: "danger",
+        onSelect: () => onDelete(tx.id),
+      });
+    }
+    return items;
+  }
+
   return (
     <>
       <div className="space-y-1.5 md:hidden">
@@ -40,6 +61,7 @@ export function TransactionTable({
               : tx.type === "expense"
                 ? `From ${tx.source_name || "—"}`
                 : `To ${tx.destination_name || "—"}`;
+          const items = menuItems(tx);
           return (
             <article
               key={tx.id}
@@ -77,23 +99,17 @@ export function TransactionTable({
                       </p>
                     ) : null}
                   </div>
-                  <ActionMenu
-                    label={`Actions for ${tx.description}`}
-                    items={[
-                      { id: "edit", label: "Edit", onSelect: () => onEdit(tx) },
-                      {
-                        id: "delete",
-                        label: "Delete",
-                        tone: "danger",
-                        onSelect: () => onDelete(tx.id),
-                      },
-                    ]}
-                    trigger={
-                      <span className="inline-flex size-7 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)]">
-                        <MoreHorizontal size={15} />
-                      </span>
-                    }
-                  />
+                  {items.length ? (
+                    <ActionMenu
+                      label={`Actions for ${tx.description}`}
+                      items={items}
+                      trigger={
+                        <span className="inline-flex size-7 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)]">
+                          <MoreHorizontal size={15} />
+                        </span>
+                      }
+                    />
+                  ) : null}
                 </div>
               </div>
             </article>
@@ -166,27 +182,19 @@ export function TransactionTable({
                 </td>
                 <td className="px-5 py-3.5 text-right">
                   <div className="inline-flex justify-end">
-                    <ActionMenu
-                      label={`Actions for ${tx.description}`}
-                      items={[
-                        {
-                          id: "edit",
-                          label: "Edit",
-                          onSelect: () => onEdit(tx),
-                        },
-                        {
-                          id: "delete",
-                          label: "Delete",
-                          tone: "danger",
-                          onSelect: () => onDelete(tx.id),
-                        },
-                      ]}
-                      trigger={
-                        <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)]">
-                          <MoreHorizontal size={16} />
-                        </span>
-                      }
-                    />
+                    {menuItems(tx).length ? (
+                      <ActionMenu
+                        label={`Actions for ${tx.description}`}
+                        items={menuItems(tx)}
+                        trigger={
+                          <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)]">
+                            <MoreHorizontal size={16} />
+                          </span>
+                        }
+                      />
+                    ) : (
+                      <span className="text-[11px] text-[var(--ds-gray-700)]">—</span>
+                    )}
                   </div>
                 </td>
               </tr>

@@ -56,6 +56,8 @@ function SignInForm() {
         timezone: tokens.user?.timezone,
         locale: tokens.user?.locale,
         avatar_url: tokens.user?.avatar_url ?? null,
+        is_admin: tokens.user?.is_admin ?? false,
+        permissions: tokens.user?.permissions ?? [],
       });
       showToast({
         title: "Signed in",

@@ -24,6 +24,7 @@ import { listTransactions } from "@/lib/api/transactions";
 import { summarizeTwin } from "@/lib/accounts/metrics";
 import { getContainerMeta, isLiabilityType } from "@/lib/accounts/types-meta";
 import { useAuth } from "@/lib/auth-context";
+import { canCrud } from "@/lib/permissions";
 import {
   formatCurrency,
   formatRelativeDate,
@@ -41,6 +42,7 @@ export default function DashboardPage() {
   const { openTransactionModal } = useTransactionModal();
   const router = useRouter();
   const { user } = useAuth();
+  const canCreateTx = canCrud(user, "expenses", "create");
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
   const [containers, setContainers] = useState<FinancialContainer[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -160,9 +162,9 @@ export default function DashboardPage() {
             <Button variant="secondary" onClick={() => router.push("/reports")}>
               Reports
             </Button>
-            <Button onClick={openTransactionModal}>
-              New transaction
-            </Button>
+            {canCreateTx ? (
+              <Button onClick={openTransactionModal}>New transaction</Button>
+            ) : null}
           </div>
         }
       />
@@ -306,8 +308,8 @@ export default function DashboardPage() {
               <EmptyState
                 title="No transactions yet"
                 description="Record expense, income, or transfers to move money between containers."
-                actionLabel="Add transaction"
-                onAction={openTransactionModal}
+                actionLabel={canCreateTx ? "Add transaction" : undefined}
+                onAction={canCreateTx ? openTransactionModal : undefined}
                 className="py-10"
               />
             ) : (

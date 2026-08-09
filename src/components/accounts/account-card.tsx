@@ -54,8 +54,8 @@ export function AccountCard({
   onDelete,
 }: {
   container: FinancialContainer;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   const meta = getContainerMeta(container.type);
   const liability = isLiabilityType(container.type);
@@ -130,23 +130,38 @@ export function AccountCard({
           </p>
         </div>
 
-        <ActionMenu
-          label={`Actions for ${container.name}`}
-          items={[
-            { id: "edit", label: "Edit", onSelect: onEdit },
-            {
-              id: "archive",
-              label: "Archive",
-              tone: "danger",
-              onSelect: onDelete,
-            },
-          ]}
-          trigger={
-            <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)]">
-              <MoreHorizontal size={16} />
-            </span>
-          }
-        />
+        {(() => {
+          const items = [
+            onEdit
+              ? { id: "edit", label: "Edit", onSelect: onEdit }
+              : null,
+            onDelete
+              ? {
+                  id: "archive",
+                  label: "Archive",
+                  tone: "danger" as const,
+                  onSelect: onDelete,
+                }
+              : null,
+          ].filter(Boolean) as {
+            id: string;
+            label: string;
+            onSelect: () => void;
+            tone?: "default" | "danger";
+          }[];
+          if (!items.length) return null;
+          return (
+            <ActionMenu
+              label={`Actions for ${container.name}`}
+              items={items}
+              trigger={
+                <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)]">
+                  <MoreHorizontal size={16} />
+                </span>
+              }
+            />
+          );
+        })()}
       </div>
     </article>
   );

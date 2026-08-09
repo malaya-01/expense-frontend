@@ -34,6 +34,7 @@ import {
   type CommandMenuState,
 } from "@/components/ai/chat-command-menu";
 import { useAuth } from "@/lib/auth-context";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { cn } from "@/lib/cn";
 import {
   detectCommandTrigger,
@@ -98,6 +99,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
   onToggleWebSearch: () => void;
 }) {
   const { user } = useAuth();
+  const perms = useModulePermissions("ai");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -119,6 +121,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
     [attachments],
   );
   const canSend =
+    perms.create &&
     !loading &&
     !attachmentsBusy &&
     Boolean(draft.trim() || attachments.some((file) => file.upload_status !== "failed"));
@@ -330,13 +333,27 @@ export const ChatWorkspace = memo(function ChatWorkspace({
       ) : null}
 
       <div className="shrink-0 bg-[color-mix(in_srgb,var(--ds-background-100)_92%,transparent)] px-4 pb-4 pt-2 backdrop-blur-md sm:px-8">
+        {!perms.create ? (
+          <p className="mx-auto mb-2 max-w-[720px] text-center text-[11px] text-[var(--ds-gray-700)]">
+            You can view conversations, but sending messages requires AI create
+            permission.
+          </p>
+        ) : null}
         <form
-          onSubmit={onSend}
+          onSubmit={(event) => {
+            if (!perms.create) {
+              event.preventDefault();
+              return;
+            }
+            onSend(event);
+          }}
           onDragEnter={(event) => {
+            if (!perms.create) return;
             event.preventDefault();
             onDragState(true);
           }}
           onDragOver={(event) => {
+            if (!perms.create) return;
             event.preventDefault();
             onDragState(true);
           }}
@@ -348,12 +365,14 @@ export const ChatWorkspace = memo(function ChatWorkspace({
           onDrop={(event) => {
             event.preventDefault();
             onDragState(false);
+            if (!perms.create) return;
             void onAddFiles(event.dataTransfer.files);
           }}
           className={cn(
             "relative mx-auto w-full max-w-[720px] rounded-[30px] bg-[var(--ds-background-elevated)] p-2 shadow-[var(--ds-shadow-sm,0_1px_2px_rgba(0,0,0,0.08))] transition-[box-shadow]",
             dragActive &&
               "shadow-[0_0_0_2px_color-mix(in_srgb,var(--ds-focus-color)_35%,transparent)]",
+            !perms.create && "opacity-70",
           )}
           aria-label="Message composer"
         >
@@ -369,7 +388,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
             multiple
             accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/csv,application/json"
             className="sr-only"
-            disabled={attachments.length >= 3 || loading}
+            disabled={!perms.create || attachments.length >= 3 || loading}
             onChange={(event) => {
               if (event.target.files?.length) {
                 void onAddFiles(event.target.files);
@@ -473,7 +492,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
               <div className="space-y-1" aria-label="Advisor tools">
                 <button
                   type="button"
-                  disabled={attachments.length >= 3 || loading}
+                  disabled={!perms.create || attachments.length >= 3 || loading}
                   onClick={() => fileInputRef.current?.click()}
                   className="flex min-h-12 w-full items-center gap-3 rounded-[12px] px-3 text-left hover:bg-[var(--ds-gray-100)] disabled:opacity-50 ds-focus"
                 >
@@ -488,7 +507,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                 </button>
                 <button
                   type="button"
-                  disabled={loading}
+                  disabled={!perms.create || loading}
                   onClick={onToggleWebSearch}
                   className="flex min-h-12 w-full items-center gap-3 rounded-[12px] px-3 text-left hover:bg-[var(--ds-gray-100)] disabled:opacity-50 ds-focus"
                 >
@@ -509,17 +528,22 @@ export const ChatWorkspace = memo(function ChatWorkspace({
             <Textarea
               ref={textareaRef}
               value={draft}
+              readOnly={!perms.create}
+              disabled={!perms.create}
               onChange={(e) => {
+                if (!perms.create) return;
                 const value = e.target.value;
                 onDraftChange(value);
                 refreshMenu(value, e.target.selectionStart ?? value.length);
               }}
-              onPaste={onPasteFiles}
+              onPaste={perms.create ? onPasteFiles : undefined}
               onClick={(e) => {
+                if (!perms.create) return;
                 const el = e.currentTarget;
                 refreshMenu(el.value, el.selectionStart ?? el.value.length);
               }}
               onKeyUp={(e) => {
+                if (!perms.create) return;
                 const el = e.currentTarget;
                 if (
                   e.key === "ArrowLeft" ||
@@ -531,6 +555,10 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                 }
               }}
               onKeyDown={(event) => {
+                if (!perms.create) {
+                  event.preventDefault();
+                  return;
+                }
                 if (menu && ["ArrowDown", "ArrowUp", "Tab"].includes(event.key)) {
                   event.preventDefault();
                   return;
@@ -549,7 +577,11 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                   if (canSend) void onSend();
                 }
               }}
-              placeholder="Ask anything — paste a screenshot, or try /spend"
+              placeholder={
+                perms.create
+                  ? "Ask anything — paste a screenshot, or try /spend"
+                  : "Read-only — AI create permission required"
+              }
               rows={1}
               aria-label="Message"
               style={{
@@ -581,13 +613,15 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                 <button
                   type="button"
                   onClick={onToggleVoice}
-                  disabled={!voiceSupported}
+                  disabled={!perms.create || !voiceSupported}
                   title={
-                    voiceSupported
-                      ? listening
-                        ? "Stop listening"
-                        : "Voice input"
-                      : "Voice unavailable in this browser"
+                    !perms.create
+                      ? "AI create permission required"
+                      : voiceSupported
+                        ? listening
+                          ? "Stop listening"
+                          : "Voice input"
+                        : "Voice unavailable in this browser"
                   }
                   className={cn(
                     "flex size-11 shrink-0 items-center justify-center rounded-full ds-focus",

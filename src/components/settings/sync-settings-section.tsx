@@ -22,6 +22,7 @@ import {
   isLocalhostApiUrl,
   setApiBaseUrl,
 } from "@/lib/api/client";
+import { canCrud } from "@/lib/permissions";
 
 type NotifPrefs = {
   budget_alerts: boolean;
@@ -41,6 +42,7 @@ const PRODUCTION_API = "https://expense-backend-2tg0.onrender.com/api";
 
 export function SyncSettingsSection() {
   const { user } = useAuth();
+  const canSync = canCrud(user, "sync", "create");
   const { showToast } = useToast();
   const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_PREFS);
   const [saving, setSaving] = useState(false);
@@ -157,7 +159,9 @@ export function SyncSettingsSection() {
         <CardBody className="flex flex-wrap gap-2">
           <Button
             variant="secondary"
+            disabled={!canSync}
             onClick={() => {
+              if (!canSync) return;
               void runSync("manual").then(() =>
                 showToast({
                   title: "Sync started",

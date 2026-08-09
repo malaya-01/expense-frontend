@@ -40,6 +40,8 @@ import { listCategories } from "@/lib/api/categories";
 import { changePassword, updateProfile } from "@/lib/api/user";
 import { getErrorMessage } from "@/lib/api/client";
 import { openCommandPalette } from "@/components/layout/command-palette";
+import { getClientPlatform } from "@/lib/runtime-platform";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 
 const SECTIONS = [
   { id: "general", label: "General", icon: UserRound },
@@ -73,6 +75,7 @@ const TIMEZONES = [
 
 export default function SettingsPage() {
   const { user, setSession, logout } = useAuth();
+  const settingsPerms = useModulePermissions("settings");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
@@ -327,7 +330,11 @@ export default function SettingsPage() {
                     </Select>
                   </div>
                   <div className="flex justify-end">
-                    <Button type="submit" loading={savingDefaults}>
+                    <Button
+                      type="submit"
+                      loading={savingDefaults}
+                      disabled={!settingsPerms.update}
+                    >
                       Save defaults
                     </Button>
                   </div>
@@ -388,7 +395,11 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     <div className="flex justify-end">
-                      <Button type="submit" loading={savingPassword}>
+                      <Button
+                        type="submit"
+                        loading={savingPassword}
+                        disabled={!settingsPerms.update}
+                      >
                         Update password
                       </Button>
                     </div>
@@ -502,25 +513,33 @@ export default function SettingsPage() {
                 <h2 className="font-heading text-base font-semibold">Session</h2>
                 <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
                   Signed in as {user?.email || "—"}. Signing out only affects
-                  this browser.
+                  this device.
                 </p>
               </CardHeader>
-              <CardBody className="flex flex-wrap gap-2">
-                <Button
-                  variant="danger"
-                  onClick={() => {
-                    logout();
-                    router.replace("/signin");
-                  }}
-                >
-                  Log out
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => router.push("/profile")}
-                >
-                  Edit profile
-                </Button>
+              <CardBody className="space-y-3">
+                <p className="text-[12px] text-[var(--ds-gray-800)]">
+                  This session:{" "}
+                  <strong className="text-[var(--ds-gray-1000)]">
+                    {getClientPlatform().label}
+                  </strong>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      logout();
+                      router.replace("/signin");
+                    }}
+                  >
+                    Log out
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => router.push("/profile")}
+                  >
+                    Edit profile
+                  </Button>
+                </div>
               </CardBody>
             </Card>
           ) : null}

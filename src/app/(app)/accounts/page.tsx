@@ -45,6 +45,7 @@ import {
   getContainerMeta,
 } from "@/lib/accounts/types-meta";
 import { useAuth } from "@/lib/auth-context";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
@@ -73,6 +74,7 @@ function sectionIcon(group: string) {
 }
 
 export default function AccountsPage() {
+  const perms = useModulePermissions("accounts");
   const { user } = useAuth();
   const { showToast } = useToast();
   const [containers, setContainers] = useState<FinancialContainer[]>([]);
@@ -263,10 +265,12 @@ export default function AccountsPage() {
             </Select>
           </div>
           <div className="col-span-2 sm:col-span-1 sm:contents">
-            <Button onClick={openCreate} className="w-full shrink-0 sm:w-auto">
-              <Plus size={16} />
-              Add account
-            </Button>
+            {perms.create ? (
+              <Button onClick={openCreate} className="w-full shrink-0 sm:w-auto">
+                <Plus size={16} />
+                Add account
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -359,8 +363,8 @@ export default function AccountsPage() {
               <EmptyState
                 title="No accounts yet"
                 description="Add cash, bank mirrors, credit cards, investments, or loans. Money never disappears — it moves between containers."
-                actionLabel="Add first account"
-                onAction={openCreate}
+                actionLabel={perms.create ? "Add first account" : undefined}
+                onAction={perms.create ? openCreate : undefined}
               />
             </div>
           ) : filtered.length === 0 ? (
@@ -416,8 +420,16 @@ export default function AccountsPage() {
                         <AccountCard
                           key={container.id}
                           container={container}
-                          onEdit={() => openEdit(container)}
-                          onDelete={() => setDeleteId(container.id)}
+                          onEdit={
+                            perms.update
+                              ? () => openEdit(container)
+                              : undefined
+                          }
+                          onDelete={
+                            perms.delete
+                              ? () => setDeleteId(container.id)
+                              : undefined
+                          }
                         />
                       ))}
                     </div>
@@ -425,6 +437,7 @@ export default function AccountsPage() {
                 );
               })}
 
+              {perms.create ? (
               <button
                 type="button"
                 onClick={openCreate}
@@ -446,6 +459,7 @@ export default function AccountsPage() {
                   className="shrink-0 text-[var(--ds-gray-700)]"
                 />
               </button>
+              ) : null}
             </div>
           )}
         </div>

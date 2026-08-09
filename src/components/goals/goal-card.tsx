@@ -34,9 +34,9 @@ export function GoalCard({
   onContribute,
 }: {
   goal: Goal;
-  onEdit: () => void;
-  onDelete: () => void;
-  onContribute: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onContribute?: () => void;
 }) {
   const pct = Math.min(100, Math.max(0, goal.percent));
   const accent =
@@ -90,7 +90,8 @@ export function GoalCard({
               label={`Actions for ${goal.name}`}
               items={[
                 ...(goal.progress_source === "manual" &&
-                goal.status !== "achieved"
+                goal.status !== "achieved" &&
+                onContribute
                   ? [
                       {
                         id: "contribute",
@@ -99,13 +100,19 @@ export function GoalCard({
                       },
                     ]
                   : []),
-                { id: "edit", label: "Edit", onSelect: onEdit },
-                {
-                  id: "delete",
-                  label: "Delete",
-                  tone: "danger" as const,
-                  onSelect: onDelete,
-                },
+                ...(onEdit
+                  ? [{ id: "edit", label: "Edit", onSelect: onEdit }]
+                  : []),
+                ...(onDelete
+                  ? [
+                      {
+                        id: "delete",
+                        label: "Delete",
+                        tone: "danger" as const,
+                        onSelect: onDelete,
+                      },
+                    ]
+                  : []),
               ]}
               trigger={
                 <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)]">
@@ -158,7 +165,9 @@ export function GoalCard({
           ) : null}
         </div>
 
-        {goal.progress_source === "manual" && goal.status !== "achieved" ? (
+        {goal.progress_source === "manual" &&
+        goal.status !== "achieved" &&
+        onContribute ? (
           <div className="mt-4">
             <Button variant="secondary" size="sm" onClick={onContribute}>
               Contribute

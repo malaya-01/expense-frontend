@@ -17,10 +17,10 @@ export function RecurringCard({
 }: {
   schedule: RecurringSchedule;
   currency: string;
-  onPost: () => void;
-  onPause: () => void;
-  onResume: () => void;
-  onArchive: () => void;
+  onPost?: () => void;
+  onPause?: () => void;
+  onResume?: () => void;
+  onArchive?: () => void;
 }) {
   const due =
     schedule.status === "active" && schedule.next_execution <= todayISO();
@@ -74,20 +74,24 @@ export function RecurringCard({
             <ActionMenu
               label={`Actions for ${schedule.name}`}
               items={[
-                ...(due
+                ...(due && onPost
                   ? [{ id: "post", label: "Post now", onSelect: onPost }]
                   : []),
-                ...(schedule.status === "active"
+                ...(schedule.status === "active" && onPause
                   ? [{ id: "pause", label: "Pause", onSelect: onPause }]
-                  : schedule.status === "paused"
+                  : schedule.status === "paused" && onResume
                     ? [{ id: "resume", label: "Resume", onSelect: onResume }]
                     : []),
-                {
-                  id: "archive",
-                  label: "Archive",
-                  tone: "danger",
-                  onSelect: onArchive,
-                },
+                ...(onArchive
+                  ? [
+                      {
+                        id: "archive",
+                        label: "Archive",
+                        tone: "danger" as const,
+                        onSelect: onArchive,
+                      },
+                    ]
+                  : []),
               ]}
               trigger={
                 <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)]">
@@ -124,18 +128,18 @@ export function RecurringCard({
         ) : null}
 
         <div className="mt-4 flex flex-wrap gap-1.5">
-          {due ? (
+          {due && onPost ? (
             <Button size="sm" onClick={onPost}>
               <Zap size={13} />
               Post now
             </Button>
           ) : null}
-          {schedule.status === "active" ? (
+          {schedule.status === "active" && onPause ? (
             <Button size="sm" variant="secondary" onClick={onPause}>
               <Pause size={13} />
               Pause
             </Button>
-          ) : schedule.status === "paused" ? (
+          ) : schedule.status === "paused" && onResume ? (
             <Button size="sm" variant="secondary" onClick={onResume}>
               <Play size={13} />
               Resume

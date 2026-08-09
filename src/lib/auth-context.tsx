@@ -7,7 +7,9 @@ import {
   logout as logoutAction,
   selectIsAuthenticated,
   setSession as setSessionAction,
+  updatePermissions as updatePermissionsAction,
 } from "@/lib/store/slices/authSlice";
+import { canAccessAdmin, canCrud, hasPermission } from "@/lib/permissions";
 
 export function useAuth() {
   const dispatch = useAppDispatch();
@@ -22,15 +24,34 @@ export function useAuth() {
     [dispatch],
   );
 
+  const setPermissions = useCallback(
+    (payload: { is_admin: boolean; permissions: string[] }) => {
+      dispatch(updatePermissionsAction(payload));
+    },
+    [dispatch],
+  );
+
   const logout = useCallback(() => {
     dispatch(logoutAction());
   }, [dispatch]);
+
+  const can = useCallback((code: string) => hasPermission(user, code), [user]);
+
+  const canModuleCrud = useCallback(
+    (module: string, action: "create" | "read" | "update" | "delete") =>
+      canCrud(user, module, action),
+    [user],
+  );
 
   return {
     user,
     ready,
     isAuthenticated,
     setSession,
+    setPermissions,
     logout,
+    can,
+    canCrud: canModuleCrud,
+    canAccessAdmin: canAccessAdmin(user),
   };
 }

@@ -23,6 +23,7 @@ import {
 } from "@/lib/api/budgets";
 import { listCategories } from "@/lib/api/categories";
 import { useAuth } from "@/lib/auth-context";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
@@ -32,6 +33,7 @@ import type { Budget, Category, CreateBudgetInput } from "@/types";
 type StatusFilter = "all" | "on_track" | "warning" | "over";
 
 export default function BudgetsPage() {
+  const perms = useModulePermissions("budgets");
   const { user } = useAuth();
   const { showToast } = useToast();
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -139,10 +141,12 @@ export default function BudgetsPage() {
           { value: "over", label: "Over budget" },
         ]}
         actions={
-          <Button onClick={openCreate} className="shrink-0">
-            <Plus size={16} />
-            New budget
-          </Button>
+          perms.create ? (
+            <Button onClick={openCreate} className="shrink-0">
+              <Plus size={16} />
+              New budget
+            </Button>
+          ) : null
         }
       />
 
@@ -209,8 +213,8 @@ export default function BudgetsPage() {
           <EmptyState
             title="No budgets yet"
             description="Create monthly or weekly envelopes. Spend is calculated live from your transactions."
-            actionLabel="Create budget"
-            onAction={openCreate}
+            actionLabel={perms.create ? "Create budget" : undefined}
+            onAction={perms.create ? openCreate : undefined}
           />
         </div>
       ) : visible.length === 0 ? (
@@ -225,11 +229,15 @@ export default function BudgetsPage() {
             <BudgetCard
               key={b.id}
               budget={b}
-              onEdit={() => {
-                setEditing(b);
-                setModalOpen(true);
-              }}
-              onDelete={() => setDeleteTarget(b)}
+              onEdit={
+                perms.update
+                  ? () => {
+                      setEditing(b);
+                      setModalOpen(true);
+                    }
+                  : undefined
+              }
+              onDelete={perms.delete ? () => setDeleteTarget(b) : undefined}
             />
           ))}
         </div>

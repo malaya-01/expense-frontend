@@ -15,10 +15,10 @@ export function LoanCard({
   onArchive,
 }: {
   loan: Loan;
-  onPay: () => void;
-  onSchedule: () => void;
-  onEdit: () => void;
-  onArchive: () => void;
+  onPay?: () => void;
+  onSchedule?: () => void;
+  onEdit?: () => void;
+  onArchive?: () => void;
 }) {
   const accent = "#F97316";
 
@@ -65,17 +65,31 @@ export function LoanCard({
             <ActionMenu
               label={`Actions for ${loan.name}`}
               items={[
-                ...(loan.status === "active"
+                ...(loan.status === "active" && onPay
                   ? [{ id: "pay", label: "Record payment", onSelect: onPay }]
                   : []),
-                { id: "schedule", label: "View schedule", onSelect: onSchedule },
-                { id: "edit", label: "Edit", onSelect: onEdit },
-                {
-                  id: "archive",
-                  label: "Archive",
-                  tone: "danger",
-                  onSelect: onArchive,
-                },
+                ...(onSchedule
+                  ? [
+                      {
+                        id: "schedule",
+                        label: "View schedule",
+                        onSelect: onSchedule,
+                      },
+                    ]
+                  : []),
+                ...(onEdit
+                  ? [{ id: "edit", label: "Edit", onSelect: onEdit }]
+                  : []),
+                ...(onArchive
+                  ? [
+                      {
+                        id: "archive",
+                        label: "Archive",
+                        tone: "danger" as const,
+                        onSelect: onArchive,
+                      },
+                    ]
+                  : []),
               ]}
               trigger={
                 <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)]">
@@ -110,24 +124,21 @@ export function LoanCard({
           tone="var(--ds-status-green)"
         />
 
-        {loan.status === "active" ? (
+        {loan.status === "active" || onSchedule ? (
           <div className="mt-4 flex flex-wrap gap-1.5">
-            <Button size="sm" onClick={onPay}>
-              Record payment
-            </Button>
-            <Button size="sm" variant="secondary" onClick={onSchedule}>
-              <CalendarDays size={13} />
-              Schedule
-            </Button>
+            {loan.status === "active" && onPay ? (
+              <Button size="sm" onClick={onPay}>
+                Record payment
+              </Button>
+            ) : null}
+            {onSchedule ? (
+              <Button size="sm" variant="secondary" onClick={onSchedule}>
+                <CalendarDays size={13} />
+                Schedule
+              </Button>
+            ) : null}
           </div>
-        ) : (
-          <div className="mt-4">
-            <Button size="sm" variant="secondary" onClick={onSchedule}>
-              <CalendarDays size={13} />
-              Schedule
-            </Button>
-          </div>
-        )}
+        ) : null}
       </div>
     </article>
   );

@@ -55,9 +55,19 @@ export function Popover({
   };
 
   useLayoutEffect(() => {
-    if (open) updatePosition();
+    if (!open) return;
+    updatePosition();
     // Position once after the portal panel has measurable dimensions.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const onOpenChangeRef = useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
+  const prevOpenRef = useRef(open);
+  useEffect(() => {
+    if (prevOpenRef.current === open) return;
+    prevOpenRef.current = open;
+    onOpenChangeRef.current?.(open);
   }, [open]);
 
   useEffect(() => {
@@ -69,13 +79,11 @@ export function Popover({
         !panelRef.current?.contains(target)
       ) {
         setOpen(false);
-        onOpenChange?.(false);
       }
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setOpen(false);
-        onOpenChange?.(false);
       }
     };
     // Capture phase so we close even if a child stops bubbling.
@@ -89,7 +97,7 @@ export function Popover({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [open, onOpenChange]);
+  }, [open]);
 
   return (
     <div className="relative inline-flex">
@@ -101,12 +109,7 @@ export function Popover({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => {
-          updatePosition();
-          setOpen((current) => {
-            const next = !current;
-            onOpenChange?.(next);
-            return next;
-          });
+          setOpen((current) => !current);
         }}
       >
         {trigger}
@@ -126,7 +129,6 @@ export function Popover({
               )
             ) {
               setOpen(false);
-              onOpenChange?.(false);
             }
           }}
           className={cn(

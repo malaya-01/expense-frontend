@@ -18,6 +18,9 @@ import { ActionMenu } from "@/components/ui/action-menu";
 import { StatusDot } from "@/components/ui/status-dot";
 import { formatCurrency } from "@/lib/format";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
+import { canCrud } from "@/lib/permissions";
+import { useAuth } from "@/lib/auth-context";
 import type {
   AiActionProposal,
   AiDocument,
@@ -36,6 +39,7 @@ export const PendingActionCard = memo(function PendingActionCard({
   onReview: () => void;
   onReject: () => void;
 }) {
+  const perms = useModulePermissions("ai");
   return (
     <article className="rounded-[14px] bg-[var(--ds-background-elevated)] p-3 shadow-[var(--ds-shadow-sm,0_1px_2px_rgba(0,0,0,0.06))] transition-transform hover:-translate-y-0.5 motion-reduce:transform-none">
       <div className="flex items-start justify-between gap-2">
@@ -51,14 +55,20 @@ export const PendingActionCard = memo(function PendingActionCard({
         </div>
         <Badge tone="warning">Pending</Badge>
       </div>
-      <div className="mt-3 flex gap-1.5">
-        <Button size="sm" onClick={onReview}>
-          Approve
-        </Button>
-        <Button size="sm" variant="secondary" loading={busy} onClick={onReject}>
-          Reject
-        </Button>
-      </div>
+      {perms.create ? (
+        <div className="mt-3 flex gap-1.5">
+          <Button size="sm" onClick={onReview}>
+            Approve
+          </Button>
+          <Button size="sm" variant="secondary" loading={busy} onClick={onReject}>
+            Reject
+          </Button>
+        </div>
+      ) : (
+        <p className="mt-3 text-[11px] text-[var(--ds-gray-700)]">
+          AI create permission required to decide
+        </p>
+      )}
     </article>
   );
 });
@@ -382,20 +392,24 @@ function FinancialSnapshot({ overview }: { overview: ReportOverview | null }) {
 }
 
 function QuickActions() {
+  const { user } = useAuth();
   const { openTransactionModal } = useTransactionModal();
+  const canCreateTx = canCrud(user, "expenses", "create");
 
   return (
     <section>
       <p className="mb-2 text-sm font-semibold">Quick Actions</p>
       <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={openTransactionModal}
-          className="flex items-center gap-2 rounded-[12px] bg-[var(--ds-background-elevated)] p-3 text-left transition-colors hover:bg-[var(--ds-gray-100)] ds-focus"
-        >
-          <PlusCircle size={15} className="text-[var(--ds-focus-color)]" />
-          <span className="text-[11px] font-medium">Add Expense</span>
-        </button>
+        {canCreateTx ? (
+          <button
+            type="button"
+            onClick={openTransactionModal}
+            className="flex items-center gap-2 rounded-[12px] bg-[var(--ds-background-elevated)] p-3 text-left transition-colors hover:bg-[var(--ds-gray-100)] ds-focus"
+          >
+            <PlusCircle size={15} className="text-[var(--ds-focus-color)]" />
+            <span className="text-[11px] font-medium">Add Expense</span>
+          </button>
+        ) : null}
         {[
           ["/accounts", "Upload Statement", Upload],
           ["/budgets", "Create Budget", Wallet],
@@ -431,13 +445,32 @@ function DocumentList({
   onDelete: (id: string) => void;
   empty?: boolean;
 }) {
+  const perms = useModulePermissions("ai");
   if (!documents.length && !empty) return null;
   return (
     <section>
       <p className="mb-2 text-sm font-semibold">{title}</p>
       {documents.length ? (
         <div className="space-y-1">
-          {documents.map((document) => (
+          {documents.map((document) => {
+            const menuItems = [
+              {
+                id: "preview",
+                label: "Preview",
+                onSelect: () => onSelect(document.id),
+              },
+              ...(perms.delete
+                ? [
+                    {
+                      id: "delete",
+                      label: "Delete",
+                      tone: "danger" as const,
+                      onSelect: () => onDelete(document.id),
+                    },
+                  ]
+                : []),
+            ];
+            return (
             <article
               key={document.id}
               className="group flex items-start gap-2 rounded-[12px] px-2 py-2 transition-colors hover:bg-[var(--ds-background-elevated)]"
@@ -477,26 +510,15 @@ function DocumentList({
                   </span>
                 </span>
               </button>
-              {!document.id.startsWith("upload-") ? (
+              {!document.id.startsWith("upload-") && menuItems.length ? (
                 <ActionMenu
                   label={`Actions for ${document.name}`}
-                  items={[
-                    {
-                      id: "preview",
-                      label: "Preview",
-                      onSelect: () => onSelect(document.id),
-                    },
-                    {
-                      id: "delete",
-                      label: "Delete",
-                      tone: "danger",
-                      onSelect: () => onDelete(document.id),
-                    },
-                  ]}
+                  items={menuItems}
                 />
               ) : null}
             </article>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="rounded-[14px] bg-[var(--ds-background-elevated)] px-3 py-4 text-center">

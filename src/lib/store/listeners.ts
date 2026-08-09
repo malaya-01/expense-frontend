@@ -13,6 +13,7 @@ import {
   hydrateAuth,
   logout,
   setSession,
+  updatePermissions,
   USER_STORAGE_KEY,
 } from "./slices/authSlice";
 import {
@@ -111,6 +112,16 @@ startAppListening({
   effect: (action, api) => {
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(action.payload));
     api.dispatch(resetSidebarTransient());
+  },
+});
+
+startAppListening({
+  actionCreator: updatePermissions,
+  effect: (_action, api) => {
+    const user = api.getState().auth.user;
+    if (user) {
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    }
   },
 });
 

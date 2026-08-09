@@ -23,6 +23,7 @@ import {
 } from "@/lib/api/investments";
 import { listAccounts } from "@/lib/api/accounts";
 import { useAuth } from "@/lib/auth-context";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
@@ -46,6 +47,7 @@ const EMPTY_SUMMARY: InvestmentSummary = {
 };
 
 export default function InvestmentsPage() {
+  const perms = useModulePermissions("investments");
   const { user } = useAuth();
   const { showToast } = useToast();
   const [holdings, setHoldings] = useState<InvestmentHolding[]>([]);
@@ -155,10 +157,12 @@ export default function InvestmentsPage() {
         filterOptions={filterOptions}
         filterLabel="Asset type"
         actions={
-          <Button onClick={openCreate} className="shrink-0">
-            <Plus size={16} />
-            New holding
-          </Button>
+          perms.create ? (
+            <Button onClick={openCreate} className="shrink-0">
+              <Plus size={16} />
+              New holding
+            </Button>
+          ) : null
         }
       />
 
@@ -249,8 +253,8 @@ export default function InvestmentsPage() {
           <EmptyState
             title="No holdings yet"
             description="Add stocks, funds, gold, or crypto. Link an investment container to keep net worth in sync."
-            actionLabel="Add holding"
-            onAction={openCreate}
+            actionLabel={perms.create ? "Add holding" : undefined}
+            onAction={perms.create ? openCreate : undefined}
           />
         </div>
       ) : visible.length === 0 ? (
@@ -265,11 +269,15 @@ export default function InvestmentsPage() {
             <HoldingCard
               key={h.id}
               holding={h}
-              onEdit={() => {
-                setEditing(h);
-                setModalOpen(true);
-              }}
-              onDelete={() => setDeleteTarget(h)}
+              onEdit={
+                perms.update
+                  ? () => {
+                      setEditing(h);
+                      setModalOpen(true);
+                    }
+                  : undefined
+              }
+              onDelete={perms.delete ? () => setDeleteTarget(h) : undefined}
             />
           ))}
         </div>

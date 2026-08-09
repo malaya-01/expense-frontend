@@ -24,11 +24,13 @@ import { useAuth } from "@/lib/auth-context";
 import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import type { LedgerTransaction } from "@/types";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 
 export default function ExpensesPage() {
   const { openTransactionModal, openEditTransactionModal } =
     useTransactionModal();
   const { user } = useAuth();
+  const perms = useModulePermissions("expenses");
   const { showToast } = useToast();
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
   const [query, setQuery] = useState("");
@@ -131,9 +133,11 @@ export default function ExpensesPage() {
         title="Transactions"
         description={`${filtered.length} shown · ${formatCurrency(inflow, baseCurrency)} in · ${formatCurrency(outflow, baseCurrency)} out · ${baseCurrency}`}
         actions={
-          <Button onClick={openTransactionModal} className="shrink-0">
-            New transaction
-          </Button>
+          perms.create ? (
+            <Button onClick={openTransactionModal} className="shrink-0">
+              New transaction
+            </Button>
+          ) : null
         }
       />
 
@@ -234,9 +238,19 @@ export default function ExpensesPage() {
                 ? "Adjust or clear the filters to see more results."
                 : "Record expense, income, or transfers between financial containers."
             }
-            actionLabel={hasFilters ? "Clear filters" : "Add transaction"}
+            actionLabel={
+              hasFilters
+                ? "Clear filters"
+                : perms.create
+                  ? "Add transaction"
+                  : undefined
+            }
             onAction={
-              hasFilters ? clearFilters : openTransactionModal
+              hasFilters
+                ? clearFilters
+                : perms.create
+                  ? openTransactionModal
+                  : undefined
             }
           />
         </div>
@@ -244,8 +258,8 @@ export default function ExpensesPage() {
         <TransactionTable
           transactions={filtered}
           baseCurrency={baseCurrency}
-          onEdit={openEditTransactionModal}
-          onDelete={setDeleteId}
+          onEdit={perms.update ? openEditTransactionModal : undefined}
+          onDelete={perms.delete ? setDeleteId : undefined}
         />
       )}
       <ConfirmDialog

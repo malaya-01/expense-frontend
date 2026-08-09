@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CloudOff,
   RefreshCw,
   AlertTriangle,
   Cloud,
   Wifi,
+  Smartphone,
+  Monitor,
 } from "lucide-react";
 import {
   bootstrapOfflineSync,
@@ -22,6 +24,7 @@ import {
 import type { ConflictItem } from "@/lib/offline/db";
 import { useAuth } from "@/lib/auth-context";
 import { Popover } from "@/components/ui/popover";
+import { getClientPlatform } from "@/lib/runtime-platform";
 
 const EMPTY_STATUS: SyncStatusSnapshot = {
   online: true,
@@ -38,6 +41,7 @@ export function SyncStatusButton() {
   const [status, setStatus] = useState<SyncStatusSnapshot>(EMPTY_STATUS);
   const [open, setOpen] = useState(false);
   const [conflicts, setConflicts] = useState<ConflictItem[]>([]);
+  const platform = useMemo(() => getClientPlatform(), []);
 
   useEffect(() => {
     void bootstrapOfflineSync(user?.id);
@@ -70,6 +74,11 @@ export function SyncStatusButton() {
         : status.pending > 0
           ? Cloud
           : Wifi;
+
+  const DeviceIcon =
+    platform.formFactor === "desktop" && platform.surface === "web"
+      ? Monitor
+      : Smartphone;
 
   return (
     <Popover
@@ -104,6 +113,12 @@ export function SyncStatusButton() {
         </button>
       </div>
       <ul className="space-y-1 text-[11px] text-[var(--ds-gray-800)]">
+        <li className="flex items-center gap-1.5">
+          <DeviceIcon size={12} className="shrink-0 text-[var(--ds-gray-700)]" />
+          <span>
+            Device: <strong>{platform.label}</strong>
+          </span>
+        </li>
         <li>
           Status: <strong>{status.online ? "Online" : "Offline"}</strong>
         </li>

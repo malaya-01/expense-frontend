@@ -8,14 +8,20 @@ import { CommandPalette } from "@/components/layout/command-palette";
 import { TransactionModalProvider } from "@/components/expenses/transaction-modal-provider";
 import { useAuth } from "@/lib/auth-context";
 import { getAccessToken } from "@/lib/api/client";
+import { fetchMyPermissions } from "@/lib/api/permissions";
 import { cn } from "@/lib/cn";
 import { bootstrapOfflineSync } from "@/lib/offline/sync-engine";
 import { NetworkStatusBanner } from "@/components/sync/network-status-banner";
+import {
+  firstAllowedPath,
+  hasPermission,
+  permissionForPath,
+} from "@/lib/permissions";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { ready, isAuthenticated, user } = useAuth();
+  const { ready, isAuthenticated, user, setPermissions } = useAuth();
   const isAiWorkspace = pathname === "/ai" || pathname.startsWith("/ai/");
 
   useEffect(() => {
@@ -26,8 +32,30 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     }
     if (isAuthenticated || getAccessToken()) {
       void bootstrapOfflineSync(user?.id);
+      void fetchMyPermissions()
+        .then((perms) => setPermissions(perms))
+        .catch(() => {
+          /* keep cached permissions if refresh fails */
+        });
     }
-  }, [ready, isAuthenticated, router, user?.id]);
+  }, [ready, isAuthenticated, router, user?.id, setPermissions]);
+
+  useEffect(() => {
+    if (!ready || !user) return;
+    const required = permissionForPath(pathname);
+    if (!required) return;
+    if (hasPermission(user, required)) return;
+    if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+      if (
+        user.is_admin ||
+        hasPermission(user, "admin.manage_users") ||
+        hasPermission(user, "admin.manage_permissions")
+      ) {
+        return;
+      }
+    }
+    router.replace(firstAllowedPath(user));
+  }, [ready, user, pathname, router]);
 
   if (!ready) {
     return (

@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { ProposalPayloadView } from "@/components/ai/proposal-payload-view";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 import type { AiActionProposal } from "@/types";
 
 export function ProposalConfirmModal({
@@ -16,6 +17,7 @@ export function ProposalConfirmModal({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const perms = useModulePermissions("ai");
   return (
     <Modal
       open={Boolean(proposal)}
@@ -27,7 +29,11 @@ export function ProposalConfirmModal({
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button loading={busy} onClick={onConfirm}>
+          <Button
+            loading={busy}
+            disabled={!perms.create}
+            onClick={onConfirm}
+          >
             Confirm &amp; apply
           </Button>
         </>

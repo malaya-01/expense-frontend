@@ -25,6 +25,7 @@ import {
 } from "@/lib/api/goals";
 import { listAccounts } from "@/lib/api/accounts";
 import { useAuth } from "@/lib/auth-context";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
@@ -39,6 +40,7 @@ import type {
 type StatusFilter = "all" | GoalStatus;
 
 export default function GoalsPage() {
+  const perms = useModulePermissions("goals");
   const { user } = useAuth();
   const { showToast } = useToast();
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -160,10 +162,12 @@ export default function GoalsPage() {
           { value: "achieved", label: "Achieved" },
         ]}
         actions={
-          <Button onClick={openCreate} className="shrink-0">
-            <Plus size={16} />
-            New goal
-          </Button>
+          perms.create ? (
+            <Button onClick={openCreate} className="shrink-0">
+              <Plus size={16} />
+              New goal
+            </Button>
+          ) : null
         }
       />
 
@@ -234,8 +238,8 @@ export default function GoalsPage() {
           <EmptyState
             title="No goals yet"
             description="Set an emergency fund, vacation, or house down payment. Link a savings account or contribute manually."
-            actionLabel="Create goal"
-            onAction={openCreate}
+            actionLabel={perms.create ? "Create goal" : undefined}
+            onAction={perms.create ? openCreate : undefined}
           />
         </div>
       ) : visible.length === 0 ? (
@@ -250,12 +254,18 @@ export default function GoalsPage() {
             <GoalCard
               key={g.id}
               goal={g}
-              onEdit={() => {
-                setEditing(g);
-                setModalOpen(true);
-              }}
-              onContribute={() => setContributeGoal(g)}
-              onDelete={() => setDeleteTarget(g)}
+              onEdit={
+                perms.update
+                  ? () => {
+                      setEditing(g);
+                      setModalOpen(true);
+                    }
+                  : undefined
+              }
+              onContribute={
+                perms.update ? () => setContributeGoal(g) : undefined
+              }
+              onDelete={perms.delete ? () => setDeleteTarget(g) : undefined}
             />
           ))}
         </div>

@@ -14,6 +14,7 @@ import {
 import { ActionMenu } from "@/components/ui/action-menu";
 import { cn } from "@/lib/cn";
 import type { AiConversation } from "@/types";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 
 function groupConversations(items: AiConversation[]) {
   const pinned = items.filter((item) => item.pinned_at);
@@ -85,6 +86,7 @@ export const ConversationSidebar = memo(function ConversationSidebar({
   onDelete: (id: string) => Promise<void>;
   onToggleArchivedView: () => void;
 }) {
+  const perms = useModulePermissions("ai");
   const groups = useMemo(
     () => groupConversations(conversations),
     [conversations],
@@ -104,14 +106,16 @@ export const ConversationSidebar = memo(function ConversationSidebar({
         >
           <PanelLeftOpen size={15} />
         </button>
-        <button
-          type="button"
-          onClick={onNewChat}
-          className="flex size-8 items-center justify-center rounded-[8px] bg-[var(--ds-focus-color)] text-white ds-focus"
-          aria-label="New chat"
-        >
-          <Plus size={15} />
-        </button>
+        {perms.create ? (
+          <button
+            type="button"
+            onClick={onNewChat}
+            className="flex size-8 items-center justify-center rounded-[8px] bg-[var(--ds-focus-color)] text-white ds-focus"
+            aria-label="New chat"
+          >
+            <Plus size={15} />
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onToggleArchivedView}
@@ -161,7 +165,7 @@ export const ConversationSidebar = memo(function ConversationSidebar({
       </div>
 
       <div className="space-y-2 px-3">
-        {!archivedView ? (
+        {!archivedView && perms.create ? (
           <button
             type="button"
             onClick={onNewChat}
@@ -223,6 +227,9 @@ export const ConversationSidebar = memo(function ConversationSidebar({
                     onArchive={() => onArchive(item.id)}
                     onUnarchive={() => onUnarchive(item.id)}
                     onDelete={() => onDelete(item.id)}
+                    canUpdate={perms.update}
+                    canCreate={perms.create}
+                    canDelete={perms.delete}
                   />
                 ))}
               </div>
@@ -258,6 +265,9 @@ const ConversationItem = memo(function ConversationItem({
   onArchive,
   onUnarchive,
   onDelete,
+  canUpdate = true,
+  canCreate = true,
+  canDelete = true,
 }: {
   item: AiConversation;
   active: boolean;
@@ -269,7 +279,87 @@ const ConversationItem = memo(function ConversationItem({
   onArchive: () => Promise<void>;
   onUnarchive: () => Promise<void>;
   onDelete: () => Promise<void>;
+  canUpdate?: boolean;
+  canCreate?: boolean;
+  canDelete?: boolean;
 }) {
+  // Backend: rename → ai.update; pin/archive/duplicate → ai.create; delete → ai.delete
+  const menuItems = archivedView
+    ? [
+        ...(canCreate
+          ? [
+              {
+                id: "unarchive",
+                label: "Unarchive",
+                onSelect: () => void onUnarchive(),
+              },
+            ]
+          : []),
+        ...(canDelete
+          ? [
+              {
+                id: "delete",
+                label: "Delete",
+                tone: "danger" as const,
+                onSelect: () => {
+                  if (window.confirm(`Delete “${item.title}”?`)) {
+                    void onDelete();
+                  }
+                },
+              },
+            ]
+          : []),
+      ]
+    : [
+        ...(canUpdate
+          ? [
+              {
+                id: "rename",
+                label: "Rename",
+                onSelect: () => {
+                  const next = window.prompt(
+                    "Rename conversation",
+                    item.title,
+                  );
+                  if (next?.trim()) void onRename(next.trim());
+                },
+              },
+            ]
+          : []),
+        ...(canCreate
+          ? [
+              {
+                id: "pin",
+                label: item.pinned_at ? "Unpin" : "Pin",
+                onSelect: () => void onPin(),
+              },
+              {
+                id: "duplicate",
+                label: "Duplicate",
+                onSelect: () => void onDuplicate(),
+              },
+              {
+                id: "archive",
+                label: "Archive",
+                onSelect: () => void onArchive(),
+              },
+            ]
+          : []),
+        ...(canDelete
+          ? [
+              {
+                id: "delete",
+                label: "Delete",
+                tone: "danger" as const,
+                onSelect: () => {
+                  if (window.confirm(`Delete “${item.title}”?`)) {
+                    void onDelete();
+                  }
+                },
+              },
+            ]
+          : []),
+      ];
   return (
     <div
       className={cn(
@@ -306,69 +396,14 @@ const ConversationItem = memo(function ConversationItem({
           </time>
         </span>
       </button>
-      <div className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-        <ActionMenu
-          label={`Actions for ${item.title}`}
-          items={
-            archivedView
-              ? [
-                  {
-                    id: "unarchive",
-                    label: "Unarchive",
-                    onSelect: () => void onUnarchive(),
-                  },
-                  {
-                    id: "delete",
-                    label: "Delete",
-                    tone: "danger",
-                    onSelect: () => {
-                      if (window.confirm(`Delete “${item.title}”?`)) {
-                        void onDelete();
-                      }
-                    },
-                  },
-                ]
-              : [
-                  {
-                    id: "rename",
-                    label: "Rename",
-                    onSelect: () => {
-                      const next = window.prompt(
-                        "Rename conversation",
-                        item.title,
-                      );
-                      if (next?.trim()) void onRename(next.trim());
-                    },
-                  },
-                  {
-                    id: "pin",
-                    label: item.pinned_at ? "Unpin" : "Pin",
-                    onSelect: () => void onPin(),
-                  },
-                  {
-                    id: "duplicate",
-                    label: "Duplicate",
-                    onSelect: () => void onDuplicate(),
-                  },
-                  {
-                    id: "archive",
-                    label: "Archive",
-                    onSelect: () => void onArchive(),
-                  },
-                  {
-                    id: "delete",
-                    label: "Delete",
-                    tone: "danger",
-                    onSelect: () => {
-                      if (window.confirm(`Delete “${item.title}”?`)) {
-                        void onDelete();
-                      }
-                    },
-                  },
-                ]
-          }
-        />
-      </div>
+      {menuItems.length ? (
+        <div className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+          <ActionMenu
+            label={`Actions for ${item.title}`}
+            items={menuItems}
+          />
+        </div>
+      ) : null}
     </div>
   );
 });

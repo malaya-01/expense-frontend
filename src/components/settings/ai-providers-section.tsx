@@ -32,6 +32,7 @@ import type {
   AiSettings,
 } from "@/types";
 import { cn } from "@/lib/cn";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 
 const PROVIDER_ORDER: AiProviderId[] = [
   "openai",
@@ -55,6 +56,7 @@ const PROVIDER_TONE: Record<AiProviderId, "blue" | "orange" | "purple" | "green"
 };
 
 export function AiProvidersSection() {
+  const perms = useModulePermissions("ai");
   const [settings, setSettings] = useState<AiSettings | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -303,6 +305,7 @@ export function AiProvidersSection() {
                   <Button
                     size="sm"
                     variant="secondary"
+                    disabled={!perms.create && !perms.update}
                     onClick={() => setConfigure(p.provider)}
                   >
                     Configure
@@ -311,7 +314,12 @@ export function AiProvidersSection() {
                     size="sm"
                     variant="secondary"
                     loading={busy === `test-${p.provider}`}
-                    disabled={!p.connected && !p.credentials_meta?.has_api_key && !p.credentials_meta?.has_service_account}
+                    disabled={
+                      !perms.create ||
+                      (!p.connected &&
+                        !p.credentials_meta?.has_api_key &&
+                        !p.credentials_meta?.has_service_account)
+                    }
                     onClick={() => onTest(p.provider)}
                   >
                     Test
@@ -320,7 +328,7 @@ export function AiProvidersSection() {
                     size="sm"
                     variant="secondary"
                     loading={busy === `use-${p.provider}`}
-                    disabled={!p.connected && !p.model}
+                    disabled={!perms.create || (!p.connected && !p.model)}
                     onClick={() => onUse(p.provider, p.model)}
                   >
                     Use
@@ -333,6 +341,7 @@ export function AiProvidersSection() {
                       variant="ghost"
                       className="text-[var(--ds-status-red)]"
                       loading={busy === `disc-${p.provider}`}
+                      disabled={!perms.delete}
                       onClick={() => setDisconnectTarget(p.provider)}
                     >
                       Disconnect
@@ -357,6 +366,7 @@ export function AiProvidersSection() {
           <Button
             size="sm"
             variant={memoryEnabled ? "secondary" : "primary"}
+            disabled={!perms.update}
             onClick={async () => {
               const next = !memoryEnabled;
               setMemoryEnabled(next);
@@ -383,7 +393,7 @@ export function AiProvidersSection() {
             <Button
               type="submit"
               loading={busy === "memory"}
-              disabled={!memoryEnabled || !memoryDraft.trim()}
+              disabled={!perms.create || !memoryEnabled || !memoryDraft.trim()}
             >
               Remember
             </Button>
@@ -405,13 +415,15 @@ export function AiProvidersSection() {
                   </div>
                   <button
                     type="button"
+                    disabled={!perms.delete}
                     onClick={async () => {
+                      if (!perms.delete) return;
                       await deleteAiMemory(memory.id);
                       setMemories((items) =>
                         items.filter((item) => item.id !== memory.id),
                       );
                     }}
-                    className="shrink-0 rounded px-1.5 py-0.5 text-xs text-[var(--ds-status-red)] hover:bg-[var(--ds-danger-hover)]"
+                    className="shrink-0 rounded px-1.5 py-0.5 text-xs text-[var(--ds-status-red)] hover:bg-[var(--ds-danger-hover)] disabled:opacity-40"
                     aria-label="Forget memory"
                   >
                     Forget
@@ -463,7 +475,11 @@ export function AiProvidersSection() {
             >
               Load FinOS default
             </Button>
-            <Button loading={busy === "prompt"} onClick={savePrompt}>
+            <Button
+              loading={busy === "prompt"}
+              disabled={!perms.update}
+              onClick={savePrompt}
+            >
               Save
             </Button>
           </>

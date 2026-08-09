@@ -5,6 +5,7 @@ import axios, {
 } from "axios";
 import type { ApiResponse } from "@/types";
 import { beginApiActivity, endApiActivity } from "@/lib/api/activity";
+import { getClientPlatform } from "@/lib/runtime-platform";
 
 const ACCESS_COOKIE = "access_token";
 const REFRESH_COOKIE = "refresh_token";
@@ -173,6 +174,9 @@ function createClient(): AxiosInstance {
       const token = getAccessToken();
       if (token) {
         config.headers.set("Authorization", `Bearer ${token}`);
+      }
+      if (typeof window !== "undefined") {
+        config.headers.set("X-FinOS-Client", getClientPlatform().code);
       }
       if (typeof FormData !== "undefined" && config.data instanceof FormData) {
         config.headers.delete("Content-Type");

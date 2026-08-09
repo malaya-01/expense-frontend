@@ -27,8 +27,8 @@ export function BudgetCard({
   onDelete,
 }: {
   budget: Budget;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   const pct = Math.min(100, Math.max(0, budget.percent));
   const accent = budget.category_color || "#2563EB";
@@ -79,23 +79,38 @@ export function BudgetCard({
             >
               {STATUS_LABEL[budget.status]}
             </span>
-            <ActionMenu
-              label={`Actions for ${budget.name}`}
-              items={[
-                { id: "edit", label: "Edit", onSelect: onEdit },
-                {
-                  id: "delete",
-                  label: "Delete",
-                  tone: "danger",
-                  onSelect: onDelete,
-                },
-              ]}
-              trigger={
-                <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)]">
-                  <MoreHorizontal size={16} />
-                </span>
-              }
-            />
+            {(() => {
+              const items = [
+                onEdit
+                  ? { id: "edit", label: "Edit", onSelect: onEdit }
+                  : null,
+                onDelete
+                  ? {
+                      id: "delete",
+                      label: "Delete",
+                      tone: "danger" as const,
+                      onSelect: onDelete,
+                    }
+                  : null,
+              ].filter(Boolean) as {
+                id: string;
+                label: string;
+                onSelect: () => void;
+                tone?: "default" | "danger";
+              }[];
+              if (!items.length) return null;
+              return (
+                <ActionMenu
+                  label={`Actions for ${budget.name}`}
+                  items={items}
+                  trigger={
+                    <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)]">
+                      <MoreHorizontal size={16} />
+                    </span>
+                  }
+                />
+              );
+            })()}
           </div>
         </div>
 

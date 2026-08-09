@@ -24,6 +24,8 @@ import { openCommandPalette } from "@/components/layout/command-palette";
 import { NotificationCenter } from "@/components/layout/notification-center";
 import { SyncStatusButton } from "@/components/sync/sync-status";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
+import { useAuth } from "@/lib/auth-context";
+import { canCrud } from "@/lib/permissions";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import {
   setMobileNavOpen,
@@ -44,12 +46,14 @@ const ROUTE_TITLES = [
   { route: "/ai", title: "AI Advisor", icon: Sparkles },
   { route: "/categories", title: "Categories", icon: Tags },
   { route: "/settings", title: "Settings", icon: Settings },
+  { route: "/admin", title: "Admin", icon: Settings },
   { route: "/profile", title: "Profile", icon: UserRound },
 ] as const;
 
 export function AppTopbar() {
   const router = useRouter();
   const { openTransactionModal } = useTransactionModal();
+  const { user } = useAuth();
   const pathname = usePathname();
   const dispatch = useAppDispatch();
   const sidebarPinned = useAppSelector((state) => state.ui.sidebarPinned);
@@ -64,7 +68,8 @@ export function AppTopbar() {
   );
   const PageIcon = page.icon;
   const showTransactionAction =
-    pathname === "/dashboard" || pathname === "/expenses";
+    (pathname === "/dashboard" || pathname === "/expenses") &&
+    canCrud(user, "expenses", "create");
 
   return (
     <header className="fixed inset-x-0 top-0 z-[70] flex h-11 items-center gap-1 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-background-100)] px-2">

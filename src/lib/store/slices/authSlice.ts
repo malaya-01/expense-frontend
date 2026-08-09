@@ -31,6 +31,17 @@ const authSlice = createSlice({
       state.user = action.payload;
       state.hasAccessToken = true;
     },
+    updatePermissions(
+      state,
+      action: PayloadAction<{ is_admin: boolean; permissions: string[] }>,
+    ) {
+      if (!state.user) return;
+      state.user = {
+        ...state.user,
+        is_admin: action.payload.is_admin,
+        permissions: action.payload.permissions,
+      };
+    },
     logout(state) {
       state.user = null;
       state.hasAccessToken = false;
@@ -38,7 +49,8 @@ const authSlice = createSlice({
   },
 });
 
-export const { hydrateAuth, setSession, logout } = authSlice.actions;
+export const { hydrateAuth, setSession, updatePermissions, logout } =
+  authSlice.actions;
 export default authSlice.reducer;
 
 export function selectIsAuthenticated(state: { auth: AuthState }) {

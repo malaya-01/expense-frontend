@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { ProposalPayloadView } from "@/components/ai/proposal-payload-view";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { cn } from "@/lib/cn";
 import type { AiActionProposal } from "@/types";
 
@@ -25,6 +26,7 @@ export function ProposalBatchReviewModal({
   }) => void | Promise<void>;
   onReviewOne: (proposal: AiActionProposal) => void;
 }) {
+  const perms = useModulePermissions("ai");
   const pending = useMemo(
     () => proposals.filter((p) => p.status === "pending"),
     [proposals],
@@ -69,7 +71,7 @@ export function ProposalBatchReviewModal({
             <Button
               size="sm"
               variant="secondary"
-              disabled={busy || !pending.length}
+              disabled={busy || !perms.create || !pending.length}
               onClick={() =>
                 void onDecide({
                   confirm_ids: allIds,
@@ -82,7 +84,7 @@ export function ProposalBatchReviewModal({
             <Button
               size="sm"
               variant="ghost"
-              disabled={busy || !pending.length}
+              disabled={busy || !perms.create || !pending.length}
               onClick={() =>
                 void onDecide({
                   confirm_ids: [],
@@ -96,7 +98,7 @@ export function ProposalBatchReviewModal({
           <div className="flex flex-wrap gap-1.5">
             <Button
               size="sm"
-              disabled={busy || !selectedIds.length}
+              disabled={busy || !perms.create || !selectedIds.length}
               onClick={() =>
                 void onDecide({
                   confirm_ids: selectedIds,
@@ -109,7 +111,7 @@ export function ProposalBatchReviewModal({
             <Button
               size="sm"
               variant="secondary"
-              disabled={busy || !selectedIds.length}
+              disabled={busy || !perms.create || !selectedIds.length}
               onClick={() =>
                 void onDecide({
                   confirm_ids: unselectedIds,

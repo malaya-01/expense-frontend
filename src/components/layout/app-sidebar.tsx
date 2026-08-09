@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Landmark,
   Settings,
+  Shield,
   Sparkles,
   Tags,
   Target,
@@ -34,6 +35,12 @@ import { SpacesSidebarSection } from "@/components/layout/spaces-sidebar-section
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { useAuth } from "@/lib/auth-context";
 import { initials } from "@/lib/format";
+import {
+  canAccessAdmin,
+  canCrud,
+  hasPermission,
+  NAV_PERMISSIONS,
+} from "@/lib/permissions";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import {
   selectSidebarVisible,
@@ -68,8 +75,17 @@ export const PRIMARY_NAV: NavItem[] = [
 export const SECONDARY_NAV: NavItem[] = [
   { href: "/categories", label: "Categories", icon: Tags },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/admin", label: "Admin", icon: Shield },
 ];
 
+function filterNav(items: NavItem[], user: ReturnType<typeof useAuth>["user"]) {
+  return items.filter((item) => {
+    if (item.href === "/admin") return canAccessAdmin(user);
+    const code = NAV_PERMISSIONS[item.href];
+    if (!code) return true;
+    return hasPermission(user, code);
+  });
+}
 function NavLink({
   item,
   collapsed = false,
@@ -129,6 +145,10 @@ function SidebarContents({
   const router = useRouter();
   const { openTransactionModal } = useTransactionModal();
   const { user, logout } = useAuth();
+  const primaryNav = filterNav(PRIMARY_NAV, user);
+  const secondaryNav = filterNav(SECONDARY_NAV, user);
+  const canCreateTx = canCrud(user, "expenses", "create");
+  const canSpaces = hasPermission(user, "spaces.access");
 
   return (
     <>
@@ -169,17 +189,19 @@ function SidebarContents({
           <span className="flex-1">Search</span>
           <kbd className="text-[10px] text-[var(--ds-gray-700)]">Ctrl K</kbd>
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            openTransactionModal();
-            onNavigate?.();
-          }}
-          className="flex min-h-8 w-full items-center gap-2 rounded-[7px] px-2 text-left text-[12px] text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] ds-focus"
-        >
-          <Plus size={14} />
-          New transaction
-        </button>
+        {canCreateTx ? (
+          <button
+            type="button"
+            onClick={() => {
+              openTransactionModal();
+              onNavigate?.();
+            }}
+            className="flex min-h-8 w-full items-center gap-2 rounded-[7px] px-2 text-left text-[12px] text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] ds-focus"
+          >
+            <Plus size={14} />
+            New transaction
+          </button>
+        ) : null}
       </div>
 
       <nav className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-2 py-2">
@@ -187,16 +209,16 @@ function SidebarContents({
           <p className="mb-1 px-2 text-[10px] font-medium text-[var(--ds-gray-700)]">
             Finance
           </p>
-          {PRIMARY_NAV.map((item) => (
+          {primaryNav.map((item) => (
             <NavLink key={item.href} item={item} onNavigate={onNavigate} />
           ))}
         </div>
-        <SpacesSidebarSection onNavigate={onNavigate} />
+        {canSpaces ? <SpacesSidebarSection onNavigate={onNavigate} /> : null}
         <div className="mt-5 space-y-0.5">
           <p className="mb-1 px-2 text-[10px] font-medium text-[var(--ds-gray-700)]">
             Workspace
           </p>
-          {SECONDARY_NAV.map((item) => (
+          {secondaryNav.map((item) => (
             <NavLink key={item.href} item={item} onNavigate={onNavigate} />
           ))}
         </div>
@@ -361,12 +383,14 @@ export function AppSidebar() {
 export function MobileNav() {
   const dispatch = useAppDispatch();
   const moreOpen = useAppSelector((state) => state.ui.mobileNavOpen);
-  const items = [
+  const { user } = useAuth();
+  const candidates = [
     PRIMARY_NAV.find((item) => item.href === "/dashboard")!,
     PRIMARY_NAV.find((item) => item.href === "/expenses")!,
     PRIMARY_NAV.find((item) => item.href === "/ai")!,
     PRIMARY_NAV.find((item) => item.href === "/accounts")!,
   ];
+  const items = filterNav(candidates, user).slice(0, 4);
   const pathname = usePathname();
 
   return (

@@ -11,6 +11,7 @@ import {
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/ai/markdown-renderer";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { cn } from "@/lib/cn";
 import type { AiActionProposal, AiCitation, AiMessage } from "@/types";
 
@@ -31,6 +32,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   busyProposal: string | null;
   streaming?: boolean;
 }) {
+  const perms = useModulePermissions("ai");
   const hasContent = Boolean(message.content?.trim());
   const citations = (message.citations || []) as AiCitation[];
   const webSources = citations.filter(
@@ -163,6 +165,7 @@ export const AssistantMessage = memo(function AssistantMessage({
                   </p>
                   <Button
                     size="sm"
+                    disabled={!perms.create}
                     onClick={() =>
                       onReviewBatch?.(
                         proposals
@@ -187,19 +190,25 @@ export const AssistantMessage = memo(function AssistantMessage({
                 </p>
               ) : null}
               {p.status === "pending" ? (
-                <div className="mt-2 flex gap-1.5">
-                  <Button size="sm" onClick={() => onConfirm(p)}>
-                    Review
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    loading={busyProposal === p.id}
-                    onClick={() => onReject(p.id)}
-                  >
-                    Reject
-                  </Button>
-                </div>
+                perms.create ? (
+                  <div className="mt-2 flex gap-1.5">
+                    <Button size="sm" onClick={() => onConfirm(p)}>
+                      Review
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      loading={busyProposal === p.id}
+                      onClick={() => onReject(p.id)}
+                    >
+                      Reject
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-[11px] text-[var(--ds-gray-700)]">
+                    Pending — AI create permission required to decide
+                  </p>
+                )
               ) : (
                 <p className="mt-1 text-[11px] capitalize text-[var(--ds-gray-700)]">
                   {p.status}

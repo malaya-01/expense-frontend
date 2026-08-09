@@ -19,6 +19,7 @@ import type { ReportOverview } from "@/types";
 import { Alert, CardGridSkeleton } from "@/components/ui/feedback";
 import { useToast } from "@/components/ui/toast";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
+import { canCrud } from "@/lib/permissions";
 
 function monthLabel(key: string): string {
   const [y, m] = key.split("-").map(Number);
@@ -33,6 +34,7 @@ export default function ReportsPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const { openTransactionModal } = useTransactionModal();
+  const canCreateTx = canCrud(user, "expenses", "create");
   const [months, setMonths] = useState(6);
   const [report, setReport] = useState<ReportOverview | null>(null);
   const [error, setError] = useState("");
@@ -231,14 +233,19 @@ export default function ReportsPage() {
               <CardBody>
                 {report.cash_flow.every((m) => m.income === 0 && m.expense === 0) ? (
                   <p className="text-sm text-[var(--ds-gray-900)]">
-                    No ledger activity in this window.{" "}
-                    <button
-                      type="button"
-                      onClick={openTransactionModal}
-                      className="text-[var(--ds-focus-color)]"
-                    >
-                      Record a transaction
-                    </button>
+                    No ledger activity in this window.
+                    {canCreateTx ? (
+                      <>
+                        {" "}
+                        <button
+                          type="button"
+                          onClick={openTransactionModal}
+                          className="text-[var(--ds-focus-color)]"
+                        >
+                          Record a transaction
+                        </button>
+                      </>
+                    ) : null}
                   </p>
                 ) : (
                   <div className="space-y-4">

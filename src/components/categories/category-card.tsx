@@ -62,8 +62,8 @@ export function CategoryCard({
 }: {
   category: Category;
   currency: string;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   const color = category.color || "#6B7280";
   const Icon = getCategoryIconComponent(category.icon);
@@ -119,17 +119,25 @@ export function CategoryCard({
                   </span>
                 }
                 items={[
-                  {
-                    id: "edit",
-                    label: "Edit",
-                    onSelect: onEdit,
-                  },
-                  {
-                    id: "delete",
-                    label: "Delete",
-                    tone: "danger",
-                    onSelect: onDelete,
-                  },
+                  ...(onEdit
+                    ? [
+                        {
+                          id: "edit",
+                          label: "Edit",
+                          onSelect: onEdit,
+                        },
+                      ]
+                    : []),
+                  ...(onDelete
+                    ? [
+                        {
+                          id: "delete",
+                          label: "Delete",
+                          tone: "danger" as const,
+                          onSelect: onDelete,
+                        },
+                      ]
+                    : []),
                 ]}
               />
             </div>

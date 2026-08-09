@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/cn";
 import { listSpaces, type CollaborativeSpace } from "@/lib/api/spaces";
 import { useAuth } from "@/lib/auth-context";
+import { canCrud } from "@/lib/permissions";
 
 export function SpacesSidebarSection({
   onNavigate,
@@ -20,6 +21,7 @@ export function SpacesSidebarSection({
   onNavigate?: () => void;
 }) {
   const { user } = useAuth();
+  const canCreateSpace = canCrud(user, "spaces", "create");
   const pathname = usePathname();
   const router = useRouter();
   const [expanded, setExpanded] = useState(() => pathname.startsWith("/spaces"));
@@ -51,6 +53,7 @@ export function SpacesSidebarSection({
           {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           <span className="flex-1 text-left">Collaborative Spaces</span>
         </button>
+        {canCreateSpace ? (
         <button
           type="button"
           title="New space"
@@ -63,6 +66,7 @@ export function SpacesSidebarSection({
         >
           <Plus size={12} />
         </button>
+        ) : null}
       </div>
 
       {expanded ? (

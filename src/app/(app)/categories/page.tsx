@@ -21,6 +21,7 @@ import {
 } from "@/lib/api/categories";
 import { getErrorMessage } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { useToast } from "@/components/ui/toast";
 import { CardGridSkeleton } from "@/components/ui/feedback";
 import { CategoryNameWithIcon } from "@/components/categories/category-icon-picker";
@@ -57,6 +58,7 @@ const emptyForm: CreateCategoryInput = {
 type FilterKind = "all" | "budgeted" | "unbudgeted";
 
 export default function CategoriesPage() {
+  const perms = useModulePermissions("categories");
   const { user } = useAuth();
   const { showToast } = useToast();
   const currency = user?.currency || "USD";
@@ -207,10 +209,12 @@ export default function CategoriesPage() {
                 <option value="unbudgeted">No budget</option>
               </Select>
             </div>
-            <Button onClick={openCreate} className="gap-1.5">
-              <Plus size={15} />
-              New category
-            </Button>
+            {perms.create ? (
+              <Button onClick={openCreate} className="gap-1.5">
+                <Plus size={15} />
+                New category
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -226,8 +230,8 @@ export default function CategoriesPage() {
           <EmptyState
             title="No categories"
             description="Create categories like Groceries, Rent, or Travel."
-            actionLabel="New category"
-            onAction={openCreate}
+            actionLabel={perms.create ? "New category" : undefined}
+            onAction={perms.create ? openCreate : undefined}
           />
         </Card>
       ) : visible.length === 0 ? (
@@ -248,8 +252,10 @@ export default function CategoriesPage() {
               key={category.id}
               category={category}
               currency={currency}
-              onEdit={() => openEdit(category)}
-              onDelete={() => setDeleteTarget(category)}
+              onEdit={perms.update ? () => openEdit(category) : undefined}
+              onDelete={
+                perms.delete ? () => setDeleteTarget(category) : undefined
+              }
             />
           ))}
         </div>

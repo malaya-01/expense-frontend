@@ -23,6 +23,7 @@ import { Alert, CardGridSkeleton } from "@/components/ui/feedback";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { listAccounts } from "@/lib/api/accounts";
 import { listCategories } from "@/lib/api/categories";
 import {
@@ -70,6 +71,7 @@ const FREQUENCIES: Array<[RecurringSchedule["frequency"], string]> = [
 type StatusFilter = "all" | "active" | "paused" | "archived";
 
 export default function RecurringPage() {
+  const perms = useModulePermissions("recurring");
   const { user } = useAuth();
   const { showToast } = useToast();
   const [schedules, setSchedules] = useState<RecurringSchedule[]>([]);
@@ -218,16 +220,18 @@ export default function RecurringPage() {
           { value: "archived", label: "Archived" },
         ]}
         actions={
-          <Button
-            className="shrink-0"
-            onClick={() => {
-              setForm({ ...EMPTY, start_date: todayISO() });
-              setOpen(true);
-            }}
-          >
-            <Plus size={16} />
-            New schedule
-          </Button>
+          perms.create ? (
+            <Button
+              className="shrink-0"
+              onClick={() => {
+                setForm({ ...EMPTY, start_date: todayISO() });
+                setOpen(true);
+              }}
+            >
+              <Plus size={16} />
+              New schedule
+            </Button>
+          ) : null
         }
       />
 
@@ -273,8 +277,15 @@ export default function RecurringPage() {
           <EmptyState
             title="No recurring schedules"
             description="Automate salary, rent, subscriptions, savings transfers, EMIs, and other predictable events."
-            actionLabel="Create schedule"
-            onAction={() => setOpen(true)}
+            actionLabel={perms.create ? "Create schedule" : undefined}
+            onAction={
+              perms.create
+                ? () => {
+                    setForm({ ...EMPTY, start_date: todayISO() });
+                    setOpen(true);
+                  }
+                : undefined
+            }
           />
         </div>
       ) : visible.length === 0 ? (
@@ -290,10 +301,18 @@ export default function RecurringPage() {
               key={schedule.id}
               schedule={schedule}
               currency={user?.currency || "USD"}
-              onPost={() => void handlePost(schedule)}
-              onPause={() => void handlePause(schedule)}
-              onResume={() => void handleResume(schedule)}
-              onArchive={() => setArchiveTarget(schedule)}
+              onPost={
+                perms.update ? () => void handlePost(schedule) : undefined
+              }
+              onPause={
+                perms.update ? () => void handlePause(schedule) : undefined
+              }
+              onResume={
+                perms.update ? () => void handleResume(schedule) : undefined
+              }
+              onArchive={
+                perms.delete ? () => setArchiveTarget(schedule) : undefined
+              }
             />
           ))}
         </div>

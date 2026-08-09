@@ -20,8 +20,10 @@ import { createSpace, listSpaces, type CollaborativeSpace } from "@/lib/api/spac
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 
 export default function SpacesIndexPage() {
+  const perms = useModulePermissions("spaces");
   const { user } = useAuth();
   const { showToast } = useToast();
   const [spaces, setSpaces] = useState<CollaborativeSpace[]>([]);
@@ -53,10 +55,13 @@ export default function SpacesIndexPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (new URLSearchParams(window.location.search).get("create") === "1") {
+    if (
+      perms.create &&
+      new URLSearchParams(window.location.search).get("create") === "1"
+    ) {
       setOpen(true);
     }
-  }, []);
+  }, [perms.create]);
 
   const summary = useMemo(() => {
     const favorites = spaces.filter((s) => s.is_favorite).length;
@@ -125,10 +130,12 @@ export default function SpacesIndexPage() {
           { value: "owner", label: "Owned by me" },
         ]}
         actions={
-          <Button onClick={() => setOpen(true)} className="shrink-0">
-            <Plus size={16} />
-            New space
-          </Button>
+          perms.create ? (
+            <Button onClick={() => setOpen(true)} className="shrink-0">
+              <Plus size={16} />
+              New space
+            </Button>
+          ) : null
         }
       />
 
@@ -176,8 +183,8 @@ export default function SpacesIndexPage() {
           <EmptyState
             title="No spaces yet"
             description="Create a Home, Trip, or Startup workspace. Invite members in-app — they accept from notifications."
-            actionLabel="Create space"
-            onAction={() => setOpen(true)}
+            actionLabel={perms.create ? "Create space" : undefined}
+            onAction={perms.create ? () => setOpen(true) : undefined}
           />
         </div>
       ) : visible.length === 0 ? (

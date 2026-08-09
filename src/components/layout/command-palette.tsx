@@ -26,6 +26,12 @@ import { PRIMARY_NAV, SECONDARY_NAV } from "./app-sidebar";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/auth-context";
+import {
+  canAccessAdmin,
+  canCrud,
+  hasPermission,
+  NAV_PERMISSIONS,
+} from "@/lib/permissions";
 import { listTransactions } from "@/lib/api/transactions";
 import { listAccounts } from "@/lib/api/accounts";
 import { listBudgets } from "@/lib/api/budgets";
@@ -107,6 +113,9 @@ export function CommandPalette() {
   const [recordItems, setRecordItems] = useState<PaletteItem[]>([]);
   const [indexLoaded, setIndexLoaded] = useState(false);
   const [indexing, setIndexing] = useState(false);
+  const canCreateTx = canCrud(user, "expenses", "create");
+  const canCreateSpace = canCrud(user, "spaces", "create");
+  const canSpaces = hasPermission(user, "spaces.access");
 
   useEffect(() => {
     const onGlobalKey = (event: KeyboardEvent) => {
@@ -115,14 +124,18 @@ export function CommandPalette() {
         previousFocus.current = document.activeElement as HTMLElement | null;
         dispatch(openCommandPaletteAction());
       }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
+      if (
+        canCreateTx &&
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "n"
+      ) {
         event.preventDefault();
         openTransactionModal();
       }
     };
     window.addEventListener("keydown", onGlobalKey);
     return () => window.removeEventListener("keydown", onGlobalKey);
-  }, [dispatch, openTransactionModal]);
+  }, [canCreateTx, dispatch, openTransactionModal]);
 
   useEffect(() => {
     if (!open) return;
@@ -242,31 +255,43 @@ export function CommandPalette() {
   };
 
   const items = useMemo<PaletteItem[]>(() => {
-    const navigation = [...PRIMARY_NAV, ...SECONDARY_NAV].map((item) => ({
-      id: `nav-${item.href}`,
-      title: item.label,
-      subtitle: "Go to module",
-      keywords: `${item.label} navigation open`,
-      icon: item.icon,
-      run: () => router.push(item.href),
-    }));
-    return [
-      {
+    const navigation = [...PRIMARY_NAV, ...SECONDARY_NAV]
+      .filter((item) => {
+        if (item.href === "/admin") return canAccessAdmin(user);
+        const code = NAV_PERMISSIONS[item.href];
+        if (!code) return true;
+        return hasPermission(user, code);
+      })
+      .map((item) => ({
+        id: `nav-${item.href}`,
+        title: item.label,
+        subtitle: "Go to module",
+        keywords: `${item.label} navigation open`,
+        icon: item.icon,
+        run: () => router.push(item.href),
+      }));
+    const commands: PaletteItem[] = [];
+    if (canCreateTx) {
+      commands.push({
         id: "new-transaction",
         title: "New transaction",
         subtitle: "Record expense, income, or transfer",
         keywords: "add create expense income transfer",
         icon: CirclePlus,
         run: openTransactionModal,
-      },
-      {
+      });
+    }
+    if (canCreateSpace) {
+      commands.push({
         id: "new-space",
         title: "New collaborative space",
         subtitle: "Create a shared financial workspace",
         keywords: "space trip family roommate shared split",
         icon: UsersRound,
         run: () => router.push("/spaces?create=1"),
-      },
+      });
+    }
+    commands.push(
       {
         id: "ask-advisor",
         title: "Ask AI Advisor",
@@ -291,18 +316,27 @@ export function CommandPalette() {
         icon: Settings,
         run: () => router.push("/settings"),
       },
-      {
+    );
+    if (canSpaces) {
+      commands.push({
         id: "nav-spaces",
         title: "Collaborative Spaces",
         subtitle: "Go to module",
         keywords: "spaces collaborative shared workspace navigation",
         icon: UsersRound,
         run: () => router.push("/spaces"),
-      },
-      ...navigation,
-      ...recordItems,
-    ];
-  }, [openTransactionModal, router, recordItems]);
+      });
+    }
+    return [...commands, ...navigation, ...recordItems];
+  }, [
+    canCreateSpace,
+    canCreateTx,
+    canSpaces,
+    openTransactionModal,
+    recordItems,
+    router,
+    user,
+  ]);
 
   const normalized = query.trim().toLowerCase();
   const filtered = items.filter((item) =>
@@ -442,7 +476,7 @@ export function CommandPalette() {
         </div>
         <footer className="flex items-center justify-between border-t border-[var(--ds-gray-200)] px-4 py-2 text-[10px] text-[var(--ds-gray-700)]">
           <span>↑↓ Navigate · Enter open</span>
-          <span>Ctrl N · New transaction</span>
+          {canCreateTx ? <span>Ctrl N · New transaction</span> : <span />}
         </footer>
       </section>
     </div>,

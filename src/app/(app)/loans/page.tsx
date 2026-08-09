@@ -30,6 +30,7 @@ import { SummaryKpiCard } from "@/components/ui/summary-kpi-card";
 import { LoanCard } from "@/components/loans/loan-card";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
+import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { listAccounts } from "@/lib/api/accounts";
 import {
   archiveLoan,
@@ -62,6 +63,7 @@ const EMPTY_LOAN: CreateLoanInput = {
 };
 
 export default function LoansPage() {
+  const perms = useModulePermissions("loans");
   const { user } = useAuth();
   const { showToast } = useToast();
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -229,10 +231,12 @@ export default function LoansPage() {
           { value: "archived", label: "Archived" },
         ]}
         actions={
-          <Button onClick={openCreate} className="shrink-0">
-            <Plus size={16} />
-            Add debt plan
-          </Button>
+          perms.create ? (
+            <Button onClick={openCreate} className="shrink-0">
+              <Plus size={16} />
+              Add debt plan
+            </Button>
+          ) : null
         }
       />
 
@@ -301,11 +305,19 @@ export default function LoansPage() {
                 ? "Link a loan, credit card, or payable container to calculate payoff progress."
                 : "Create a loan or credit-card container first, then add its repayment plan."
             }
-            actionLabel={liabilities.length ? "Add debt plan" : "Open accounts"}
-            onAction={() =>
+            actionLabel={
               liabilities.length
-                ? openCreate()
-                : window.location.assign("/accounts")
+                ? perms.create
+                  ? "Add debt plan"
+                  : undefined
+                : "Open accounts"
+            }
+            onAction={
+              liabilities.length
+                ? perms.create
+                  ? openCreate
+                  : undefined
+                : () => window.location.assign("/accounts")
             }
           />
         </div>
@@ -321,21 +333,27 @@ export default function LoansPage() {
             <LoanCard
               key={loan.id}
               loan={loan}
-              onPay={() => {
-                setPaymentLoan(loan);
-                setPayment({
-                  source_container_id: fundingAccounts[0]?.id || "",
-                  amount: Math.min(
-                    loan.monthly_payment,
-                    loan.outstanding_balance,
-                  ),
-                  date: todayISO(),
-                  notes: "",
-                });
-              }}
+              onPay={
+                perms.update
+                  ? () => {
+                      setPaymentLoan(loan);
+                      setPayment({
+                        source_container_id: fundingAccounts[0]?.id || "",
+                        amount: Math.min(
+                          loan.monthly_payment,
+                          loan.outstanding_balance,
+                        ),
+                        date: todayISO(),
+                        notes: "",
+                      });
+                    }
+                  : undefined
+              }
               onSchedule={() => void openSchedule(loan)}
-              onEdit={() => openEdit(loan)}
-              onArchive={() => setArchiveTarget(loan)}
+              onEdit={perms.update ? () => openEdit(loan) : undefined}
+              onArchive={
+                perms.delete ? () => setArchiveTarget(loan) : undefined
+              }
             />
           ))}
         </div>
