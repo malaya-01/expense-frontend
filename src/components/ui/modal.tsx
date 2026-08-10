@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
+
+const EXIT_MS = 280;
 
 export function Modal({
   open,
@@ -23,16 +25,31 @@ export function Modal({
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
-
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
+  const [mounted, setMounted] = useState(open);
+  const [visible, setVisible] = useState(open);
+
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      const id = window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => setVisible(true));
+      });
+      return () => window.cancelAnimationFrame(id);
+    }
+    setVisible(false);
+    const timer = window.setTimeout(() => setMounted(false), EXIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
+    window.dispatchEvent(new Event("finos:close-overlays"));
     const previousFocus = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    // Only steal focus when the modal first opens — not on every parent re-render.
     window.requestAnimationFrame(() => {
       const alreadyInside = dialogRef.current?.contains(document.activeElement);
       if (alreadyInside) return;
@@ -43,7 +60,9 @@ export function Modal({
     });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if ((e.target as HTMLElement | null)?.closest?.("[data-nested-overlay]")) {
+        if (
+          (e.target as HTMLElement | null)?.closest?.("[data-nested-overlay]")
+        ) {
           return;
         }
         onCloseRef.current();
@@ -75,14 +94,17 @@ export function Modal({
     };
   }, [open]);
 
-  if (!open || typeof document === "undefined") return null;
+  if (!mounted || typeof document === "undefined") return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-5 lg:p-8">
       <button
         type="button"
         aria-label="Close dialog"
-        className="absolute inset-0 bg-black/65 backdrop-blur-[2px]"
+        className={cn(
+          "absolute inset-0 bg-black/65 backdrop-blur-[2px]",
+          visible ? "ds-backdrop-enter" : "ds-backdrop-exit",
+        )}
         onClick={onClose}
       />
       <div
@@ -91,12 +113,17 @@ export function Modal({
         aria-modal
         aria-labelledby={titleId}
         className={cn(
-          "relative z-10 flex max-h-[94dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-[20px] bg-[var(--ds-background-elevated)] ds-border-modal ds-strong-border ds-overlay-enter sm:max-h-[min(90dvh,900px)] sm:w-[calc(100%-2.5rem)] sm:rounded-[18px]",
+          "relative z-10 flex max-h-[94dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-[20px] bg-[var(--ds-background-elevated)] ds-border-modal ds-strong-border sm:max-h-[min(90dvh,900px)] sm:w-[calc(100%-2.5rem)] sm:rounded-[18px]",
+          visible ? "ds-sheet-enter" : "ds-sheet-exit",
           className,
         )}
       >
+        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-[var(--ds-gray-200)] sm:hidden" aria-hidden />
         <div className="flex shrink-0 items-center justify-between border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] px-4 py-3 sm:px-7 sm:py-5">
-          <h2 id={titleId} className="text-[15px] font-semibold text-[var(--ds-gray-1000)] sm:text-base">
+          <h2
+            id={titleId}
+            className="text-[15px] font-semibold text-[var(--ds-gray-1000)] sm:text-base"
+          >
             {title}
           </h2>
           <button

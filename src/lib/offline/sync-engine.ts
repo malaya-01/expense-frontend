@@ -576,13 +576,10 @@ export async function bootstrapOfflineSync(userId?: string | null): Promise<void
   subscribeNetwork((online) => {
     void emitStatus();
     if (online) {
-      // Give free-tier hosts a moment after reconnect before first push.
+      // Sync when connectivity returns — not on a timer.
       setTimeout(() => void runSync("online"), 2_000);
     }
   });
-  setInterval(() => {
-    if (isOnline()) void runSync("interval");
-  }, 45_000);
   if (isOnline()) {
     setTimeout(() => void runSync("boot"), 1_500);
   }

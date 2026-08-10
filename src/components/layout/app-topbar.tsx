@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeftRight,
+  BookOpen,
   ChartNoAxesCombined,
   FileChartColumn,
   LayoutDashboard,
@@ -45,6 +46,7 @@ const ROUTE_TITLES = [
   { route: "/reports", title: "Reports", icon: FileChartColumn },
   { route: "/ai", title: "AI Advisor", icon: Sparkles },
   { route: "/categories", title: "Categories", icon: Tags },
+  { route: "/guide", title: "Guide", icon: BookOpen },
   { route: "/settings", title: "Settings", icon: Settings },
   { route: "/admin", title: "Admin", icon: Settings },
   { route: "/profile", title: "Profile", icon: UserRound },

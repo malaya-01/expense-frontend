@@ -195,19 +195,39 @@ export default function ExpensesPage() {
                 </option>
               ))}
             </Select>
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
-              aria-label="Transactions from date"
-            />
-            <Input
-              type="date"
-              value={dateTo}
-              min={dateFrom || undefined}
-              onChange={(event) => setDateTo(event.target.value)}
-              aria-label="Transactions to date"
-            />
+            <div className="min-w-0">
+              <label
+                htmlFor="tx-date-from"
+                className="mb-1 block text-[11px] font-medium text-[var(--ds-gray-900)]"
+              >
+                From date
+              </label>
+              <Input
+                id="tx-date-from"
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+                aria-label="Transactions from date"
+                className="date-input"
+              />
+            </div>
+            <div className="min-w-0">
+              <label
+                htmlFor="tx-date-to"
+                className="mb-1 block text-[11px] font-medium text-[var(--ds-gray-900)]"
+              >
+                To date
+              </label>
+              <Input
+                id="tx-date-to"
+                type="date"
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(event) => setDateTo(event.target.value)}
+                aria-label="Transactions to date"
+                className="date-input"
+              />
+            </div>
           </div>
         </CardBody>
       </Card>

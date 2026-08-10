@@ -10,6 +10,7 @@ import { getClientPlatform } from "@/lib/runtime-platform";
 const ACCESS_COOKIE = "access_token";
 const REFRESH_COOKIE = "refresh_token";
 const ACCESS_STORAGE_KEY = "finos:access_token";
+const REFRESH_STORAGE_KEY = "finos:refresh_token";
 export const API_BASE_STORAGE_KEY = "finos:api_base_url";
 
 const DEFAULT_API_BASE =
@@ -38,7 +39,6 @@ export function setApiBaseUrl(url: string) {
       /* ignore */
     }
   }
-  // `api` is created below; update if already initialized.
   try {
     api.defaults.baseURL = cleaned || DEFAULT_API_BASE.replace(/\/$/, "");
   } catch {
@@ -71,65 +71,165 @@ function removeCookie(name: string) {
   document.cookie = `${encodeURIComponent(name)}=; Path=/; Max-Age=0; SameSite=Lax`;
 }
 
-function readLocalToken(): string | undefined {
+function readLocal(key: string): string | undefined {
   if (typeof window === "undefined") return undefined;
   try {
-    return localStorage.getItem(ACCESS_STORAGE_KEY) || undefined;
+    return localStorage.getItem(key) || undefined;
   } catch {
     return undefined;
   }
 }
 
-function writeLocalToken(value: string) {
+function writeLocal(key: string, value: string) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(ACCESS_STORAGE_KEY, value);
+    localStorage.setItem(key, value);
   } catch {
     /* ignore */
   }
-  void persistNativeToken(value);
 }
 
-function clearLocalToken() {
+function clearLocal(key: string) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.removeItem(ACCESS_STORAGE_KEY);
+    localStorage.removeItem(key);
   } catch {
     /* ignore */
   }
-  void persistNativeToken(null);
 }
 
-async function persistNativeToken(value: string | null) {
+async function persistNativeKey(key: string, value: string | null) {
   try {
     const { Capacitor } = await import("@capacitor/core");
     if (!Capacitor.isNativePlatform()) return;
     const { Preferences } = await import("@capacitor/preferences");
-    if (value) {
-      await Preferences.set({ key: ACCESS_STORAGE_KEY, value });
-    } else {
-      await Preferences.remove({ key: ACCESS_STORAGE_KEY });
-    }
+    if (value) await Preferences.set({ key, value });
+    else await Preferences.remove({ key });
   } catch {
-    /* Capacitor optional at build time */
+    /* Capacitor optional */
+  }
+}
+
+function isJwtExpired(token: string, skewMs = 60_000): boolean {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return true;
+    const json = atob(part.replace(/-/g, "+").replace(/_/g, "/"));
+    const payload = JSON.parse(json) as { exp?: number };
+    if (typeof payload.exp !== "number") return false;
+    return payload.exp * 1000 < Date.now() + skewMs;
+  } catch {
+    return true;
   }
 }
 
 export function getAccessToken(): string | undefined {
-  return readCookie(ACCESS_COOKIE) || readLocalToken();
+  return readCookie(ACCESS_COOKIE) || readLocal(ACCESS_STORAGE_KEY);
 }
 
-export function setTokens(accessToken: string, _refreshToken?: string) {
-  writeCookie(ACCESS_COOKIE, accessToken, 2);
-  writeLocalToken(accessToken);
-  // Refresh tokens remain in the server-issued HttpOnly cookie.
-  removeCookie(REFRESH_COOKIE);
+export function getRefreshToken(): string | undefined {
+  // Prefer client-persisted refresh (required on Capacitor — HttpOnly cookies
+  // often do not survive WebView process death across origins).
+  return (
+    readLocal(REFRESH_STORAGE_KEY) ||
+    readCookie(REFRESH_COOKIE) ||
+    readCookie("refreshToken")
+  );
+}
+
+export function setTokens(accessToken: string, refreshToken?: string) {
+  // Access JWT itself expires in ~15m; cookie/local keep the string for 7d
+  // so we can refresh using the refresh token without forcing re-login.
+  writeCookie(ACCESS_COOKIE, accessToken, 7);
+  writeLocal(ACCESS_STORAGE_KEY, accessToken);
+  void persistNativeKey(ACCESS_STORAGE_KEY, accessToken);
+
+  if (refreshToken) {
+    writeLocal(REFRESH_STORAGE_KEY, refreshToken);
+    void persistNativeKey(REFRESH_STORAGE_KEY, refreshToken);
+  }
 }
 
 export function clearTokens() {
   removeCookie(ACCESS_COOKIE);
   removeCookie(REFRESH_COOKIE);
-  clearLocalToken();
+  removeCookie("refreshToken");
+  clearLocal(ACCESS_STORAGE_KEY);
+  clearLocal(REFRESH_STORAGE_KEY);
+  void persistNativeKey(ACCESS_STORAGE_KEY, null);
+  void persistNativeKey(REFRESH_STORAGE_KEY, null);
+}
+
+/** Pull tokens from Capacitor Preferences into localStorage before auth hydrate. */
+export async function hydrateNativeAuthTokens(): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const { Capacitor } = await import("@capacitor/core");
+    if (!Capacitor.isNativePlatform()) return;
+    const { Preferences } = await import("@capacitor/preferences");
+    const [access, refresh] = await Promise.all([
+      Preferences.get({ key: ACCESS_STORAGE_KEY }),
+      Preferences.get({ key: REFRESH_STORAGE_KEY }),
+    ]);
+    if (access.value && !readLocal(ACCESS_STORAGE_KEY)) {
+      writeLocal(ACCESS_STORAGE_KEY, access.value);
+    }
+    if (refresh.value && !readLocal(REFRESH_STORAGE_KEY)) {
+      writeLocal(REFRESH_STORAGE_KEY, refresh.value);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+async function postRefresh(
+  refreshToken?: string,
+): Promise<{ accessToken: string; refreshToken?: string }> {
+  const res = await axios.post<
+    ApiResponse<{ accessToken: string; refreshToken?: string }>
+  >(
+    `${getApiBaseUrl()}/auth/refresh-token`,
+    refreshToken ? { refreshToken } : {},
+    { withCredentials: true, timeout: 90_000 },
+  );
+  if (res.data?.status === "Error" || !res.data?.data?.accessToken) {
+    throw new Error(res.data?.message || "Refresh failed");
+  }
+  return res.data.data;
+}
+
+/** Refresh access token using stored refresh token (and/or HttpOnly cookie). */
+export async function refreshSession(): Promise<string> {
+  const tokens = await postRefresh(getRefreshToken());
+  setTokens(tokens.accessToken, tokens.refreshToken);
+  return tokens.accessToken;
+}
+
+/**
+ * Ensure we have a usable access token after cold start.
+ * Uses the 7-day refresh token so the user is not bounced to sign-in
+ * every time the Android WebView process is killed.
+ */
+export async function ensureSession(): Promise<boolean> {
+  await hydrateNativeAuthTokens();
+  const access = getAccessToken();
+  const refresh = getRefreshToken();
+
+  if (access && !isJwtExpired(access)) return true;
+
+  if (!refresh && !access) return false;
+
+  try {
+    await refreshSession();
+    return true;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      clearTokens();
+      return false;
+    }
+    // Network / cold-start errors: keep tokens so offline UX still works.
+    return Boolean(getAccessToken() || getRefreshToken());
+  }
 }
 
 type AuthFailureHandler = (() => void) | null;
@@ -155,13 +255,11 @@ function createClient(): AxiosInstance {
     baseURL: getApiBaseUrl(),
     headers: { "Content-Type": "application/json" },
     withCredentials: true,
-    // Free-tier backends (e.g. Render) can take a long time to wake.
     timeout: 90_000,
   });
 
   instance.interceptors.request.use(
     (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
-      // Always use latest runtime override (Capacitor / settings).
       config.baseURL = getApiBaseUrl();
       const trackedConfig = config as TrackedRequestConfig;
       if (!trackedConfig._activityTracked) {
@@ -205,16 +303,11 @@ function createClient(): AxiosInstance {
       original._retry = true;
       beginApiActivity();
       try {
-        const refresh = await axios.post<
-          ApiResponse<{ accessToken: string; refreshToken?: string }>
-        >(
-          `${instance.defaults.baseURL}/auth/refresh-token`,
-          {},
-          { withCredentials: true },
-        );
-        const tokens = refresh.data.data;
-        setTokens(tokens.accessToken, tokens.refreshToken);
-        original.headers.set("Authorization", `Bearer ${tokens.accessToken}`);
+        const accessToken = await refreshSession();
+        if (!(original.headers instanceof axios.AxiosHeaders)) {
+          original.headers = new axios.AxiosHeaders(original.headers);
+        }
+        original.headers.set("Authorization", `Bearer ${accessToken}`);
         return instance(original);
       } catch {
         clearTokens();

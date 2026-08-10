@@ -41,6 +41,7 @@ export function SummaryKpiCard({
         "rounded-[12px] bg-[var(--ds-background-elevated)] p-3 ds-border sm:rounded-[16px] sm:p-5",
         className,
       )}
+      data-kpi-card
     >
       <div className="flex items-center gap-2">
         {Icon ? (
@@ -65,7 +66,7 @@ export function SummaryKpiCard({
           {title}
         </h2>
       </div>
-      <p className="mt-2 text-[20px] font-semibold leading-6 tracking-[-1px] tabular-nums text-[var(--ds-gray-1000)] sm:mt-4 sm:text-[28px] sm:leading-8">
+      <p className="mt-2 text-[20px] font-semibold leading-6 tracking-[-1px] tabular-nums text-[var(--ds-gray-1000)] sm:mt-4 sm:text-[28px] sm:leading-8" data-kpi-value>
         {value}
       </p>
       {subtitle ? (

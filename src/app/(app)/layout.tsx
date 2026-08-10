@@ -85,9 +85,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 : "mx-auto w-full max-w-[var(--ds-page-width)]",
             )}
           >
-            <div className={cn(isAiWorkspace ? "shrink-0" : "mb-3")}>
-              <NetworkStatusBanner />
-            </div>
+            <NetworkStatusBanner />
             <div className={cn(isAiWorkspace && "min-h-0 flex-1")}>{children}</div>
           </div>
         </main>

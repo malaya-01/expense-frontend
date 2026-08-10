@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
+
+const EXIT_MS = 280;
 
 export function Drawer({
   open,
@@ -25,6 +27,21 @@ export function Drawer({
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
+  const [mounted, setMounted] = useState(open);
+  const [visible, setVisible] = useState(open);
+
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      const id = window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => setVisible(true));
+      });
+      return () => window.cancelAnimationFrame(id);
+    }
+    setVisible(false);
+    const timer = window.setTimeout(() => setMounted(false), EXIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -61,7 +78,7 @@ export function Drawer({
     };
   }, [open, onClose]);
 
-  if (!open || typeof document === "undefined") return null;
+  if (!mounted || typeof document === "undefined") return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[100]">
@@ -69,7 +86,10 @@ export function Drawer({
         type="button"
         aria-label="Close drawer"
         onClick={onClose}
-        className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+        className={cn(
+          "absolute inset-0 bg-black/55 backdrop-blur-[2px]",
+          visible ? "ds-backdrop-enter" : "ds-backdrop-exit",
+        )}
       />
       <section
         ref={drawerRef}
@@ -79,8 +99,14 @@ export function Drawer({
         className={cn(
           "absolute inset-y-0 flex w-[min(88vw,360px)] flex-col bg-[var(--ds-background-elevated)] shadow-2xl",
           side === "left"
-            ? "left-0 border-r border-[var(--ds-gray-200)] ds-drawer-enter-left"
-            : "right-0 border-l border-[var(--ds-gray-200)] ds-drawer-enter-right",
+            ? cn(
+                "left-0 border-r border-[var(--ds-gray-200)]",
+                visible ? "ds-drawer-enter-left" : "ds-drawer-exit-left",
+              )
+            : cn(
+                "right-0 border-l border-[var(--ds-gray-200)]",
+                visible ? "ds-drawer-enter-right" : "ds-drawer-exit-right",
+              ),
           className,
         )}
       >
@@ -98,7 +124,9 @@ export function Drawer({
             <X size={18} />
           </button>
         </header>
-        <div className={cn("min-h-0 flex-1 overflow-y-auto p-4", contentClassName)}>
+        <div
+          className={cn("min-h-0 flex-1 overflow-y-auto p-4", contentClassName)}
+        >
           {children}
         </div>
       </section>

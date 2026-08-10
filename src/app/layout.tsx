@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { StoreProvider } from "@/lib/store/provider";
 import { ToastViewport } from "@/components/ui/toast";
+import { ExitConfirmHost } from "@/components/native/exit-confirm-host";
 import { getThemeBootstrapScript } from "@/lib/themes/bootstrap";
 import "./globals.css";
 
@@ -50,6 +51,7 @@ export default function RootLayout({
         <StoreProvider>
           {children}
           <ToastViewport />
+          <ExitConfirmHost />
         </StoreProvider>
       </body>
     </html>

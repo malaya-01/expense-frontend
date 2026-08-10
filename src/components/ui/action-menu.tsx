@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { Popover } from "@/components/ui/popover";
 import { cn } from "@/lib/cn";
@@ -24,8 +24,12 @@ export function ActionMenu({
   align?: "start" | "end";
   trigger?: ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
+
   return (
     <Popover
+      open={open}
+      onOpenChange={setOpen}
       align={align}
       className="w-44 p-1.5"
       triggerLabel={label}
@@ -49,8 +53,10 @@ export function ActionMenu({
             role="menuitem"
             disabled={item.disabled}
             onClick={() => {
-              // Defer so the popover unmounts before a modal opens on top.
-              queueMicrotask(() => item.onSelect());
+              setOpen(false);
+              window.dispatchEvent(new Event("finos:close-overlays"));
+              // Wait a frame so the menu portal unmounts before a modal opens.
+              window.setTimeout(() => item.onSelect(), 0);
             }}
             className={cn(
               "flex w-full items-center rounded-[8px] px-2.5 py-2 text-left text-xs transition-colors ds-focus disabled:opacity-40",

@@ -19,6 +19,7 @@ export function Popover({
   onOpenChange,
   triggerLabel,
   closeOnSelect = false,
+  open: openControlled,
 }: {
   trigger: ReactNode;
   children: ReactNode;
@@ -27,8 +28,20 @@ export function Popover({
   onOpenChange?: (open: boolean) => void;
   triggerLabel?: string;
   closeOnSelect?: boolean;
+  /** Optional controlled open state */
+  open?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [openUncontrolled, setOpenUncontrolled] = useState(false);
+  const isControlled = openControlled !== undefined;
+  const open = isControlled ? openControlled : openUncontrolled;
+
+  const setOpen = (next: boolean | ((current: boolean) => boolean)) => {
+    const resolved =
+      typeof next === "function" ? next(open) : next;
+    if (!isControlled) setOpenUncontrolled(resolved);
+    onOpenChange?.(resolved);
+  };
+
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -57,22 +70,12 @@ export function Popover({
   useLayoutEffect(() => {
     if (!open) return;
     updatePosition();
-    // Position once after the portal panel has measurable dimensions.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  const onOpenChangeRef = useRef(onOpenChange);
-  onOpenChangeRef.current = onOpenChange;
-  const prevOpenRef = useRef(open);
-  useEffect(() => {
-    if (prevOpenRef.current === open) return;
-    prevOpenRef.current = open;
-    onOpenChangeRef.current?.(open);
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
-    const onPointer = (e: MouseEvent | TouchEvent) => {
+    const onPointer = (e: PointerEvent) => {
       const target = e.target as Node;
       if (
         !triggerRef.current?.contains(target) &&
@@ -82,21 +85,22 @@ export function Popover({
       }
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setOpen(false);
-      }
+      if (e.key === "Escape") setOpen(false);
     };
-    // Capture phase so we close even if a child stops bubbling.
+    const onForceClose = () => setOpen(false);
     window.addEventListener("pointerdown", onPointer, true);
     window.addEventListener("keydown", onKey);
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("finos:close-overlays", onForceClose);
     return () => {
       window.removeEventListener("pointerdown", onPointer, true);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("finos:close-overlays", onForceClose);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   return (
@@ -108,38 +112,38 @@ export function Popover({
         aria-label={triggerLabel}
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={() => {
-          setOpen((current) => !current);
-        }}
+        onClick={() => setOpen(!open)}
       >
         {trigger}
       </button>
       {open && typeof document !== "undefined"
         ? createPortal(
-        <div
-          ref={panelRef}
-          id={panelId}
-          role="dialog"
-          style={{ top: position.top, left: position.left }}
-          onClickCapture={(event) => {
-            if (
-              closeOnSelect &&
-              (event.target as HTMLElement).closest(
-                "button, [role='menuitem']",
-              )
-            ) {
-              setOpen(false);
-            }
-          }}
-          className={cn(
-            "fixed z-[90] w-[320px] max-w-[calc(100vw-24px)] rounded-[14px] bg-[var(--ds-background-elevated)] p-4 ds-border-menu ds-strong-border ds-overlay-enter",
-            className,
-          )}
-        >
-          {children}
-        </div>,
-        document.body,
-      )
+            <div
+              ref={panelRef}
+              id={panelId}
+              role="dialog"
+              data-finos-popover
+              style={{ top: position.top, left: position.left }}
+              onClickCapture={(event) => {
+                if (
+                  closeOnSelect &&
+                  (event.target as HTMLElement).closest(
+                    "button, [role='menuitem']",
+                  )
+                ) {
+                  setOpen(false);
+                }
+              }}
+              className={cn(
+                // Below modals (z-100) so menus never cover edit forms.
+                "fixed z-[90] w-[320px] max-w-[calc(100vw-24px)] rounded-[14px] bg-[var(--ds-background-elevated)] p-4 ds-border-menu ds-strong-border ds-overlay-enter",
+                className,
+              )}
+            >
+              {children}
+            </div>,
+            document.body,
+          )
         : null}
     </div>
   );

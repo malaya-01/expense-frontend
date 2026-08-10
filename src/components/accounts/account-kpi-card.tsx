@@ -33,7 +33,10 @@ export function AccountKpiCard({
   const DeltaIcon = delta.amount >= 0 ? ArrowUpRight : ArrowDownRight;
 
   return (
-    <article className="rounded-[12px] bg-[var(--ds-background-elevated)] p-3 ds-border sm:rounded-[16px] sm:p-5">
+    <article
+      className="rounded-[12px] bg-[var(--ds-background-elevated)] p-3 ds-border sm:rounded-[16px] sm:p-5"
+      data-kpi-card
+    >
       <div className="flex items-start justify-between gap-2 sm:gap-3">
         <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
           <span
@@ -58,7 +61,7 @@ export function AccountKpiCard({
         />
       </div>
 
-      <p className="mt-2 text-[20px] font-semibold leading-6 tracking-[-1px] tabular-nums text-[var(--ds-gray-1000)] sm:mt-4 sm:text-[28px] sm:leading-8">
+      <p className="mt-2 text-[20px] font-semibold leading-6 tracking-[-1px] tabular-nums text-[var(--ds-gray-1000)] sm:mt-4 sm:text-[28px] sm:leading-8" data-kpi-value>
         {formatCurrency(value, currency)}
       </p>
 

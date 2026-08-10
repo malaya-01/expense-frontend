@@ -78,21 +78,27 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  const loadUsers = useCallback(async (query?: string) => {
-    setLoadingUsers(true);
-    try {
-      const data = await fetchAdminUsers({ q: query || undefined, limit: 100 });
-      setUsers(data.users);
-    } catch (err) {
-      showToast({
-        title: "Failed to load users",
-        description: getErrorMessage(err, "Could not load users"),
-        tone: "error",
-      });
-    } finally {
-      setLoadingUsers(false);
-    }
-  }, [showToast]);
+  const loadUsers = useCallback(
+    async (query?: string) => {
+      setLoadingUsers(true);
+      try {
+        const data = await fetchAdminUsers({
+          q: query || undefined,
+          limit: 100,
+        });
+        setUsers(data.users);
+      } catch (err) {
+        showToast({
+          title: "Failed to load users",
+          description: getErrorMessage(err, "Could not load users"),
+          tone: "error",
+        });
+      } finally {
+        setLoadingUsers(false);
+      }
+    },
+    [showToast],
+  );
 
   useEffect(() => {
     if (!canManageUsers) return;
@@ -157,6 +163,7 @@ export default function AdminPage() {
       return next;
     });
   }
+
   const dirtyOverrides = useMemo(() => {
     if (!detail) return [];
     const changes: { code: string; effect: "GRANT" | "REVOKE" | null }[] = [];
@@ -242,18 +249,19 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5 pb-20 lg:pb-0">
       <PageHeader
         title="Admin"
         description="Manage platform users and module permissions."
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
-        <Card>
-          <CardHeader>
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)] lg:items-start">
+        {/* Users pane */}
+        <Card className="overflow-hidden">
+          <CardHeader className="space-y-2">
             <Label htmlFor="admin-user-search">Users</Label>
             <form
-              className="mt-2 flex gap-2"
+              className="flex gap-2"
               onSubmit={(e) => {
                 e.preventDefault();
                 void loadUsers(q);
@@ -277,7 +285,7 @@ export default function AdminPage() {
               </Button>
             </form>
           </CardHeader>
-          <CardBody className="max-h-[70vh] space-y-1 overflow-y-auto pt-0">
+          <CardBody className="max-h-[40vh] space-y-1 overflow-y-auto pt-0 sm:max-h-[50vh] lg:max-h-[70vh]">
             {loadingUsers ? (
               <p className="text-xs text-[var(--ds-gray-700)]">Loading…</p>
             ) : users.length === 0 ? (
@@ -308,16 +316,21 @@ export default function AdminPage() {
           </CardBody>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-[14px] font-medium text-[var(--ds-gray-1000)]">
-                {detail?.user.full_name || detail?.user.email || "Select a user"}
+        {/* Detail pane */}
+        <Card className="min-w-0 overflow-hidden">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="truncate text-[14px] font-medium text-[var(--ds-gray-1000)]">
+                {detail?.user.full_name ||
+                  detail?.user.email ||
+                  "Select a user"}
               </h2>
               {detail ? (
-                <p className="mt-0.5 text-[12px] text-[var(--ds-gray-700)]">
+                <p className="mt-0.5 break-all text-[12px] text-[var(--ds-gray-700)]">
                   {detail.user.email}
-                  {detail.is_admin ? " · super-admin (bypasses all checks)" : ""}
+                  {detail.is_admin
+                    ? " · super-admin (bypasses all checks)"
+                    : ""}
                 </p>
               ) : (
                 <p className="mt-0.5 text-[12px] text-[var(--ds-gray-700)]">
@@ -326,19 +339,23 @@ export default function AdminPage() {
               )}
             </div>
             {detail && canManagePermissions ? (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
                 {user?.is_admin ? (
                   <Button
                     size="sm"
                     variant="secondary"
+                    className="w-full sm:w-auto"
                     disabled={saving || selectedId === user.id}
                     onClick={() => void onToggleAdmin(!detail.is_admin)}
                   >
-                    {detail.is_admin ? "Remove super-admin" : "Make super-admin"}
+                    {detail.is_admin
+                      ? "Remove super-admin"
+                      : "Make super-admin"}
                   </Button>
                 ) : null}
                 <Button
                   size="sm"
+                  className="hidden w-full sm:inline-flex sm:w-auto"
                   loading={saving}
                   disabled={!dirtyOverrides.length || saving}
                   onClick={() => void onSave()}
@@ -348,18 +365,20 @@ export default function AdminPage() {
               </div>
             ) : null}
           </CardHeader>
-          <CardBody>
+          <CardBody className="min-w-0">
             {!selectedId ? (
               <p className="text-sm text-[var(--ds-gray-700)]">
                 No user selected.
               </p>
             ) : loadingDetail ? (
-              <p className="text-sm text-[var(--ds-gray-700)]">Loading matrix…</p>
+              <p className="text-sm text-[var(--ds-gray-700)]">
+                Loading matrix…
+              </p>
             ) : (
-              <div className="space-y-5">
+              <div className="space-y-4 sm:space-y-5">
                 {grouped.map((group) => (
-                  <div key={group.module}>
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <div key={group.module} className="min-w-0">
+                    <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                       <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--ds-gray-700)]">
                         {group.module}
                       </p>
@@ -368,7 +387,9 @@ export default function AdminPage() {
                           <button
                             type="button"
                             className="rounded-[5px] px-1.5 py-0.5 text-[10px] text-[var(--ds-gray-800)] hover:bg-[var(--ds-gray-100)]"
-                            onClick={() => setModulePreset(group.module, "DEFAULT")}
+                            onClick={() =>
+                              setModulePreset(group.module, "DEFAULT")
+                            }
                           >
                             Reset
                           </button>
@@ -403,20 +424,95 @@ export default function AdminPage() {
                           <button
                             type="button"
                             className="rounded-[5px] px-1.5 py-0.5 text-[10px] text-[var(--ds-status-red)] hover:bg-[var(--ds-gray-100)]"
-                            onClick={() => setModulePreset(group.module, "REVOKE")}
+                            onClick={() =>
+                              setModulePreset(group.module, "REVOKE")
+                            }
                           >
                             Revoke all
                           </button>
                         </div>
                       ) : null}
                     </div>
-                    <div className="overflow-hidden rounded-[10px] ds-border">
-                      <table className="w-full text-left text-[12px]">
+
+                    {/* Mobile: stacked permission cards */}
+                    <div className="space-y-2 md:hidden">
+                      {group.rows.map((row) => {
+                        const mode = draft[row.code] ?? modeFromRow(row);
+                        const effective =
+                          detail?.is_admin ||
+                          mode === "GRANT" ||
+                          (mode === "DEFAULT" && row.is_default);
+                        const action = actionFromCode(row.code);
+                        return (
+                          <div
+                            key={row.code}
+                            className="rounded-[10px] bg-[var(--ds-background-elevated)] p-3 ds-border"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="truncate text-[12px] font-medium text-[var(--ds-gray-1000)]">
+                                  {row.name}
+                                </p>
+                                <p className="mt-0.5 break-all text-[10px] text-[var(--ds-gray-700)]">
+                                  {row.code}
+                                  {row.is_default
+                                    ? " · default on"
+                                    : " · default off"}
+                                </p>
+                              </div>
+                              <span
+                                className={cn(
+                                  "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                                  effective
+                                    ? "bg-[color-mix(in_srgb,var(--ds-success)_18%,transparent)] text-[var(--ds-gray-1000)]"
+                                    : "bg-[var(--ds-gray-100)] text-[var(--ds-gray-700)]",
+                                )}
+                              >
+                                {effective ? "On" : "Off"}
+                              </span>
+                            </div>
+                            <div className="mt-2.5 flex items-center gap-2">
+                              <span className="inline-flex rounded-[5px] bg-[var(--ds-gray-100)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-[var(--ds-gray-800)]">
+                                {action}
+                              </span>
+                              <select
+                                className="h-8 min-w-0 flex-1 rounded-[7px] bg-[var(--ds-background-elevated)] px-2 text-[12px] ds-border ds-focus disabled:opacity-50"
+                                value={mode}
+                                disabled={
+                                  !canManagePermissions ||
+                                  Boolean(
+                                    detail?.is_admin && !user?.is_admin,
+                                  )
+                                }
+                                onChange={(e) =>
+                                  setDraft((prev) => ({
+                                    ...prev,
+                                    [row.code]: e.target.value as DraftEffect,
+                                  }))
+                                }
+                              >
+                                <option value="DEFAULT">Default</option>
+                                <option value="GRANT">Granted</option>
+                                <option value="REVOKE">Revoked</option>
+                              </select>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Desktop / tablet: table */}
+                    <div className="hidden overflow-x-auto rounded-[10px] ds-border md:block">
+                      <table className="w-full min-w-[520px] text-left text-[12px]">
                         <thead className="bg-[var(--ds-gray-100)] text-[var(--ds-gray-700)]">
                           <tr>
-                            <th className="px-3 py-2 font-medium">Permission</th>
+                            <th className="px-3 py-2 font-medium">
+                              Permission
+                            </th>
                             <th className="px-3 py-2 font-medium">Action</th>
-                            <th className="px-3 py-2 font-medium">Effective</th>
+                            <th className="px-3 py-2 font-medium">
+                              Effective
+                            </th>
                             <th className="px-3 py-2 font-medium">Mode</th>
                           </tr>
                         </thead>
@@ -497,6 +593,21 @@ export default function AdminPage() {
           </CardBody>
         </Card>
       </div>
+
+      {/* Mobile sticky save bar */}
+      {detail && canManagePermissions && dirtyOverrides.length > 0 ? (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] bg-[var(--ds-background-elevated)] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
+          <Button
+            className="w-full"
+            loading={saving}
+            disabled={saving}
+            onClick={() => void onSave()}
+          >
+            Save {dirtyOverrides.length} override
+            {dirtyOverrides.length === 1 ? "" : "s"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

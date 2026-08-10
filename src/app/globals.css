@@ -439,14 +439,101 @@ select {
   }
 }
 
+@keyframes ds-overlay-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(var(--ds-motion-overlay-scale));
+  }
+}
+
 .ds-overlay-enter {
   animation: ds-overlay-in var(--ds-motion-overlay-duration) var(--ds-motion-timing-swift);
+}
+
+.ds-dialog-enter {
+  animation: ds-overlay-in var(--ds-motion-overlay-duration) var(--ds-motion-timing-swift) both;
+}
+
+.ds-dialog-exit {
+  animation: ds-overlay-out var(--ds-motion-overlay-duration) var(--ds-motion-timing-swift) both;
+}
+
+@keyframes ds-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ds-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.ds-backdrop-enter {
+  animation: ds-backdrop-in 220ms var(--ds-motion-timing-swift) both;
+}
+
+.ds-backdrop-exit {
+  animation: ds-backdrop-out 220ms var(--ds-motion-timing-swift) both;
+}
+
+@keyframes ds-sheet-in {
+  from {
+    opacity: 0.96;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ds-sheet-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0.96;
+    transform: translateY(100%);
+  }
+}
+
+.ds-sheet-enter {
+  animation: ds-sheet-in 320ms var(--ds-motion-timing-swift) both;
+}
+
+.ds-sheet-exit {
+  animation: ds-sheet-out 260ms var(--ds-motion-timing-swift) both;
+}
+
+@media (min-width: 640px) {
+  .ds-sheet-enter {
+    animation: ds-overlay-in var(--ds-motion-overlay-duration)
+      var(--ds-motion-timing-swift) both;
+  }
+
+  .ds-sheet-exit {
+    animation: ds-overlay-out var(--ds-motion-overlay-duration)
+      var(--ds-motion-timing-swift) both;
+  }
 }
 
 @keyframes ds-drawer-in {
   from {
     opacity: 0;
-    transform: translateX(-16px);
+    transform: translateX(-100%);
   }
   to {
     opacity: 1;
@@ -457,11 +544,33 @@ select {
 @keyframes ds-drawer-in-right {
   from {
     opacity: 0;
-    transform: translateX(16px);
+    transform: translateX(100%);
   }
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes ds-drawer-out-left {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes ds-drawer-out-right {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
   }
 }
 
@@ -509,12 +618,21 @@ select {
 
 .ds-drawer-enter,
 .ds-drawer-enter-left {
-  animation: ds-drawer-in 220ms var(--ds-motion-timing-swift);
+  animation: ds-drawer-in 280ms var(--ds-motion-timing-swift) both;
 }
 
 .ds-drawer-enter-right {
-  animation: ds-drawer-in-right 220ms var(--ds-motion-timing-swift);
+  animation: ds-drawer-in-right 280ms var(--ds-motion-timing-swift) both;
 }
+
+.ds-drawer-exit-left {
+  animation: ds-drawer-out-left 240ms var(--ds-motion-timing-swift) both;
+}
+
+.ds-drawer-exit-right {
+  animation: ds-drawer-out-right 240ms var(--ds-motion-timing-swift) both;
+}
+
 
 .ds-toast-enter {
   animation: ds-toast-in 240ms var(--ds-motion-timing-swift);
@@ -524,6 +642,67 @@ select {
   animation-name: ds-toast-progress;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
+}
+
+/* Capacitor native phone density — shorter pages, smaller KPI blocks */
+html.native-app main.app-scrollbar {
+  padding-left: 0.625rem !important;
+  padding-right: 0.625rem !important;
+  padding-top: 0.5rem !important;
+  padding-bottom: calc(3.75rem + env(safe-area-inset-bottom)) !important;
+}
+
+html.native-app [data-kpi-card] {
+  padding: 0.5rem 0.6rem !important;
+  border-radius: 10px !important;
+}
+
+html.native-app [data-kpi-card] [data-kpi-value] {
+  margin-top: 0.35rem !important;
+  font-size: 1.05rem !important;
+  line-height: 1.25rem !important;
+}
+
+html.native-app [data-kpi-card] h2 {
+  font-size: 10px !important;
+}
+
+html.native-app .mb-4,
+html.native-app .mb-5,
+html.native-app .mb-6 {
+  margin-bottom: 0.65rem !important;
+}
+
+html.native-app h1 {
+  font-size: 1.2rem !important;
+  line-height: 1.4rem !important;
+}
+
+/* Android WebView date inputs often render as blank boxes without labels /
+   visible text — force readable chrome and a clear empty state. */
+input[type="date"].date-input,
+input.date-input[type="date"] {
+  color-scheme: light;
+  min-width: 0;
+  color: var(--ds-gray-1000);
+}
+
+input[type="date"].date-input:not(:focus):invalid,
+input[type="date"].date-input[value=""],
+input.date-input[type="date"]:not([value]),
+input.date-input[type="date"][value=""] {
+  color: var(--ds-gray-700);
+}
+
+input[type="date"].date-input::-webkit-calendar-picker-indicator {
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+html.native-app input[type="date"],
+html.native-app input.date-input {
+  font-size: 13px;
+  min-height: 2.5rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
