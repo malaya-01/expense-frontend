@@ -161,8 +161,9 @@ export async function pushOutboxItemViaRest(
 export async function hydrateViaRestLists(): Promise<void> {
   const { offlineDb } = await import("./db");
   const { getActiveOfflineUserId } = await import("./clear-session");
+  const { runHydrate } = await import("./hydrate-cache");
   const ownerId = getActiveOfflineUserId();
-  const endpoints: Array<{ path: string; table: keyof typeof offlineDb }> = [
+  const endpoints: Array<{ path: string; table: string }> = [
     { path: "/accounts", table: "accounts" },
     { path: "/transactions", table: "transactions" },
     { path: "/categories", table: "categories" },
@@ -170,60 +171,43 @@ export async function hydrateViaRestLists(): Promise<void> {
     { path: "/goals", table: "goals" },
     { path: "/loans", table: "loans" },
     { path: "/recurring", table: "recurring" },
+    { path: "/investments", table: "investments" },
   ];
 
-  for (const { path, table } of endpoints) {
-    try {
-      const res = await api.get(path);
-      const data = unwrap<any>(res);
-      let rows: any[] = [];
-      if (Array.isArray(data)) rows = data;
-      else if (data?.holdings && Array.isArray(data.holdings))
-        rows = data.holdings;
-      else if (data) rows = [data];
+  await Promise.all(
+    endpoints.map(({ path, table }) =>
+      runHydrate(table, async () => {
+        const res = await api.get(path);
+        const data = unwrap<any>(res);
+        let rows: any[] = [];
+        if (Array.isArray(data)) rows = data;
+        else if (Array.isArray(data?.holdings)) rows = data.holdings;
+        else if (data?.id) rows = [data];
 
-      await offlineDb.transaction("rw", offlineDb.table(table as any), async () => {
-        for (const row of rows) {
-          const id = String(row.id);
-          const existing = await offlineDb.table(table as any).get(id);
-          if ((existing as any)?._pending || (existing as any)?._sync_failed)
-            continue;
-          await offlineDb.table(table as any).put({
+        const store = offlineDb.table(table);
+        const existing = (await store.toArray()) as Array<{
+          id: string;
+          _pending?: boolean;
+          _sync_failed?: boolean;
+        }>;
+        const blocked = new Set(
+          existing
+            .filter((row) => row._pending || row._sync_failed)
+            .map((row) => String(row.id)),
+        );
+        const next = rows
+          .filter((row) => row?.id && !blocked.has(String(row.id)))
+          .map((row) => ({
             ...row,
-            id,
+            id: String(row.id),
             user_id: row.user_id || ownerId,
             _pending: false,
             _sync_failed: false,
-          });
-        }
-      });
-    } catch {
-      /* ignore individual list failures */
-    }
-  }
-
-  try {
-    const res = await api.get("/investments");
-    const data = unwrap<any>(res);
-    const holdings = data?.holdings || [];
-    await offlineDb.transaction("rw", offlineDb.investments, async () => {
-      for (const row of holdings) {
-        const id = String(row.id);
-        const existing = await offlineDb.investments.get(id);
-        if ((existing as any)?._pending || (existing as any)?._sync_failed)
-          continue;
-        await offlineDb.investments.put({
-          ...row,
-          id,
-          user_id: row.user_id || ownerId,
-          _pending: false,
-          _sync_failed: false,
-        } as any);
-      }
-    });
-  } catch {
-    /* ignore */
-  }
+          }));
+        if (next.length) await store.bulkPut(next);
+      }).catch(() => undefined),
+    ),
+  );
 }
 
 export function isSyncApiMissing(error: unknown): boolean {

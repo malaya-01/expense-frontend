@@ -148,9 +148,12 @@ export const investmentsRepo = createRepository({
   remoteList: async () => {
     const res = await api.get("/investments");
     const data = unwrap<any[] | any>(res);
-    return (Array.isArray(data) ? data : data ? [data] : []).map(
-      genericNormalize,
-    );
+    const list = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.holdings)
+        ? data.holdings
+        : [];
+    return list.map(genericNormalize);
   },
 });
 

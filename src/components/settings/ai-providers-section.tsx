@@ -202,10 +202,10 @@ export function AiProvidersSection() {
       ) : null}
 
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-3">
-          <div>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2>AI &amp; models</h2>
+              <h2 className="truncate">AI &amp; models</h2>
               <InfoTip title="Bring your own key">
                 <p>
                   FinOS never stores provider keys in the browser. Keys and Vertex
@@ -214,7 +214,7 @@ export function AiProvidersSection() {
                 </p>
               </InfoTip>
             </div>
-            <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
+            <p className="mt-0.5 truncate text-xs text-[var(--ds-gray-700)]">
               Active:{" "}
               {settings?.active_provider
                 ? `${PROVIDER_LABEL[settings.active_provider]} · ${settings.active_model || "default model"}`
@@ -222,10 +222,10 @@ export function AiProvidersSection() {
             </p>
           </div>
           <Button size="sm" variant="secondary" onClick={() => setPromptOpen(true)}>
-            Master prompt
+            Prompt
           </Button>
         </CardHeader>
-        <CardBody className="grid gap-3 sm:grid-cols-2">
+        <CardBody className="grid gap-2 sm:grid-cols-2">
           {providers.map((p) => {
             const active = settings?.active_provider === p.provider;
             const guide = p.setup || settings?.setup_guides?.[p.provider];
@@ -233,25 +233,23 @@ export function AiProvidersSection() {
               <div
                 key={p.provider}
                 className={cn(
-                  "ai-provider-card rounded-[12px] p-4",
+                  "ai-provider-card min-w-0 overflow-hidden rounded-[10px] px-3 py-2.5",
                   active
-                    ? "ring-2 ring-[var(--ds-focus-color)] ring-offset-2 ring-offset-[var(--ds-background-100)]"
+                    ? "ring-2 ring-[var(--ds-focus-color)] ring-offset-2 ring-offset-[var(--ds-background-elevated)]"
                     : "",
                 )}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <StatusDot tone={PROVIDER_TONE[p.provider]} />
-                    <div>
-                      <p className="text-sm text-[var(--ds-gray-1000)]">
-                        {PROVIDER_LABEL[p.provider]}
-                      </p>
-                      <p className="text-xs text-[var(--ds-gray-700)]">
-                        {p.connected
-                          ? `Ready · ${p.model || "model"}`
-                          : "Not connected"}
-                      </p>
-                    </div>
+                <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                  <StatusDot tone={PROVIDER_TONE[p.provider]} />
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <p className="truncate text-sm font-medium text-[var(--ds-gray-1000)]">
+                      {PROVIDER_LABEL[p.provider]}
+                    </p>
+                    <p className="truncate text-[11px] text-[var(--ds-gray-700)]">
+                      {p.connected
+                        ? `Ready · ${p.model || "model"}`
+                        : "Not connected"}
+                    </p>
                   </div>
                   {guide ? (
                     <InfoTip title={`How to connect ${guide.title}`}>
@@ -278,33 +276,11 @@ export function AiProvidersSection() {
                   ) : null}
                 </div>
 
-                {p.credentials_meta?.api_key_masked ? (
-                  <p className="mt-3 font-mono text-[11px] text-[var(--ds-gray-700)]">
-                    Key {p.credentials_meta.api_key_masked}
-                  </p>
-                ) : null}
-                {p.credentials_meta?.service_account_email ? (
-                  <p className="mt-3 truncate text-[11px] text-[var(--ds-gray-700)]">
-                    SA {p.credentials_meta.service_account_email}
-                  </p>
-                ) : null}
-                {p.last_test_message ? (
-                  <p
-                    className={cn(
-                      "mt-2 text-[11px]",
-                      p.last_test_status === "ok"
-                        ? "text-[var(--ds-status-green)]"
-                        : "text-[var(--ds-gray-700)]",
-                    )}
-                  >
-                    {p.last_test_message}
-                  </p>
-                ) : null}
-
-                <div className="mt-4 flex flex-wrap gap-1">
+                <div className="mt-2 flex min-w-0 items-center gap-1 overflow-hidden">
                   <Button
                     size="sm"
                     variant="secondary"
+                    className="h-7 min-w-0 flex-1 px-2 text-[11px]"
                     disabled={!perms.create && !perms.update}
                     onClick={() => setConfigure(p.provider)}
                   >
@@ -313,6 +289,7 @@ export function AiProvidersSection() {
                   <Button
                     size="sm"
                     variant="secondary"
+                    className="h-7 min-w-0 flex-1 px-2 text-[11px]"
                     loading={busy === `test-${p.provider}`}
                     disabled={
                       !perms.create ||
@@ -327,6 +304,7 @@ export function AiProvidersSection() {
                   <Button
                     size="sm"
                     variant="secondary"
+                    className="h-7 min-w-0 flex-1 px-2 text-[11px]"
                     loading={busy === `use-${p.provider}`}
                     disabled={!perms.create || (!p.connected && !p.model)}
                     onClick={() => onUse(p.provider, p.model)}
@@ -339,12 +317,12 @@ export function AiProvidersSection() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-[var(--ds-status-red)]"
+                      className="h-7 shrink-0 px-2 text-[11px] text-[var(--ds-status-red)]"
                       loading={busy === `disc-${p.provider}`}
                       disabled={!perms.delete}
                       onClick={() => setDisconnectTarget(p.provider)}
                     >
-                      Disconnect
+                      Off
                     </Button>
                   )}
                 </div>

@@ -1,12 +1,9 @@
-import { api, unwrap } from "./client";
 import type {
   CreateInvestmentInput,
   InvestmentHolding,
   InvestmentsPayload,
 } from "@/types";
 import { investmentsRepo } from "@/lib/offline/repos";
-import { isOnline } from "@/lib/offline/network";
-import { offlineDb } from "@/lib/offline/db";
 
 function normalizeHolding(row: any): InvestmentHolding {
   const quantity = Number(row.quantity || 0);
@@ -50,36 +47,6 @@ function summarize(holdings: InvestmentHolding[]): InvestmentsPayload {
 }
 
 export async function listInvestments(): Promise<InvestmentsPayload> {
-  if (isOnline()) {
-    try {
-      const res = await api.get("/investments");
-      const data = unwrap<InvestmentsPayload>(res);
-      const holdings = (data.holdings || []).map(normalizeHolding);
-      await offlineDb.transaction("rw", offlineDb.investments, async () => {
-        for (const h of holdings) {
-          await offlineDb.investments.put({ ...h, _pending: false } as any);
-        }
-      });
-      return {
-        holdings,
-        summary: {
-          ...data.summary,
-          total_value: Number(data.summary?.total_value || 0),
-          total_cost: Number(data.summary?.total_cost || 0),
-          total_gain: Number(data.summary?.total_gain || 0),
-          gain_percent: Number(data.summary?.gain_percent || 0),
-          holding_count: Number(data.summary?.holding_count || 0),
-          allocation: (data.summary?.allocation || []).map((a) => ({
-            ...a,
-            value: Number(a.value),
-            percent: Number(a.percent),
-          })),
-        },
-      };
-    } catch {
-      /* fall through */
-    }
-  }
   const holdings = (await investmentsRepo.list()).map(normalizeHolding);
   return summarize(holdings);
 }

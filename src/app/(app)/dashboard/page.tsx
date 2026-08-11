@@ -60,12 +60,9 @@ export default function DashboardPage() {
     let alive = true;
     const load = async (showSpinner: boolean) => {
       if (showSpinner) setLoading(true);
-      try {
-        const { bootstrapOfflineSync } = await import("@/lib/offline/sync-engine");
-        await bootstrapOfflineSync(user.id);
-      } catch {
-        /* still attempt REST-backed lists */
-      }
+      void import("@/lib/offline/sync-engine").then(({ bootstrapOfflineSync }) =>
+        bootstrapOfflineSync(user.id).catch(() => undefined),
+      );
       if (!alive) return;
       const results = await Promise.allSettled([
         listTransactions(),
@@ -87,11 +84,13 @@ export default function DashboardPage() {
       setLoading(false);
     };
     void load(true);
-    const onSync = () => void load(false);
-    window.addEventListener("finos:sync-complete", onSync);
+    const onRefresh = () => void load(false);
+    window.addEventListener("finos:sync-complete", onRefresh);
+    window.addEventListener("finos:data-updated", onRefresh);
     return () => {
       alive = false;
-      window.removeEventListener("finos:sync-complete", onSync);
+      window.removeEventListener("finos:sync-complete", onRefresh);
+      window.removeEventListener("finos:data-updated", onRefresh);
     };
   }, [ready, user?.id]);
 

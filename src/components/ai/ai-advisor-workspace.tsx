@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Menu } from "lucide-react";
+import { PanelLeft } from "lucide-react";
 import { ConversationSidebar } from "@/components/ai/conversation-sidebar";
 import { ChatWorkspace } from "@/components/ai/chat-workspace";
 import { ProposalConfirmModal } from "@/components/ai/proposal-confirm-modal";
@@ -116,9 +116,9 @@ export function AiAdvisorWorkspace() {
           type="button"
           onClick={() => setMobileConversationsOpen(true)}
           className="flex size-9 items-center justify-center rounded-[9px] text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] ds-focus"
-          aria-label="Open conversations"
+          aria-label="Open conversation sidebar"
         >
-          <Menu size={16} />
+          <PanelLeft size={16} strokeWidth={1.8} />
         </button>
         <p className="text-sm font-medium text-[var(--ds-gray-1000)]">
           AI Advisor

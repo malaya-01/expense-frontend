@@ -240,6 +240,8 @@ export async function runSync(reason = "manual"): Promise<void> {
     await purgeSyncedOutbox();
     await setMeta("last_sync_at", new Date().toISOString());
     lastError = null;
+    const { invalidateHydrate } = await import("./hydrate-cache");
+    invalidateHydrate();
     await persistDurableBackup();
     lastSyncCompletedAt = Date.now();
     if (typeof window !== "undefined") {
@@ -660,11 +662,14 @@ export async function bootstrapOfflineSync(userId?: string | null): Promise<void
     // Online: server is source of truth. Restore leftover outbox only after hydrate
     // so a reinstall / Preferences backup cannot paint stale balances first.
     if (isOnline()) {
-      try {
-        await hydrateViaRestLists();
-      } catch {
-        /* keep whatever is already on device */
-      }
+      const hasLocal =
+        (await offlineDb.accounts.count()) +
+          (await offlineDb.transactions.count()) >
+        0;
+      const hydrate = hydrateViaRestLists().catch(() => undefined);
+      // Only block first paint when the device has nothing to show yet.
+      if (!hasLocal) await hydrate;
+      else void hydrate;
       await restoreDurableBackup(userId, { restoreEntities: false });
     } else {
       const result = await restoreDurableBackup(userId);

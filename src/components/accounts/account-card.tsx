@@ -65,81 +65,81 @@ export function AccountCard({
     ? formatRelativeDay(container.updated_at.slice(0, 10))
     : "—";
 
+  const detail = [
+    meta.label,
+    container.institution,
+    container.currency,
+    container.notes?.trim(),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <article className="group relative min-w-0 overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] ds-border sm:rounded-[16px]">
+    <article className="group relative min-w-0 max-w-full overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] ds-border sm:rounded-[16px]">
       <div
         className="absolute inset-y-0 left-0 w-[3px]"
         style={{ background: accent }}
         aria-hidden
       />
-      <div className="flex items-center gap-2.5 px-3 py-2.5 pl-4 sm:gap-4 sm:px-5 sm:py-4">
-        <div
-          className="relative flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold sm:size-11 sm:text-sm"
-          style={{
-            color: accent,
-            background: `color-mix(in srgb, ${accent} 14%, transparent)`,
-          }}
-          title={container.institution || meta.label}
-        >
-          <span className="absolute inset-0 grid place-items-center opacity-100 group-hover:opacity-0">
-            {container.institution ? initials(container.institution) : (
-              <Icon size={18} strokeWidth={1.85} />
-            )}
-          </span>
-          <span className="absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100">
-            <Icon size={18} strokeWidth={1.85} />
-          </span>
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-sm font-semibold text-[var(--ds-gray-1000)]">
-              {container.name}
-            </h3>
-            <SyncBadge row={container} />
-            {!container.include_in_net_worth ? (
-              <span className="rounded-full bg-[var(--ds-gray-100)] px-2 py-0.5 text-[10px] font-medium text-[var(--ds-gray-700)]">
-                Excluded
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-0.5 truncate text-xs text-[var(--ds-gray-700)]">
-            {meta.label}
-            {container.institution ? ` · ${container.institution}` : ""}
-            {` · ${container.currency}`}
-          </p>
-          <p className="mt-1 text-[11px] text-[var(--ds-gray-700)]">
-            Updated {updated}
-          </p>
-        </div>
-
-        <div className="shrink-0 text-right">
-          <p
-            className={cn(
-              "text-sm font-semibold tabular-nums sm:text-base",
-              liability
-                ? "text-[var(--ds-status-red)]"
-                : "text-[var(--ds-gray-1000)]",
-            )}
+      <div className="flex min-w-0 items-center justify-between gap-2 overflow-hidden px-3 py-2.5 pl-4 sm:gap-3 sm:px-5 sm:py-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden sm:gap-3">
+          <div
+            className="relative flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold sm:size-11 sm:text-sm"
+            style={{
+              color: accent,
+              background: `color-mix(in srgb, ${accent} 14%, transparent)`,
+            }}
+            title={container.institution || meta.label}
           >
-            {liability ? "−" : ""}
-            {formatCurrency(container.balance, container.currency)}
-          </p>
-          <p className="mt-0.5 text-[11px] text-[var(--ds-gray-700)]">
-            {liability ? "Outstanding" : "Available balance"}
-          </p>
+            <span className="absolute inset-0 grid place-items-center opacity-100 group-hover:opacity-0">
+              {container.institution ? initials(container.institution) : (
+                <Icon size={18} strokeWidth={1.85} />
+              )}
+            </span>
+            <span className="absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100">
+              <Icon size={18} strokeWidth={1.85} />
+            </span>
+          </div>
+
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+              <h3 className="min-w-0 truncate text-sm font-semibold text-[var(--ds-gray-1000)]">
+                {container.name}
+              </h3>
+              <SyncBadge row={container} />
+              {!container.include_in_net_worth ? (
+                <span className="max-w-[4.5rem] shrink-0 truncate rounded-full bg-[var(--ds-gray-100)] px-2 py-0.5 text-[10px] font-medium text-[var(--ds-gray-700)]">
+                  Excluded
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-0.5 truncate text-xs text-[var(--ds-gray-700)]">
+              {detail}
+            </p>
+            <p className="mt-1 truncate text-[11px] text-[var(--ds-gray-700)]">
+              Updated {updated}
+            </p>
+          </div>
         </div>
 
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          {onEdit ? (
-            <button
-              type="button"
-              onClick={onEdit}
-              className="rounded-[6px] px-2 py-1 text-[11px] font-medium text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] ds-focus"
+        <div className="flex shrink-0 items-center gap-1 overflow-hidden sm:gap-2">
+          <div className="min-w-0 max-w-[7.5rem] text-right sm:max-w-[10rem]">
+            <p
+              className={cn(
+                "truncate text-sm font-semibold tabular-nums sm:text-base",
+                liability
+                  ? "text-[var(--ds-status-red)]"
+                  : "text-[var(--ds-gray-1000)]",
+              )}
             >
-              Edit
-            </button>
-          ) : null}
+              {liability ? "−" : ""}
+              {formatCurrency(container.balance, container.currency)}
+            </p>
+            <p className="mt-0.5 truncate text-[11px] text-[var(--ds-gray-700)]">
+              {liability ? "Outstanding" : "Available"}
+            </p>
+          </div>
+
           {(() => {
           const items = [
             onEdit

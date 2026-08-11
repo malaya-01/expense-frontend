@@ -12,6 +12,12 @@ import { isOnline } from "./network";
 import { scheduleSync } from "./sync-engine";
 import { getActiveOfflineUserId } from "./clear-session";
 import { pushOutboxItemViaRest } from "./rest-fallback";
+import {
+  invalidateHydrate,
+  isHydrateFresh,
+  notifyDataUpdated,
+  runHydrate,
+} from "./hydrate-cache";
 
 export type SyncUiState = "synced" | "pending" | "offline" | "failed";
 
@@ -58,27 +64,30 @@ export function createRepository<T extends SyncedRecord>(
    */
   async function hydrateFromRemote(): Promise<void> {
     const remote = await config.remoteList();
-    await offlineDb.transaction("rw", offlineDb.table(config.table), async () => {
-      for (const row of remote) {
+    const table = offlineDb.table(config.table);
+    const existingRows = (await table.toArray()) as SyncedRecord[];
+    const blocked = new Set(
+      existingRows
+        .filter((row) => row._pending || row._sync_failed)
+        .map((row) => String(row.id)),
+    );
+    const ownerId = getActiveOfflineUserId();
+    const next = remote
+      .filter((row) => !blocked.has(String((row as SyncedRecord).id)))
+      .map((row) => {
         const id = String((row as SyncedRecord).id);
-        const existing = (await offlineDb.table(config.table).get(id)) as
-          | SyncedRecord
-          | undefined;
-        if (existing?._pending || existing?._sync_failed) continue;
-        const ownerId = getActiveOfflineUserId();
-        await offlineDb.table(config.table).put({
+        return {
           ...row,
           id,
           user_id: (row as SyncedRecord).user_id || ownerId,
           _pending: false,
           _sync_failed: false,
-        } as SyncedRecord);
-      }
-    });
+        } as SyncedRecord;
+      });
+    if (next.length) await table.bulkPut(next);
   }
 
   async function list(): Promise<T[]> {
-    // Always paint from local DB first (source of truth on device).
     const readLocal = async () =>
       activeOnly(
         (await offlineDb.table(config.table).toArray()) as T[],
@@ -90,14 +99,23 @@ export function createRepository<T extends SyncedRecord>(
         }),
       );
 
-    if (isOnline()) {
+    const local = await readLocal();
+    if (!isOnline() || isHydrateFresh(config.table)) return local;
+
+    const refresh = runHydrate(config.table, hydrateFromRemote);
+    if (!local.length) {
       try {
-        await hydrateFromRemote();
+        await refresh;
       } catch {
         /* keep whatever is already on device */
       }
+      return readLocal();
     }
-    return readLocal();
+
+    void refresh
+      .then(() => notifyDataUpdated())
+      .catch(() => undefined);
+    return local;
   }
 
   async function get(id: string): Promise<T> {
@@ -198,6 +216,7 @@ export function createRepository<T extends SyncedRecord>(
           _sync_failed: false,
         });
         await offlineDb.table(config.table).put(synced as SyncedRecord);
+        invalidateHydrate(config.table);
         return synced;
       } catch {
         await persistPending(local, "create", { ...payload, id }, 1);
@@ -240,6 +259,7 @@ export function createRepository<T extends SyncedRecord>(
           _sync_failed: false,
         });
         await offlineDb.table(config.table).put(synced as SyncedRecord);
+        invalidateHydrate(config.table);
         return synced;
       } catch {
         await persistPending(
@@ -280,6 +300,7 @@ export function createRepository<T extends SyncedRecord>(
       try {
         await pushOutboxItemViaRest(restItem(id, "delete", {}, now));
         await offlineDb.table(config.table).delete(id);
+        invalidateHydrate(config.table);
         return;
       } catch {
         if (tombstone) {

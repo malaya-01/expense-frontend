@@ -246,13 +246,33 @@ function SettingsPageInner() {
 
   return (
     <div>
-      <PageHeader
-        title="Settings"
-        description={`Configure ${APP_NAME} security, AI providers, appearance, and workspace tools.`}
-      />
+      <div className="sticky top-0 z-20 -mx-3 mb-3 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-background-100)] px-3 pb-2 pt-0.5 sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:mb-4 lg:border-0 lg:bg-transparent lg:px-0 lg:pb-0">
+        <PageHeader
+          title="Settings"
+          description={`Configure ${APP_NAME} security, AI providers, appearance, and workspace tools.`}
+        />
+        <nav className="flex gap-1 overflow-x-auto rounded-[10px] bg-[var(--ds-background-elevated)] p-1 ds-border lg:hidden">
+          {SECTIONS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => go(item.id)}
+              className={cn(
+                "flex h-8 shrink-0 items-center gap-1.5 rounded-[7px] px-2.5 text-[12px] whitespace-nowrap ds-focus",
+                section === item.id
+                  ? "bg-[var(--ds-gray-100)] font-medium text-[var(--ds-gray-1000)]"
+                  : "text-[var(--ds-gray-900)]",
+              )}
+            >
+              <item.icon size={13} className="shrink-0 opacity-80" />
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      </div>
 
       <div className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <nav className="flex gap-1 overflow-x-auto rounded-[12px] bg-[var(--ds-background-elevated)] p-1.5 ds-border lg:sticky lg:top-14 lg:h-fit lg:flex-col lg:overflow-visible">
+        <nav className="hidden gap-1 rounded-[12px] bg-[var(--ds-background-elevated)] p-1.5 ds-border lg:sticky lg:top-2 lg:flex lg:h-fit lg:flex-col">
           {SECTIONS.map((item) => (
             <button
               key={item.id}
