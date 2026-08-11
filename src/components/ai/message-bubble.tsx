@@ -23,6 +23,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   onReviewBatch,
   busyProposal,
   streaming,
+  status,
 }: {
   message: AiMessage;
   proposals: AiActionProposal[];
@@ -31,6 +32,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   onReviewBatch?: (ids: string[]) => void;
   busyProposal: string | null;
   streaming?: boolean;
+  status?: string;
 }) {
   const perms = useModulePermissions("ai");
   const hasContent = Boolean(message.content?.trim());
@@ -113,9 +115,11 @@ export const AssistantMessage = memo(function AssistantMessage({
           ) : null}
 
           <div aria-live={streaming ? "polite" : undefined}>
-            {hasContent || streaming ? (
+            {streaming && !hasContent ? (
+              <ThinkingDots label={status || "Thinking…"} />
+            ) : hasContent ? (
               <MarkdownRenderer
-                content={message.content || (streaming ? " " : "")}
+                content={message.content}
                 streaming={streaming}
               />
             ) : null}
@@ -279,6 +283,7 @@ export const MessageBubble = memo(function MessageBubble({
   onReviewBatch,
   busyProposal,
   streaming,
+  status,
 }: {
   message: AiMessage;
   proposals: AiActionProposal[];
@@ -287,6 +292,7 @@ export const MessageBubble = memo(function MessageBubble({
   onReviewBatch?: (ids: string[]) => void;
   busyProposal: string | null;
   streaming?: boolean;
+  status?: string;
 }) {
   if (message.role === "user") {
     return <UserMessage message={message} />;
@@ -303,23 +309,32 @@ export const MessageBubble = memo(function MessageBubble({
       onReviewBatch={onReviewBatch}
       busyProposal={busyProposal}
       streaming={streaming}
+      status={status}
     />
   );
 });
 
-export function TypingIndicator({ label }: { label?: string }) {
+function ThinkingDots({ label }: { label: string }) {
   return (
     <div
-      className="flex items-center gap-2.5 pl-11 text-xs text-[var(--ds-gray-700)]"
+      className="flex items-center gap-2.5 py-1 text-sm text-[var(--ds-gray-700)]"
       role="status"
       aria-live="polite"
     >
-      <span className="inline-flex gap-1" aria-hidden>
-        <span className="size-1.5 animate-pulse rounded-full bg-[var(--ds-gray-700)] motion-reduce:animate-none" />
-        <span className="size-1.5 animate-pulse rounded-full bg-[var(--ds-gray-700)] [animation-delay:120ms] motion-reduce:animate-none" />
-        <span className="size-1.5 animate-pulse rounded-full bg-[var(--ds-gray-700)] [animation-delay:240ms] motion-reduce:animate-none" />
+      <span className="inline-flex items-end gap-1" aria-hidden>
+        <span className="size-1.5 animate-bounce rounded-full bg-[var(--ds-gray-900)] [animation-delay:0ms] motion-reduce:animate-none" />
+        <span className="size-1.5 animate-bounce rounded-full bg-[var(--ds-gray-900)] [animation-delay:150ms] motion-reduce:animate-none" />
+        <span className="size-1.5 animate-bounce rounded-full bg-[var(--ds-gray-900)] [animation-delay:300ms] motion-reduce:animate-none" />
       </span>
-      {label || "Thinking…"}
+      {label}
+    </div>
+  );
+}
+
+export function TypingIndicator({ label }: { label?: string }) {
+  return (
+    <div className="pl-11">
+      <ThinkingDots label={label || "Thinking…"} />
     </div>
   );
 }

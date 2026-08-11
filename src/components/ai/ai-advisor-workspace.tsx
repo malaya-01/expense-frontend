@@ -182,6 +182,7 @@ export function AiAdvisorWorkspace() {
           draft={workspace.draft}
           attachments={workspace.attachments}
           loading={workspace.loading}
+          status={workspace.status}
           streamingId={workspace.streamingId}
           dragActive={workspace.dragActive}
           listening={workspace.listening}

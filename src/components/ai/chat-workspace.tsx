@@ -15,8 +15,8 @@ import {
 } from "react";
 import {
   ArrowDown,
+  ArrowUp,
   Mic,
-  Send,
   Square,
   FileText,
   Globe2,
@@ -24,11 +24,13 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover } from "@/components/ui/popover";
 import { CircularProgress } from "@/components/ui/circular-progress";
-import { MessageBubble } from "@/components/ai/message-bubble";
+import {
+  MessageBubble,
+  TypingIndicator,
+} from "@/components/ai/message-bubble";
 import {
   ChatCommandMenu,
   type CommandMenuState,
@@ -55,6 +57,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
   draft,
   attachments,
   loading,
+  status,
   streamingId,
   dragActive,
   listening,
@@ -79,6 +82,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
   draft: string;
   attachments: AiAttachment[];
   loading: boolean;
+  status?: string;
   streamingId: string | null;
   dragActive: boolean;
   listening: boolean;
@@ -297,6 +301,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                   key={message.id}
                   message={message}
                   streaming={message.id === streamingId}
+                  status={message.id === streamingId ? status : undefined}
                   proposals={proposals.filter((p) =>
                     (message.proposal_ids || []).includes(p.id),
                   )}
@@ -307,10 +312,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                 />
               ))}
               {loading && !streamingId ? (
-                <div className="ml-11 flex items-center gap-2 text-xs text-[var(--ds-gray-700)]">
-                  <span className="inline-block size-1.5 animate-pulse rounded-full bg-[var(--ds-gray-700)]" />
-                  Thinking…
-                </div>
+                <TypingIndicator label={status || "Thinking…"} />
               ) : null}
               <div ref={messageEndRef} aria-hidden />
             </div>
@@ -602,10 +604,10 @@ export const ChatWorkspace = memo(function ChatWorkspace({
               <button
                 type="button"
                 onClick={onStop}
-                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)] ds-focus"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] ds-focus"
                 aria-label="Stop response"
               >
-                <Square size={14} />
+                <Square size={13} fill="currentColor" strokeWidth={2.5} />
               </button>
             ) : (
               <>
@@ -634,10 +636,10 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                 >
                   <Mic size={19} />
                 </button>
-                <Button
+                <button
                   type="submit"
                   disabled={!canSend}
-                  className="size-9 shrink-0 rounded-full px-0"
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] disabled:opacity-40 ds-focus"
                   aria-label={
                     attachmentsBusy
                       ? "Wait for uploads to finish"
@@ -648,11 +650,11 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                       ? "Uploading attachment…"
                       : attachments.some((file) => file.upload_status === "failed")
                         ? "Remove failed attachments to send"
-                        : undefined
+                        : "Send message"
                   }
                 >
-                  <Send size={16} />
-                </Button>
+                  <ArrowUp size={20} strokeWidth={2.6} />
+                </button>
               </>
             )}
           </div>
