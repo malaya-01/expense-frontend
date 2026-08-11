@@ -33,7 +33,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     if (isAuthenticated || getAccessToken()) {
       void bootstrapOfflineSync(user?.id);
       void fetchMyPermissions()
-        .then((perms) => setPermissions(perms))
+        .then((perms) => {
+          if (!perms || typeof perms !== "object") return;
+          setPermissions({
+            is_admin: Boolean(perms.is_admin),
+            permissions: Array.isArray(perms.permissions)
+              ? perms.permissions
+              : [],
+          });
+        })
         .catch(() => {
           /* keep cached permissions if refresh fails */
         });

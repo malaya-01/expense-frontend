@@ -127,6 +127,16 @@ export const NAV_PERMISSIONS: Record<string, string> = {
   "/admin": PERMISSION_CODES.ADMIN_ACCESS,
 };
 
+export function isTruthyAdmin(value: unknown): boolean {
+  return (
+    value === true ||
+    value === 1 ||
+    value === "1" ||
+    value === "true" ||
+    value === "t"
+  );
+}
+
 export function permissionSatisfied(
   granted: string[] | Set<string>,
   required: string,
@@ -142,6 +152,13 @@ export function permissionSatisfied(
     return CRUD_ACTIONS.some((a) => set.has(perm(module, a)));
   }
 
+  // Older sessions / DBs only issued module.access. If no fine-grained
+  // CRUD codes exist in the grant set, access still means full use.
+  if ((CRUD_ACTIONS as readonly string[]).includes(action)) {
+    const hasFineGrained = CRUD_ACTIONS.some((a) => set.has(perm(module, a)));
+    if (!hasFineGrained && set.has(perm(module, "access"))) return true;
+  }
+
   return false;
 }
 
@@ -150,8 +167,16 @@ export function hasPermission(
   code: string,
 ): boolean {
   if (!user) return false;
-  if (user.is_admin) return true;
-  return permissionSatisfied(user.permissions || [], code);
+  if (isTruthyAdmin(user.is_admin)) return true;
+  const granted = user.permissions || [];
+  // Platform admins (admin console) can use every product module.
+  if (
+    permissionSatisfied(granted, PERMISSION_CODES.ADMIN_ACCESS) &&
+    !code.startsWith("admin.")
+  ) {
+    return true;
+  }
+  return permissionSatisfied(granted, code);
 }
 
 export function canCrud(
@@ -166,7 +191,7 @@ export function canAccessAdmin(
   user: { is_admin?: boolean; permissions?: string[] } | null | undefined,
 ): boolean {
   return (
-    Boolean(user?.is_admin) ||
+    isTruthyAdmin(user?.is_admin) ||
     hasPermission(user, PERMISSION_CODES.ADMIN_ACCESS) ||
     hasPermission(user, PERMISSION_CODES.ADMIN_MANAGE_USERS) ||
     hasPermission(user, PERMISSION_CODES.ADMIN_MANAGE_PERMISSIONS)

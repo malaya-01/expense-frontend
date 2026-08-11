@@ -20,7 +20,7 @@ import {
   type UserPermissionRow,
   type UserPermissionsDetail,
 } from "@/lib/api/permissions";
-import { hasPermission } from "@/lib/permissions";
+import { hasPermission, isTruthyAdmin } from "@/lib/permissions";
 
 type DraftEffect = "GRANT" | "REVOKE" | "DEFAULT";
 
@@ -62,11 +62,11 @@ export default function AdminPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const canManageUsers =
-    Boolean(user?.is_admin) ||
+    isTruthyAdmin(user?.is_admin) ||
     hasPermission(user, "admin.manage_users") ||
     hasPermission(user, "admin.manage_permissions");
   const canManagePermissions =
-    Boolean(user?.is_admin) ||
+    isTruthyAdmin(user?.is_admin) ||
     hasPermission(user, "admin.manage_permissions");
 
   const [q, setQ] = useState("");
@@ -340,7 +340,7 @@ export default function AdminPage() {
             </div>
             {detail && canManagePermissions ? (
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
-                {user?.is_admin ? (
+                {isTruthyAdmin(user?.is_admin) ? (
                   <Button
                     size="sm"
                     variant="secondary"
@@ -481,7 +481,8 @@ export default function AdminPage() {
                                 disabled={
                                   !canManagePermissions ||
                                   Boolean(
-                                    detail?.is_admin && !user?.is_admin,
+                                    detail?.is_admin &&
+                                      !isTruthyAdmin(user?.is_admin),
                                   )
                                 }
                                 onChange={(e) =>
@@ -564,7 +565,8 @@ export default function AdminPage() {
                                     disabled={
                                       !canManagePermissions ||
                                       Boolean(
-                                        detail?.is_admin && !user?.is_admin,
+                                        detail?.is_admin &&
+                                      !isTruthyAdmin(user?.is_admin),
                                       )
                                     }
                                     onChange={(e) =>
