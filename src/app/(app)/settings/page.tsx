@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Bot,
@@ -74,6 +74,18 @@ const TIMEZONES = [
 ];
 
 export default function SettingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <p className="text-sm text-[var(--ds-gray-900)]">Loading settings…</p>
+      }
+    >
+      <SettingsPageInner />
+    </Suspense>
+  );
+}
+
+function SettingsPageInner() {
   const { user, setSession, logout } = useAuth();
   const settingsPerms = useModulePermissions("settings");
   const router = useRouter();
