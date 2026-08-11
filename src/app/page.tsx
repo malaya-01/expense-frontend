@@ -10,17 +10,16 @@ export default function HomePage() {
   const { ready, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (!ready) return;
-    if (isAuthenticated || getAccessToken()) {
-      router.replace("/dashboard");
-    } else {
-      router.replace("/signin");
-    }
+    const hasSession = isAuthenticated || Boolean(getAccessToken());
+    if (!ready && !hasSession) return;
+    router.replace(hasSession ? "/dashboard" : "/signin");
   }, [ready, isAuthenticated, router]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <p className="text-sm text-[var(--ds-gray-900)]">Loading…</p>
+    <div className="min-h-dvh bg-[var(--ds-background-100)]">
+      <div className="h-0.5 w-full overflow-hidden bg-[color-mix(in_srgb,var(--ds-focus-color)_14%,transparent)]">
+        <span className="api-loader-bar block h-full w-1/3 rounded-full bg-[var(--ds-focus-color)]" />
+      </div>
     </div>
   );
 }

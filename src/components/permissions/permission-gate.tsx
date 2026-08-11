@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   canCrud,
   hasPermission,
+  isTruthyAdmin,
   type CrudAction,
 } from "@/lib/permissions";
 
@@ -43,6 +44,15 @@ export function CrudGate({
 
 export function useModulePermissions(module: string) {
   const { user } = useAuth();
+  if (user && isTruthyAdmin(user.is_admin)) {
+    return {
+      access: true,
+      create: true,
+      read: true,
+      update: true,
+      delete: true,
+    };
+  }
   return {
     access: hasPermission(user, `${module}.access`),
     create: canCrud(user, module, "create"),

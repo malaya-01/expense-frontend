@@ -12,6 +12,7 @@ import { fetchMyPermissions } from "@/lib/api/permissions";
 import { cn } from "@/lib/cn";
 import { bootstrapOfflineSync } from "@/lib/offline/sync-engine";
 import { NetworkStatusBanner } from "@/components/sync/network-status-banner";
+import { ApiActivityIndicator } from "@/components/ui/api-activity-indicator";
 import {
   firstAllowedPath,
   hasPermission,
@@ -65,17 +66,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     router.replace(firstAllowedPath(user));
   }, [ready, user, pathname, router]);
 
-  if (!ready) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-[var(--ds-gray-900)]">Loading FinOS…</p>
-      </div>
-    );
-  }
-
   return (
     <TransactionModalProvider>
       <div className="h-dvh overflow-hidden bg-[var(--ds-background-100)]">
+        <ApiActivityIndicator />
         <AppTopbar />
         <AppSidebar />
         <main

@@ -1,4 +1,5 @@
 import { api, unwrap } from "./client";
+import { isTruthyAdmin } from "@/lib/permissions";
 
 export type PermissionCatalogItem = {
   id: string;
@@ -38,7 +39,20 @@ export type MyPermissions = {
 
 export async function fetchMyPermissions(): Promise<MyPermissions> {
   const res = await api.get("/permissions/me");
-  return unwrap<MyPermissions>(res);
+  const raw = unwrap<MyPermissions & { data?: MyPermissions }>(res) as
+    | MyPermissions
+    | { data?: MyPermissions }
+    | undefined;
+  const payload =
+    raw && typeof raw === "object" && Array.isArray((raw as MyPermissions).permissions)
+      ? (raw as MyPermissions)
+      : raw && typeof raw === "object"
+        ? (raw as { data?: MyPermissions }).data
+        : undefined;
+  return {
+    is_admin: isTruthyAdmin(payload?.is_admin),
+    permissions: Array.isArray(payload?.permissions) ? payload.permissions : [],
+  };
 }
 
 export async function fetchPermissionCatalog(): Promise<PermissionCatalogItem[]> {

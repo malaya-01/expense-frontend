@@ -184,6 +184,11 @@ export function canCrud(
   module: string,
   action: CrudAction,
 ): boolean {
+  if (!user) return false;
+  if (isTruthyAdmin(user.is_admin)) return true;
+  const granted = user.permissions || [];
+  // Matrix not loaded yet — don't hide create/edit/delete for a signed-in user.
+  if (!granted.length) return true;
   return hasPermission(user, crudPerm(module, action));
 }
 
