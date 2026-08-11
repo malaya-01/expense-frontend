@@ -75,7 +75,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             "h-[calc(100dvh-2.75rem)] translate-y-11 transition-[margin-left] duration-200 md:ml-[var(--app-sidebar-offset)]",
             isAiWorkspace
               ? "overflow-hidden p-0 pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-0"
-              : "app-scrollbar overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-4 pb-[calc(6.25rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-6 md:pb-10",
+              : "app-scrollbar overflow-x-hidden overflow-y-auto overscroll-contain scroll-pt-3 px-3 pt-5 pb-[calc(6.25rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 sm:pb-6 md:pb-10",
           )}
         >
           <div

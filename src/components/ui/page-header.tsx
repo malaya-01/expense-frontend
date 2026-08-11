@@ -53,7 +53,7 @@ export function PageHeader({
           {title}
         </h1>
         {description ? (
-          <p className="mt-0.5 hidden max-w-2xl text-[13px] leading-5 text-[var(--ds-gray-700)] sm:block">
+          <p className="mt-0.5 max-w-2xl text-[12px] leading-4 text-[var(--ds-gray-700)] sm:text-[13px] sm:leading-5">
             {description}
           </p>
         ) : null}
