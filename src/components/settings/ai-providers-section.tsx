@@ -69,9 +69,12 @@ export function AiProvidersSection() {
   const [memoryDraft, setMemoryDraft] = useState("");
   const [disconnectTarget, setDisconnectTarget] =
     useState<AiProviderId | null>(null);
+  const [testNotes, setTestNotes] = useState<
+    Partial<Record<AiProviderId, { ok: boolean; message: string }>>
+  >({});
 
   const refresh = async () => {
-    setLoading(true);
+    if (!settings) setLoading(true);
     setError("");
     try {
       const [data, memory] = await Promise.all([
@@ -130,10 +133,21 @@ export function AiProvidersSection() {
     setError("");
     try {
       const result = await testAiProvider(provider);
-      if (!result.ok) setError(result.message);
+      setTestNotes((prev) => ({
+        ...prev,
+        [provider]: {
+          ok: Boolean(result.ok),
+          message: result.message || (result.ok ? "Connection ok" : "Test failed"),
+        },
+      }));
       await refresh();
     } catch (err) {
-      setError(getErrorMessage(err, "Connection test failed"));
+      const message = getErrorMessage(err, "Connection test failed");
+      setTestNotes((prev) => ({
+        ...prev,
+        [provider]: { ok: false, message },
+      }));
+      setError(message);
     } finally {
       setBusy(null);
     }
@@ -205,7 +219,7 @@ export function AiProvidersSection() {
         <CardHeader className="flex flex-row items-center justify-between gap-2">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="truncate">AI &amp; models</h2>
+              <h2 className="truncate text-sm sm:text-base">AI &amp; models</h2>
               <InfoTip title="Bring your own key">
                 <p>
                   FinOS never stores provider keys in the browser. Keys and Vertex
@@ -214,7 +228,7 @@ export function AiProvidersSection() {
                 </p>
               </InfoTip>
             </div>
-            <p className="mt-0.5 truncate text-xs text-[var(--ds-gray-700)]">
+            <p className="mt-0.5 truncate text-[11px] text-[var(--ds-gray-700)] sm:text-xs">
               Active:{" "}
               {settings?.active_provider
                 ? `${PROVIDER_LABEL[settings.active_provider]} · ${settings.active_model || "default model"}`
@@ -229,19 +243,26 @@ export function AiProvidersSection() {
           {providers.map((p) => {
             const active = settings?.active_provider === p.provider;
             const guide = p.setup || settings?.setup_guides?.[p.provider];
+            const testNote =
+              testNotes[p.provider] ||
+              (p.last_test_message
+                ? {
+                    ok: p.last_test_status === "ok",
+                    message: p.last_test_message,
+                  }
+                : null);
             return (
               <div
                 key={p.provider}
                 className={cn(
-                  "ai-provider-card min-w-0 overflow-hidden rounded-[10px] px-3 py-2.5",
-                  active
-                    ? "ring-2 ring-[var(--ds-focus-color)] ring-offset-2 ring-offset-[var(--ds-background-elevated)]"
-                    : "",
+                  "ai-provider-card min-w-0 rounded-[10px] px-3 py-2.5",
+                  active &&
+                    "ring-2 ring-[var(--ds-focus-color)] ring-offset-1 ring-offset-[var(--ds-background-elevated)]",
                 )}
               >
-                <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                <div className="flex min-w-0 items-center gap-2">
                   <StatusDot tone={PROVIDER_TONE[p.provider]} />
-                  <div className="min-w-0 flex-1 overflow-hidden">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-[var(--ds-gray-1000)]">
                       {PROVIDER_LABEL[p.provider]}
                     </p>
@@ -276,7 +297,7 @@ export function AiProvidersSection() {
                   ) : null}
                 </div>
 
-                <div className="mt-2 flex min-w-0 items-center gap-1 overflow-hidden">
+                <div className="mt-2 flex gap-1">
                   <Button
                     size="sm"
                     variant="secondary"
@@ -326,6 +347,19 @@ export function AiProvidersSection() {
                     </Button>
                   )}
                 </div>
+                {testNote ? (
+                  <p
+                    className={cn(
+                      "mt-2 break-words text-[11px] leading-4",
+                      testNote.ok
+                        ? "text-[var(--ds-status-green)]"
+                        : "text-[var(--ds-status-red)]",
+                    )}
+                  >
+                    {testNote.ok ? "Passed · " : "Failed · "}
+                    {testNote.message}
+                  </p>
+                ) : null}
               </div>
             );
           })}
@@ -333,17 +367,18 @@ export function AiProvidersSection() {
       </Card>
 
       <Card className="ds-strong-border">
-        <CardHeader className="flex flex-row items-start justify-between gap-4">
-          <div>
-            <h2>Memory &amp; chat continuity</h2>
-            <p className="mt-1 max-w-2xl text-xs leading-4 text-[var(--ds-gray-700)]">
-              FinOS uses recent chat history and these durable facts across new
-              conversations. You can also say “Remember that …” in chat.
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="truncate text-sm sm:text-base">Memory &amp; chat</h2>
+            <p className="mt-0.5 hidden max-w-2xl text-xs leading-4 text-[var(--ds-gray-700)] sm:block">
+              Recent chat plus these facts carry into new conversations. You can
+              also say “Remember that …” in chat.
             </p>
           </div>
           <Button
             size="sm"
             variant={memoryEnabled ? "secondary" : "primary"}
+            className="h-7 shrink-0 px-2.5 text-[11px]"
             disabled={!perms.update}
             onClick={async () => {
               const next = !memoryEnabled;

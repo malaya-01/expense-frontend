@@ -27,13 +27,13 @@ function ThemePreviewCard({
       type="button"
       onClick={onSelect}
       className={cn(
-        "group w-full rounded-[14px] bg-[var(--ds-background-elevated)] p-4 text-left transition-shadow ds-focus",
+        "group w-full rounded-[12px] bg-[var(--ds-background-elevated)] p-3 text-left transition-shadow ds-focus sm:rounded-[14px] sm:p-4",
         active
-          ? "ring-2 ring-[var(--ds-focus-color)] ring-offset-2 ring-offset-[var(--ds-background-100)]"
+          ? "ring-2 ring-[var(--ds-focus-color)]"
           : "ds-border hover:shadow-[var(--ds-shadow-border-medium)]",
       )}
     >
-      <div className="mb-3 flex items-start justify-between gap-3">
+      <div className="mb-2 flex items-start justify-between gap-3 sm:mb-3">
         <div className="min-w-0">
           <p className="truncate font-heading text-[15px] font-semibold text-[var(--ds-gray-1000)]">
             {theme.name}
@@ -64,7 +64,7 @@ function ThemePreviewCard({
       </div>
 
       <div
-        className="overflow-hidden rounded-[10px] border"
+        className="hidden overflow-hidden rounded-[10px] border sm:block"
         style={{ borderColor: `${ink}14`, background: canvas }}
       >
         <div
@@ -117,7 +117,7 @@ function ThemePreviewCard({
         </div>
       </div>
 
-      <div className="mt-3 space-y-1.5">
+      <div className="mt-2 hidden space-y-1.5 sm:mt-3 sm:block">
         <div className="flex items-center gap-2 text-[11px] text-[var(--ds-gray-900)]">
           <span
             className="size-3.5 rounded-[4px]"
@@ -137,7 +137,7 @@ function ThemePreviewCard({
       </div>
 
       {theme.description ? (
-        <p className="mt-3 text-[11px] leading-4 text-[var(--ds-gray-700)]">
+        <p className="mt-2 truncate text-[11px] leading-4 text-[var(--ds-gray-700)] sm:mt-3 sm:whitespace-normal">
           {theme.description}
         </p>
       ) : null}
@@ -150,12 +150,12 @@ export function AppearanceSection() {
   const { activeThemeId, presetThemes, setTheme } = useTheme();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       <div>
-        <h2 className="font-heading text-lg font-semibold tracking-[-0.02em]">
+        <h2 className="font-heading text-sm font-semibold tracking-[-0.02em] sm:text-lg">
           Themes
         </h2>
-        <p className="mt-1 text-xs leading-5 text-[var(--ds-gray-700)]">
+        <p className="mt-0.5 hidden text-xs leading-5 text-[var(--ds-gray-700)] sm:block">
           Pick a workspace palette. Changes apply instantly across FinOS.
         </p>
       </div>

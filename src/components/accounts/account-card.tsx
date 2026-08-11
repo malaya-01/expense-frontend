@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { cn } from "@/lib/cn";
-import { formatCurrency, formatRelativeDay } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import {
   getContainerMeta,
   isLiabilityType,
@@ -61,118 +61,88 @@ export function AccountCard({
   const liability = isLiabilityType(container.type);
   const accent = container.color || meta.defaultColor;
   const Icon = typeIcon(container.type);
-  const updated = container.updated_at
-    ? formatRelativeDay(container.updated_at.slice(0, 10))
-    : "—";
 
-  const detail = [
-    meta.label,
-    container.institution,
-    container.currency,
-    container.notes?.trim(),
-  ]
+  const detail = [meta.label, container.institution, container.currency]
     .filter(Boolean)
     .join(" · ");
 
+  const menuItems = [
+    onEdit ? { id: "edit", label: "Edit", onSelect: onEdit } : null,
+    onDelete
+      ? {
+          id: "archive",
+          label: "Archive",
+          tone: "danger" as const,
+          onSelect: onDelete,
+        }
+      : null,
+  ].filter(Boolean) as {
+    id: string;
+    label: string;
+    onSelect: () => void;
+    tone?: "default" | "danger";
+  }[];
+
   return (
-    <article className="group relative min-w-0 max-w-full overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] ds-border sm:rounded-[16px]">
+    <article className="group relative w-full min-w-0 max-w-full overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] ds-border sm:rounded-[16px]">
       <div
         className="absolute inset-y-0 left-0 w-[3px]"
         style={{ background: accent }}
         aria-hidden
       />
-      <div className="flex min-w-0 items-center justify-between gap-2 overflow-hidden px-3 py-2.5 pl-4 sm:gap-3 sm:px-5 sm:py-4">
-        <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden sm:gap-3">
-          <div
-            className="relative flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold sm:size-11 sm:text-sm"
-            style={{
-              color: accent,
-              background: `color-mix(in srgb, ${accent} 14%, transparent)`,
-            }}
-            title={container.institution || meta.label}
-          >
-            <span className="absolute inset-0 grid place-items-center opacity-100 group-hover:opacity-0">
-              {container.institution ? initials(container.institution) : (
-                <Icon size={18} strokeWidth={1.85} />
-              )}
-            </span>
-            <span className="absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100">
-              <Icon size={18} strokeWidth={1.85} />
-            </span>
-          </div>
-
-          <div className="min-w-0 flex-1 overflow-hidden">
-            <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-              <h3 className="min-w-0 truncate text-sm font-semibold text-[var(--ds-gray-1000)]">
-                {container.name}
-              </h3>
-              <SyncBadge row={container} />
-              {!container.include_in_net_worth ? (
-                <span className="max-w-[4.5rem] shrink-0 truncate rounded-full bg-[var(--ds-gray-100)] px-2 py-0.5 text-[10px] font-medium text-[var(--ds-gray-700)]">
-                  Excluded
-                </span>
-              ) : null}
-            </div>
-            <p className="mt-0.5 truncate text-xs text-[var(--ds-gray-700)]">
-              {detail}
-            </p>
-            <p className="mt-1 truncate text-[11px] text-[var(--ds-gray-700)]">
-              Updated {updated}
-            </p>
-          </div>
+      <div className="flex h-[4.25rem] min-w-0 items-center gap-2.5 overflow-hidden px-3 pl-4 sm:h-[4.75rem] sm:gap-3 sm:px-5">
+        <div
+          className="relative flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold sm:size-10"
+          style={{
+            color: accent,
+            background: `color-mix(in srgb, ${accent} 14%, transparent)`,
+          }}
+          title={container.institution || meta.label}
+        >
+          <span className="absolute inset-0 grid place-items-center">
+            {container.institution ? (
+              initials(container.institution)
+            ) : (
+              <Icon size={16} strokeWidth={1.85} />
+            )}
+          </span>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1 overflow-hidden sm:gap-2">
-          <div className="min-w-0 max-w-[7.5rem] text-right sm:max-w-[10rem]">
-            <p
-              className={cn(
-                "truncate text-sm font-semibold tabular-nums sm:text-base",
-                liability
-                  ? "text-[var(--ds-status-red)]"
-                  : "text-[var(--ds-gray-1000)]",
-              )}
-            >
-              {liability ? "−" : ""}
-              {formatCurrency(container.balance, container.currency)}
-            </p>
-            <p className="mt-0.5 truncate text-[11px] text-[var(--ds-gray-700)]">
-              {liability ? "Outstanding" : "Available"}
-            </p>
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+            <h3 className="min-w-0 truncate text-sm font-semibold text-[var(--ds-gray-1000)]">
+              {container.name}
+            </h3>
+            <SyncBadge row={container} />
           </div>
-
-          {(() => {
-          const items = [
-            onEdit
-              ? { id: "edit", label: "Edit", onSelect: onEdit }
-              : null,
-            onDelete
-              ? {
-                  id: "archive",
-                  label: "Archive",
-                  tone: "danger" as const,
-                  onSelect: onDelete,
-                }
-              : null,
-          ].filter(Boolean) as {
-            id: string;
-            label: string;
-            onSelect: () => void;
-            tone?: "default" | "danger";
-          }[];
-          if (!items.length) return null;
-          return (
-            <ActionMenu
-              label={`Actions for ${container.name}`}
-              items={items}
-              trigger={
-                <span className="inline-flex size-8 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)]">
-                  <MoreHorizontal size={16} />
-                </span>
-              }
-            />
-          );
-        })()}
+          <p className="mt-0.5 truncate text-xs text-[var(--ds-gray-700)]" title={container.notes || detail}>
+            {detail}
+          </p>
         </div>
+
+        <p
+          className={cn(
+            "shrink-0 text-right text-sm font-semibold tabular-nums",
+            liability
+              ? "text-[var(--ds-status-red)]"
+              : "text-[var(--ds-gray-1000)]",
+          )}
+        >
+          {liability ? "−" : ""}
+          {formatCurrency(container.balance, container.currency)}
+        </p>
+
+        {menuItems.length ? (
+          <ActionMenu
+            label={`Actions for ${container.name}`}
+            items={menuItems}
+            trigger={
+              <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)]">
+                <MoreHorizontal size={16} />
+              </span>
+            }
+          />
+        ) : null}
       </div>
     </article>
   );

@@ -246,32 +246,36 @@ function SettingsPageInner() {
 
   return (
     <div>
-      <div className="sticky top-0 z-20 -mx-3 mb-3 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-background-100)] px-3 pb-2 pt-0.5 sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:mb-4 lg:border-0 lg:bg-transparent lg:px-0 lg:pb-0">
-        <PageHeader
-          title="Settings"
-          description={`Configure ${APP_NAME} security, AI providers, appearance, and workspace tools.`}
-        />
-        <nav className="flex gap-1 overflow-x-auto rounded-[10px] bg-[var(--ds-background-elevated)] p-1 ds-border lg:hidden">
-          {SECTIONS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => go(item.id)}
-              className={cn(
-                "flex h-8 shrink-0 items-center gap-1.5 rounded-[7px] px-2.5 text-[12px] whitespace-nowrap ds-focus",
-                section === item.id
-                  ? "bg-[var(--ds-gray-100)] font-medium text-[var(--ds-gray-1000)]"
-                  : "text-[var(--ds-gray-900)]",
-              )}
-            >
-              <item.icon size={13} className="shrink-0 opacity-80" />
-              {item.label}
-            </button>
-          ))}
+      <div className="sticky top-0 z-30 isolate lg:static">
+        <div className="hidden lg:block">
+          <PageHeader
+            title="Settings"
+            description={`Configure ${APP_NAME} security, AI providers, appearance, and workspace tools.`}
+          />
+        </div>
+        <nav className="-mx-3 -mt-4 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_10%,transparent)] bg-[var(--ds-background-100)] px-3 pt-4 pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:mt-0 lg:hidden lg:border-0 lg:bg-transparent lg:px-0 lg:pt-0 lg:pb-0">
+          <div className="flex gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {SECTIONS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => go(item.id)}
+                className={cn(
+                  "flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px] whitespace-nowrap ds-focus",
+                  section === item.id
+                    ? "bg-[var(--ds-gray-1000)] font-medium text-[var(--ds-primary-foreground)]"
+                    : "bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)] ds-border",
+                )}
+              >
+                <item.icon size={13} className="shrink-0 opacity-80" />
+                {item.label}
+              </button>
+            ))}
+          </div>
         </nav>
       </div>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+      <div className="mt-3 grid items-start gap-5 lg:mt-0 lg:grid-cols-[220px_minmax(0,1fr)]">
         <nav className="hidden gap-1 rounded-[12px] bg-[var(--ds-background-elevated)] p-1.5 ds-border lg:sticky lg:top-2 lg:flex lg:h-fit lg:flex-col">
           {SECTIONS.map((item) => (
             <button
