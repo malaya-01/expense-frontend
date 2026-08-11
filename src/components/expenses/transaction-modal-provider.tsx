@@ -12,7 +12,6 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { TransactionForm } from "@/components/expenses/transaction-form";
 import { useAuth } from "@/lib/auth-context";
-import { canCrud } from "@/lib/permissions";
 import type { LedgerTransaction } from "@/types";
 
 type TransactionModalContextValue = {
@@ -38,22 +37,20 @@ export function TransactionModalProvider({
   const [editing, setEditing] = useState<LedgerTransaction | null>(null);
 
   const openTransactionModal = useCallback(() => {
-    if (!canCrud(user, "expenses", "create")) return;
     setFormKey((key) => key + 1);
     setBusy(false);
     setEditing(null);
     setOpen(true);
-  }, [user]);
+  }, []);
 
   const openEditTransactionModal = useCallback(
     (transaction: LedgerTransaction) => {
-      if (!canCrud(user, "expenses", "update")) return;
       setFormKey((key) => key + 1);
       setBusy(false);
       setEditing(transaction);
       setOpen(true);
     },
-    [user],
+    [],
   );
 
   const closeTransactionModal = useCallback(() => setOpen(false), []);

@@ -152,11 +152,11 @@ export function permissionSatisfied(
     return CRUD_ACTIONS.some((a) => set.has(perm(module, a)));
   }
 
-  // Older sessions / DBs only issued module.access. If no fine-grained
-  // CRUD codes exist in the grant set, access still means full use.
-  if ((CRUD_ACTIONS as readonly string[]).includes(action)) {
-    const hasFineGrained = CRUD_ACTIONS.some((a) => set.has(perm(module, a)));
-    if (!hasFineGrained && set.has(perm(module, "access"))) return true;
+  if (
+    (CRUD_ACTIONS as readonly string[]).includes(action) &&
+    set.has(perm(module, "access"))
+  ) {
+    return true;
   }
 
   return false;
@@ -181,15 +181,12 @@ export function hasPermission(
 
 export function canCrud(
   user: { is_admin?: boolean; permissions?: string[] } | null | undefined,
-  module: string,
-  action: CrudAction,
+  _module: string,
+  _action: CrudAction,
 ): boolean {
-  if (!user) return false;
-  if (isTruthyAdmin(user.is_admin)) return true;
-  const granted = user.permissions || [];
-  // Matrix not loaded yet — don't hide create/edit/delete for a signed-in user.
-  if (!granted.length) return true;
-  return hasPermission(user, crudPerm(module, action));
+  // Product CRUD is available to every signed-in account.
+  // Admin-console routes still use hasPermission / canAccessAdmin.
+  return Boolean(user);
 }
 
 export function canAccessAdmin(
