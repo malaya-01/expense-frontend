@@ -3,13 +3,18 @@ import Script from "next/script";
 import { StoreProvider } from "@/lib/store/provider";
 import { ToastViewport } from "@/components/ui/toast";
 import { ExitConfirmHost } from "@/components/native/exit-confirm-host";
+import { APP_DESCRIPTION, APP_NAME } from "@/lib/brand";
 import { getThemeBootstrapScript } from "@/lib/themes/bootstrap";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FinOS",
-  description:
-    "Your Personal Financial Operating System — Digital Financial Twin.",
+  title: APP_NAME,
+  description: APP_DESCRIPTION,
+  applicationName: APP_NAME,
+  icons: {
+    icon: "/brand/logo.png",
+    apple: "/brand/logo.png",
+  },
 };
 
 export default function RootLayout({

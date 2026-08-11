@@ -8,6 +8,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { verifyEmail } from "@/lib/api/auth";
 import { getErrorMessage } from "@/lib/api/client";
+import { APP_NAME } from "@/lib/brand";
 
 function VerifyEmailContent() {
   const router = useRouter();
@@ -37,7 +38,7 @@ function VerifyEmailContent() {
         setMessage(result.message || "Email verified. You can sign in now.");
         showToast({
           title: "Email verified",
-          description: "You can sign in to FinOS.",
+          description: `You can sign in to ${APP_NAME}.`,
           tone: "success",
         });
       } catch (err) {

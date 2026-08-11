@@ -8,6 +8,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { resendVerification } from "@/lib/api/auth";
 import { getErrorMessage } from "@/lib/api/client";
+import { APP_NAME } from "@/lib/brand";
 
 function CheckEmailContent() {
   const searchParams = useSearchParams();
@@ -55,7 +56,7 @@ function CheckEmailContent() {
       <Card>
         <CardBody className="space-y-4 pt-6">
           <p className="text-sm leading-6 text-[var(--ds-gray-900)]">
-            Open the link in your inbox to activate FinOS. Until then, the app
+            Open the link in your inbox to activate {APP_NAME}. Until then, the app
             stays locked for this account.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row">

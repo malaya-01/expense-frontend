@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth-context";
+import { APP_NAME } from "@/lib/brand";
 import {
   COUNTRIES,
   SUPPORTED_CURRENCIES,
@@ -299,7 +300,7 @@ export default function ProfilePage() {
               />
             </div>
             <p className="mt-5 font-heading text-base font-semibold">
-              {fullName || user?.full_name || "FinOS user"}
+              {fullName || user?.full_name || `${APP_NAME} user`}
             </p>
             <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
               {user?.email || "—"}

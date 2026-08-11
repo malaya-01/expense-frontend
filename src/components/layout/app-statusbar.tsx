@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CloudOff, ShieldCheck, Wifi } from "lucide-react";
+import { APP_NAME, APP_VERSION } from "@/lib/brand";
 import { bindSpaceOutboxFlush, flushSpaceOutbox } from "@/lib/spaces/offline-outbox";
 
 export function AppStatusBar() {
@@ -39,7 +40,7 @@ export function AppStatusBar() {
           Credentials encrypted
         </span>
       </div>
-      <span>FinOS 0.1.0</span>
+      <span>{APP_NAME} {APP_VERSION}</span>
     </footer>
   );
 }

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">FinOS</string>
-    <string name="title_activity_main">FinOS</string>
+    <string name="app_name">Opal</string>
+    <string name="title_activity_main">Opal</string>
     <string name="package_name">com.finos.app</string>
     <string name="custom_url_scheme">com.finos.app</string>
 </resources>

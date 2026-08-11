@@ -32,6 +32,7 @@ import {
   setMobileNavOpen,
   toggleSidebarPinned,
 } from "@/lib/store/slices/uiSlice";
+import { APP_NAME } from "@/lib/brand";
 
 const ROUTE_TITLES = [
   { route: "/dashboard", title: "Dashboard", icon: LayoutDashboard },
@@ -63,7 +64,7 @@ export function AppTopbar() {
     () =>
       ROUTE_TITLES.find(({ route }) => pathname.startsWith(route)) || {
         route: "/dashboard",
-        title: "FinOS",
+        title: APP_NAME,
         icon: LayoutDashboard,
       },
     [pathname],
@@ -122,7 +123,7 @@ export function AppTopbar() {
           type="button"
           onClick={openCommandPalette}
           className="flex size-7 items-center justify-center rounded-[6px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] ds-focus"
-          aria-label="Search FinOS"
+          aria-label={`Search ${APP_NAME}`}
           title="Search (Ctrl+K)"
         >
           <Search size={14} />

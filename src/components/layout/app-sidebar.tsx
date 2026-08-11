@@ -32,7 +32,9 @@ import { Drawer } from "@/components/ui/drawer";
 import { NotificationCenter } from "@/components/layout/notification-center";
 import { ThemeMenu } from "@/components/layout/theme-menu";
 import { openCommandPalette } from "@/components/layout/command-palette";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { SpacesSidebarSection } from "@/components/layout/spaces-sidebar-section";
+import { APP_NAME } from "@/lib/brand";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { useAuth } from "@/lib/auth-context";
 import { initials } from "@/lib/format";
@@ -160,10 +162,8 @@ function SidebarContents({
           onClick={onNavigate}
           className="flex min-w-0 flex-1 items-center gap-2 rounded-[7px] px-1 py-1 text-[13px] font-medium text-[var(--ds-gray-1000)] ds-focus"
         >
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-[6px] bg-[var(--ds-gray-1000)] text-[10px] text-[var(--ds-primary-foreground)]">
-            F
-          </span>
-          <span className="truncate">{user?.full_name || "FinOS workspace"}</span>
+          <BrandLogo size={22} plated />
+          <span className="truncate">{user?.full_name || `${APP_NAME} workspace`}</span>
         </Link>
         {onPin ? (
           <button
@@ -252,7 +252,7 @@ function SidebarContents({
             )}
             <div className="min-w-0 flex-1">
               <p className="truncate text-[11px] font-medium text-[var(--ds-gray-1000)]">
-                {user?.full_name || "FinOS user"}
+                {user?.full_name || `${APP_NAME} user`}
               </p>
               <p className="truncate text-[10px] text-[var(--ds-gray-700)]">
                 {user?.email}
@@ -429,7 +429,7 @@ export function MobileNav() {
       <Drawer
         open={moreOpen}
         side="left"
-        title="FinOS"
+        title={APP_NAME}
         onClose={() => dispatch(setMobileNavOpen(false))}
       >
         <div className="-m-5 flex h-[calc(100dvh-4rem)] flex-col">

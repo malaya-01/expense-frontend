@@ -14,6 +14,7 @@ import { loginUser, registerUser } from "@/lib/api/auth";
 import { getErrorMessage } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { userIdFromToken } from "@/lib/jwt";
+import { APP_NAME } from "@/lib/brand";
 import { COUNTRIES, SUPPORTED_CURRENCIES, getCountry } from "@/lib/currency/currency.data";
 
 export default function SignUpPage() {
@@ -75,7 +76,7 @@ export default function SignUpPage() {
         permissions: tokens.user?.permissions ?? [],
       });
       showToast({
-        title: "Welcome to FinOS",
+        title: `Welcome to ${APP_NAME}`,
         description: "Your account is ready.",
         tone: "success",
       });
@@ -94,7 +95,7 @@ export default function SignUpPage() {
   return (
     <div>
       <h3 className="mb-2 font-heading text-[28px] leading-9 tracking-[-1.12px] sm:text-[32px] sm:leading-10 sm:tracking-[-1.28px]">
-        Create FinOS account
+        Create {APP_NAME} account
       </h3>
       <p className="mb-8 text-sm leading-5 text-[var(--ds-gray-900)]">
         Tell us where you are so totals use your currency.

@@ -38,6 +38,7 @@ import { listGoals } from "@/lib/api/goals";
 import { listInvestments } from "@/lib/api/investments";
 import { listCategories } from "@/lib/api/categories";
 import { changePassword, updateProfile } from "@/lib/api/user";
+import { APP_DESCRIPTION, APP_NAME, APP_SLUG, APP_VERSION } from "@/lib/brand";
 import { getErrorMessage } from "@/lib/api/client";
 import { openCommandPalette } from "@/components/layout/command-palette";
 import { getClientPlatform } from "@/lib/runtime-platform";
@@ -224,18 +225,18 @@ function SettingsPageInner() {
       );
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `finos-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.download = `${APP_SLUG}-backup-${new Date().toISOString().slice(0, 10)}.json`;
       anchor.click();
       URL.revokeObjectURL(url);
       showToast({
         title: "Backup exported",
-        description: "Your FinOS data was downloaded as JSON.",
+        description: `Your ${APP_NAME} data was downloaded as JSON.`,
         tone: "success",
       });
     } catch {
       showToast({
         title: "Export failed",
-        description: "FinOS could not prepare your backup. Please try again.",
+        description: `${APP_NAME} could not prepare your backup. Please try again.`,
         tone: "error",
       });
     } finally {
@@ -247,7 +248,7 @@ function SettingsPageInner() {
     <div>
       <PageHeader
         title="Settings"
-        description="Configure FinOS security, AI providers, appearance, and workspace tools."
+        description={`Configure ${APP_NAME} security, AI providers, appearance, and workspace tools.`}
       />
 
       <div className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
@@ -366,7 +367,7 @@ function SettingsPageInner() {
                     Change password
                   </h2>
                   <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-                    Update the password used to sign in to FinOS.
+                    Update the password used to sign in to {APP_NAME}.
                   </p>
                 </CardHeader>
                 <CardBody>
@@ -559,19 +560,16 @@ function SettingsPageInner() {
             <Card>
               <CardHeader>
                 <h2 className="font-heading text-base font-semibold">
-                  About FinOS
+                  About {APP_NAME}
                 </h2>
               </CardHeader>
               <CardBody className="space-y-3">
-                <Row label="Application" value="FinOS" />
-                <Row label="Version" value="0.1.0" mono />
-                <Row
-                  label="Product"
-                  value="Personal Financial Operating System"
-                />
+                <Row label="Application" value={APP_NAME} />
+                <Row label="Version" value={APP_VERSION} mono />
+                <Row label="Product" value={APP_DESCRIPTION} />
                 <p className="pt-2 text-xs leading-5 text-[var(--ds-gray-700)]">
-                  A privacy-first digital financial twin with ledger-backed
-                  accounting and a confirmation-gated AI advisor.
+                  A private, local-first money app with ledger-backed accounting
+                  and a confirmation-gated AI advisor.
                 </p>
               </CardBody>
             </Card>

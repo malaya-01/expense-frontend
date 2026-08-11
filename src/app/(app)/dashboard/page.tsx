@@ -24,6 +24,7 @@ import { listTransactions } from "@/lib/api/transactions";
 import { summarizeTwin } from "@/lib/accounts/metrics";
 import { getContainerMeta, isLiabilityType } from "@/lib/accounts/types-meta";
 import { useAuth } from "@/lib/auth-context";
+import { APP_NAME } from "@/lib/brand";
 import { canCrud } from "@/lib/permissions";
 import {
   formatCurrency,
@@ -152,7 +153,7 @@ export default function DashboardPage() {
   return (
     <div>
       <ModuleHeader
-        title={firstName ? `${firstName}'s FinOS` : "Financial Twin"}
+        title={firstName ? `${firstName}'s ${APP_NAME}` : "Overview"}
         description="Where is your money, where did it go, and what should you do next?"
         actions={
           <div className="flex flex-wrap gap-2">
@@ -396,14 +397,14 @@ export default function DashboardPage() {
               <div>
                 <h2>What should I know?</h2>
                 <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-                  Twin signals — deepen with FinOS AI
+                  Twin signals — deepen with {APP_NAME} AI
                 </p>
               </div>
               <Link
                 href="/ai"
                 className="text-sm text-[var(--ds-focus-color)]"
               >
-                Ask FinOS
+                Ask {APP_NAME}
               </Link>
             </CardHeader>
             <CardBody className="space-y-3">

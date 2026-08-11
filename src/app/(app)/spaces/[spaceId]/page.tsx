@@ -32,6 +32,7 @@ import { Alert, Badge, Progress } from "@/components/ui/feedback";
 import { cn } from "@/lib/cn";
 import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
+import { APP_NAME } from "@/lib/brand";
 import { useToast } from "@/components/ui/toast";
 import { listAccounts } from "@/lib/api/accounts";
 import {
@@ -196,7 +197,7 @@ export default function SpaceDetailPage() {
       showToast({
         title: "Invite sent",
         description: result.delivered_in_app
-          ? "They’ll see it in their FinOS notifications inbox."
+          ? `They’ll see it in their ${APP_NAME} notifications inbox.`
           : "Invite created. They’ll see it after signing up with that email.",
         tone: "success",
       });

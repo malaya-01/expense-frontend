@@ -25,6 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { APP_NAME } from "@/lib/brand";
 
 const SECTIONS = [
   { id: "start", label: "Getting started" },
@@ -245,7 +246,7 @@ export function GuideDocs() {
             Product guide
           </div>
           <h1 className="mt-4 text-[28px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[34px]">
-            Learn FinOS end to end
+            Learn {APP_NAME} end to end
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--ds-gray-900)] sm:text-[15px]">
             A practical walkthrough of accounts, money movement, budgets,
@@ -286,7 +287,7 @@ export function GuideDocs() {
         <section>
           <DocH2 id="start">Getting started</DocH2>
           <DocP>
-            FinOS is a local-first expense tracker: you can add money activity
+            {APP_NAME} is a local-first expense tracker: you can add money activity
             even when the network is slow, then sync when you are back online.
             The recommended setup path is short.
           </DocP>
@@ -376,7 +377,7 @@ export function GuideDocs() {
         <section>
           <DocH2 id="transactions">Transactions</DocH2>
           <DocP>
-            Transactions are the heart of FinOS. Every row is income, expense, or
+            Transactions are the heart of {APP_NAME}. Every row is income, expense, or
             a transfer between accounts.
           </DocP>
 
@@ -519,7 +520,7 @@ export function GuideDocs() {
           </DocP>
           <Callout tone="note" title="AI needs a provider">
             If chat fails, check that an API key / provider is set in Settings.
-            Your transaction data stays in FinOS; the model only sees what the
+            Your transaction data stays in {APP_NAME}; the model only sees what the
             advisor sends for the prompt.
           </Callout>
         </section>
@@ -527,7 +528,7 @@ export function GuideDocs() {
         <section>
           <DocH2 id="offline">Offline & sync</DocH2>
           <DocP>
-            FinOS keeps a local copy of your data. You can add expenses without
+            {APP_NAME} keeps a local copy of your data. You can add expenses without
             waiting for the server. When the network is available, changes sync
             up.
           </DocP>
@@ -578,7 +579,7 @@ export function GuideDocs() {
         <section>
           <DocH2 id="mobile">Mobile app</DocH2>
           <DocP>
-            The Android app is the same FinOS experience in a native shell
+            The Android app is the same {APP_NAME} experience in a native shell
             (Capacitor). Bottom sheets slide up when you open a form and slide
             down when you close it.
           </DocP>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { APP_NAME } from "@/lib/brand";
 
 /**
  * Listens for Android back-at-root → shows "exit app?" confirmation.
@@ -24,7 +25,7 @@ export function ExitConfirmHost() {
   return (
     <ConfirmDialog
       open={open}
-      title="Exit FinOS?"
+      title={`Exit ${APP_NAME}?`}
       description="Are you sure you want to close the app?"
       confirmLabel="Exit"
       destructive

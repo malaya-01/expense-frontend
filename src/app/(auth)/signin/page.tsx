@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { loginUser } from "@/lib/api/auth";
 import { getErrorMessage, getAccessToken } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
+import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import { userIdFromToken } from "@/lib/jwt";
 
 function SignInForm() {
@@ -90,10 +91,10 @@ function SignInForm() {
   return (
     <div>
       <h3 className="mb-2 text-[28px] leading-9 tracking-[-1.12px] sm:text-[32px] sm:leading-10 sm:tracking-[-1.28px]">
-        Sign in to FinOS
+        Sign in to {APP_NAME}
       </h3>
       <p className="mb-8 text-sm leading-5 text-[var(--ds-gray-900)]">
-        Your Personal Financial Operating System.
+        {APP_TAGLINE}
       </p>
 
       <Card>

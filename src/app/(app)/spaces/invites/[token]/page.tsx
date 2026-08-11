@@ -6,6 +6,7 @@ import { UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { acceptSpaceInvite } from "@/lib/api/spaces";
 import { getErrorMessage } from "@/lib/api/client";
+import { APP_NAME } from "@/lib/brand";
 import { useToast } from "@/components/ui/toast";
 
 export default function AcceptSpaceInvitePage() {
@@ -59,7 +60,7 @@ export default function AcceptSpaceInvitePage() {
               You’ve been invited
             </h2>
             <p className="mt-1 text-sm leading-5 text-[var(--ds-gray-700)]">
-              Join this shared FinOS workspace to track expenses, balances, and
+              Join this shared {APP_NAME} workspace to track expenses, balances, and
               settlements with the group.
             </p>
           </div>

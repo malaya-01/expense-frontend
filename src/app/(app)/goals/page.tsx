@@ -25,6 +25,7 @@ import {
 } from "@/lib/api/goals";
 import { listAccounts } from "@/lib/api/accounts";
 import { useAuth } from "@/lib/auth-context";
+import { APP_NAME } from "@/lib/brand";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
@@ -133,7 +134,7 @@ export default function GoalsPage() {
       }
       showToast({
         title: editing ? "Goal updated" : "Goal created",
-        description: "FinOS recalculated your progress and forecast.",
+        description: `${APP_NAME} recalculated your progress and forecast.`,
         tone: "success",
       });
       setModalOpen(false);
