@@ -11,7 +11,6 @@ import {
   Monitor,
 } from "lucide-react";
 import {
-  bootstrapOfflineSync,
   runSync,
   subscribeSyncStatus,
   type SyncStatusSnapshot,
@@ -44,9 +43,8 @@ export function SyncStatusButton() {
   const platform = useMemo(() => getClientPlatform(), []);
 
   useEffect(() => {
-    void bootstrapOfflineSync(user?.id);
     return subscribeSyncStatus(setStatus);
-  }, [user?.id]);
+  }, []);
 
   useEffect(() => {
     if (!open) return;

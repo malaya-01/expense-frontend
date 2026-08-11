@@ -15,7 +15,7 @@ import type {
 import { createRepository } from "@/lib/offline/repository";
 import { enqueueOutbox } from "@/lib/offline/outbox";
 import { isOnline } from "@/lib/offline/network";
-import { runSync } from "@/lib/offline/sync-engine";
+import { scheduleSync } from "@/lib/offline/sync-engine";
 import { offlineDb, newId } from "@/lib/offline/db";
 
 function normalizeAccount(row: any): FinancialContainer {
@@ -199,7 +199,7 @@ export async function saveUserSettingsLocal(
     payload,
     base_sync_version: Number(existing?.sync_version || 1),
   });
-  if (isOnline()) void runSync("user_settings");
+  if (isOnline()) scheduleSync("user_settings");
   return next;
 }
 
@@ -224,7 +224,7 @@ export async function saveNotificationPreferences(
     payload: { preferences },
     base_sync_version: Number(existing?.sync_version || 1),
   });
-  if (isOnline()) void runSync("notification_preferences");
+  if (isOnline()) scheduleSync("notification_preferences");
   return next;
 }
 
@@ -249,7 +249,7 @@ export async function saveAiPreferences(
     payload,
     base_sync_version: Number(existing?.sync_version || 1),
   });
-  if (isOnline()) void runSync("ai_preferences");
+  if (isOnline()) scheduleSync("ai_preferences");
   return next;
 }
 
@@ -277,7 +277,7 @@ export async function addAiMemoryLocal(
     payload: { id, content, source: "user" },
     base_sync_version: 1,
   });
-  if (isOnline()) void runSync("ai_memory");
+  if (isOnline()) scheduleSync("ai_memory");
   return row;
 }
 
@@ -303,7 +303,7 @@ export async function contributeGoalLocal(
     payload,
     base_sync_version: Number(existing?.sync_version || 1),
   });
-  if (isOnline()) void runSync("goal_contribute");
+  if (isOnline()) scheduleSync("goal_contribute");
   return offlineDb.goals.get(id);
 }
 
@@ -317,7 +317,7 @@ export async function loanPaymentLocal(
     op: "payment",
     payload,
   });
-  if (isOnline()) void runSync("loan_payment");
+  if (isOnline()) scheduleSync("loan_payment");
 }
 
 export async function recurringExecuteLocal(id: string) {
@@ -327,7 +327,7 @@ export async function recurringExecuteLocal(id: string) {
     op: "execute",
     payload: {},
   });
-  if (isOnline()) void runSync("recurring_execute");
+  if (isOnline()) scheduleSync("recurring_execute");
 }
 
 export type { CreateContainerInput, CreateTransactionInput };

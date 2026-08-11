@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { CloudOff, Wifi } from "lucide-react";
 import {
-  bootstrapOfflineSync,
   runSync,
   subscribeSyncStatus,
   type SyncStatusSnapshot,
@@ -32,7 +31,6 @@ export function NetworkStatusBanner() {
   const [badApi, setBadApi] = useState(false);
 
   useEffect(() => {
-    void bootstrapOfflineSync(user?.id);
     setBadApi(isLocalhostApiUrl(getApiBaseUrl()));
     return subscribeSyncStatus(setStatus);
   }, [user?.id]);

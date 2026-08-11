@@ -9,7 +9,7 @@ import {
 import { enqueueOutbox } from "./outbox";
 import type { OutboxOp } from "./db";
 import { isOnline } from "./network";
-import { runSync } from "./sync-engine";
+import { scheduleSync } from "./sync-engine";
 import { getActiveOfflineUserId } from "./clear-session";
 import { pushOutboxItemViaRest } from "./rest-fallback";
 
@@ -89,21 +89,7 @@ export function createRepository<T extends SyncedRecord>(
         }),
       );
 
-    const local = await readLocal();
-
-    if (isOnline()) {
-      // Background merge only — never block UI on cold servers.
-      void (async () => {
-        try {
-          await hydrateFromRemote();
-          void runSync("list");
-        } catch {
-          /* keep local */
-        }
-      })();
-    }
-
-    return local;
+    return readLocal();
   }
 
   async function get(id: string): Promise<T> {
@@ -191,7 +177,7 @@ export function createRepository<T extends SyncedRecord>(
       payload: { ...payload, id },
       base_sync_version: 1,
     });
-    if (isOnline()) void runSync("create");
+    if (isOnline()) scheduleSync("create");
     return local;
   }
 
@@ -250,7 +236,7 @@ export function createRepository<T extends SyncedRecord>(
       payload,
       base_sync_version: Number(existing?.sync_version || 1),
     });
-    if (isOnline()) void runSync("update");
+    if (isOnline()) scheduleSync("update");
     return next;
   }
 
@@ -297,7 +283,7 @@ export function createRepository<T extends SyncedRecord>(
       payload: {},
       base_sync_version: Number(existing?.sync_version || 1),
     });
-    if (isOnline()) void runSync("delete");
+    if (isOnline()) scheduleSync("delete");
   }
 
   async function enqueueSpecial(
@@ -313,7 +299,7 @@ export function createRepository<T extends SyncedRecord>(
       payload,
       base_sync_version: 1,
     });
-    if (isOnline()) void runSync(op);
+    if (isOnline()) scheduleSync(op);
   }
 
   return {

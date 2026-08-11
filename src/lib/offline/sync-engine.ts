@@ -50,10 +50,22 @@ const listeners = new Set<SyncListener>();
 let syncing = false;
 let lastError: string | null = null;
 let bootstrapped = false;
+let queuedSync: string | null = null;
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let lastSyncCompletedAt = 0;
+let lastBootUserId: string | null = null;
+const AUTO_SYNC_GAP_MS = 12_000;
 
 export function resetOfflineSyncRuntime() {
   syncing = false;
   lastError = null;
+  queuedSync = null;
+  lastBootUserId = null;
+  lastSyncCompletedAt = 0;
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+  }
 }
 /** Once we know /api/sync is missing on the server, skip it and use REST. */
 let useRestFallback = false;
@@ -157,10 +169,47 @@ export async function emitStatus() {
   listeners.forEach((fn) => fn(snapshot));
 }
 
+/**
+ * Coalesce background sync. Page loads must not call this.
+ * Immediate: login/boot, network return, or the header Sync button.
+ * Debounced: leftover outbox after a failed live write.
+ */
+export function scheduleSync(reason = "auto"): void {
+  if (
+    reason === "manual" ||
+    reason === "boot" ||
+    reason === "online" ||
+    reason === "conflict-local"
+  ) {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+    void runSync(reason);
+    return;
+  }
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    debounceTimer = null;
+    void runSync(reason);
+  }, 2_000);
+}
+
 export async function runSync(reason = "manual"): Promise<void> {
-  if (syncing) return;
+  if (syncing) {
+    queuedSync = reason;
+    return;
+  }
   if (!isOnline()) {
     await emitStatus();
+    return;
+  }
+  if (
+    reason !== "manual" &&
+    reason !== "conflict-local" &&
+    lastSyncCompletedAt &&
+    Date.now() - lastSyncCompletedAt < AUTO_SYNC_GAP_MS
+  ) {
     return;
   }
 
@@ -180,6 +229,7 @@ export async function runSync(reason = "manual"): Promise<void> {
     await setMeta("last_sync_at", new Date().toISOString());
     lastError = null;
     await persistDurableBackup();
+    lastSyncCompletedAt = Date.now();
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("finos:sync-complete"));
     }
@@ -191,6 +241,11 @@ export async function runSync(reason = "manual"): Promise<void> {
   } finally {
     syncing = false;
     await emitStatus();
+    if (queuedSync) {
+      const next = queuedSync;
+      queuedSync = null;
+      if (next === "manual") void runSync("manual");
+    }
   }
 }
 
@@ -580,20 +635,23 @@ export async function bootstrapOfflineSync(userId?: string | null): Promise<void
       await emitStatus();
     }
   }
-  if (bootstrapped) return;
-  bootstrapped = true;
-  const { initNetworkMonitor, subscribeNetwork } = await import("./network");
-  await initNetworkMonitor();
-  await recoverStuckSyncing();
-  subscribeNetwork((online) => {
-    void emitStatus();
-    if (online) {
-      // Sync when connectivity returns — not on a timer.
-      setTimeout(() => void runSync("online"), 2_000);
-    }
-  });
-  if (isOnline()) {
-    setTimeout(() => void runSync("boot"), 1_500);
+  if (!bootstrapped) {
+    bootstrapped = true;
+    const { initNetworkMonitor, subscribeNetwork } = await import("./network");
+    await initNetworkMonitor();
+    await recoverStuckSyncing();
+    let wasOnline = isOnline();
+    subscribeNetwork((online) => {
+      void emitStatus();
+      if (online && !wasOnline) {
+        scheduleSync("online");
+      }
+      wasOnline = online;
+    });
+  }
+  if (userId && userId !== lastBootUserId) {
+    lastBootUserId = userId;
+    if (isOnline()) scheduleSync("boot");
   }
   await emitStatus();
 }

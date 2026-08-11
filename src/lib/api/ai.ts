@@ -108,7 +108,7 @@ export async function deleteAiMemory(id: string) {
     const { offlineDb } = await import("@/lib/offline/db");
     const { enqueueOutbox } = await import("@/lib/offline/outbox");
     const { isOnline } = await import("@/lib/offline/network");
-    const { runSync } = await import("@/lib/offline/sync-engine");
+    const { scheduleSync } = await import("@/lib/offline/sync-engine");
     const existing = await offlineDb.ai_memories.get(id);
     await offlineDb.ai_memories.put({
       ...(existing || { id }),
@@ -123,7 +123,7 @@ export async function deleteAiMemory(id: string) {
       payload: {},
       base_sync_version: Number(existing?.sync_version || 1),
     });
-    if (isOnline()) void runSync("ai_memory_delete");
+    if (isOnline()) scheduleSync("ai_memory_delete");
     return { id };
   }
 }
