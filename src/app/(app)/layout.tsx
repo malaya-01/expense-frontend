@@ -12,7 +12,6 @@ import { fetchMyPermissions } from "@/lib/api/permissions";
 import { cn } from "@/lib/cn";
 import { bootstrapOfflineSync } from "@/lib/offline/sync-engine";
 import { NetworkStatusBanner } from "@/components/sync/network-status-banner";
-import { ApiActivityIndicator } from "@/components/ui/api-activity-indicator";
 import {
   firstAllowedPath,
   hasPermission,
@@ -69,22 +68,21 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <TransactionModalProvider>
       <div className="h-dvh overflow-hidden bg-[var(--ds-background-100)]">
-        <ApiActivityIndicator />
         <AppTopbar />
         <AppSidebar />
         <main
           className={cn(
             "h-[calc(100dvh-2.75rem)] translate-y-11 transition-[margin-left] duration-200 md:ml-[var(--app-sidebar-offset)]",
             isAiWorkspace
-              ? "overflow-hidden p-0 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0"
-              : "app-scrollbar overflow-y-auto overscroll-contain px-3 py-4 pb-24 sm:px-6 sm:py-6 md:pb-10",
+              ? "overflow-hidden p-0 pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-0"
+              : "app-scrollbar overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-4 pb-[calc(6.25rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-6 md:pb-10",
           )}
         >
           <div
             className={cn(
               isAiWorkspace
                 ? "flex h-full w-full max-w-none flex-col"
-                : "mx-auto w-full max-w-[var(--ds-page-width)]",
+                : "mx-auto w-full min-w-0 max-w-[var(--ds-page-width)]",
             )}
           >
             <NetworkStatusBanner />

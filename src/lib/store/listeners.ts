@@ -9,6 +9,7 @@ import {
   writeCustomThemes,
 } from "@/lib/themes/storage";
 import { clearTokens, getAccessToken } from "@/lib/api/client";
+import { setActiveOfflineUserId } from "@/lib/offline/clear-session";
 import {
   hydrateAuth,
   logout,
@@ -43,6 +44,8 @@ import {
   dismissAllNotifications,
   DISMISSED_NOTIFICATIONS_KEY,
   hydrateDismissed,
+  markNoticeRead,
+  persistDismissedNotifications,
 } from "./slices/notificationsSlice";
 import type { AppDispatch, RootState } from "./index";
 
@@ -72,9 +75,7 @@ export function bootstrapAppState(dispatch: AppDispatch) {
   if (token && storedUser) {
     dispatch(hydrateAuth({ user: storedUser, hasAccessToken: true }));
     if (storedUser.id) {
-      void import("@/lib/offline/clear-session").then(({ setActiveOfflineUserId }) => {
-        setActiveOfflineUserId(storedUser.id);
-      });
+      setActiveOfflineUserId(storedUser.id);
     }
   } else {
     if (!token) localStorage.removeItem(USER_STORAGE_KEY);
@@ -168,12 +169,11 @@ startAppListening({
 });
 
 startAppListening({
-  actionCreator: dismissAllNotifications,
+  matcher: isAnyOf(dismissAllNotifications, markNoticeRead),
   effect: (_action, api) => {
-    localStorage.setItem(
-      DISMISSED_NOTIFICATIONS_KEY,
-      JSON.stringify(api.getState().notifications.dismissed),
-    );
+    const { dismissed } = api.getState().notifications;
+    const userId = api.getState().auth.user?.id;
+    void persistDismissedNotifications(dismissed, userId);
   },
 });
 

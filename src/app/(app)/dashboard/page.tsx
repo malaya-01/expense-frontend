@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { CashFlowChart } from "@/components/dashboard/cash-flow-chart";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { ModuleHeader } from "@/components/ui/module-header";
 import { EmptyState } from "@/components/ui/page-header";
@@ -42,7 +43,7 @@ import type {
 export default function DashboardPage() {
   const { openTransactionModal } = useTransactionModal();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, ready } = useAuth();
   const canCreateTx = canCrud(user, "expenses", "create");
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
   const [containers, setContainers] = useState<FinancialContainer[]>([]);
@@ -55,16 +56,24 @@ export default function DashboardPage() {
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!ready || !user?.id) return;
     let alive = true;
     setLoading(true);
-    Promise.allSettled([
-      listTransactions(),
-      listAccounts(user.id),
-      listBudgets(),
-      listGoals(),
-      listInvestments(),
-    ]).then((results) => {
+    void (async () => {
+      try {
+        const { bootstrapOfflineSync } = await import("@/lib/offline/sync-engine");
+        await bootstrapOfflineSync(user.id);
+      } catch {
+        /* still attempt REST-backed lists */
+      }
+      if (!alive) return;
+      const results = await Promise.allSettled([
+        listTransactions(),
+        listAccounts(user.id),
+        listBudgets(),
+        listGoals(),
+        listInvestments(),
+      ]);
       if (!alive) return;
       const [tx, account, budget, goal, investment] = results;
       if (tx.status === "fulfilled") setTransactions(tx.value);
@@ -76,11 +85,11 @@ export default function DashboardPage() {
       }
       setLoadError(results.some((result) => result.status === "rejected"));
       setLoading(false);
-    });
+    })();
     return () => {
       alive = false;
     };
-  }, [user?.id]);
+  }, [ready, user?.id]);
 
   const twin = useMemo(
     () => summarizeTwin(containers, user?.currency || "USD"),
@@ -151,7 +160,7 @@ export default function DashboardPage() {
   if (loading) return <PageSkeleton />;
 
   return (
-    <div>
+    <div className="min-w-0">
       <ModuleHeader
         title={firstName ? `${firstName}'s ${APP_NAME}` : "Overview"}
         description="Where is your money, where did it go, and what should you do next?"
@@ -247,7 +256,7 @@ export default function DashboardPage() {
         </CardBody>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-2 gap-3 xl:grid-cols-3">
         <MetricCard
           title="Net Worth"
           value={formatCurrency(twin.netWorth, baseCurrency)}
@@ -263,12 +272,6 @@ export default function DashboardPage() {
           value={formatCurrency(twin.totalCash, baseCurrency)}
           subtitle={`Cash, wallets, banks · ${baseCurrency}`}
           tone="green"
-        />
-        <MetricCard
-          title="Monthly Cash Flow"
-          value={formatCurrency(stats.inflow - stats.outflow, baseCurrency)}
-          subtitle={`${formatCurrency(stats.inflow, baseCurrency)} in · ${formatCurrency(stats.outflow, baseCurrency)} out · ${stats.count} tx`}
-          tone="orange"
         />
         <MetricCard
           title="Investments"
@@ -288,8 +291,16 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="mt-6 grid gap-4 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
+      <div className="mt-4 min-w-0 sm:mt-6">
+        <CashFlowChart
+          transactions={transactions}
+          accounts={containers}
+          currency={baseCurrency}
+        />
+      </div>
+
+      <div className="mt-6 grid min-w-0 gap-4 xl:grid-cols-3">
+        <Card className="min-w-0 xl:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <h2>Cash movement</h2>
@@ -337,15 +348,15 @@ export default function DashboardPage() {
                   return (
                     <li
                       key={tx.id}
-                      className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+                      className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
                     >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <StatusDot tone={tone} />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm tabular-nums text-[var(--ds-gray-1000)]">
+                      <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+                        <StatusDot tone={tone} className="shrink-0" />
+                        <div className="min-w-0 flex-1 overflow-hidden">
+                          <p className="truncate text-sm text-[var(--ds-gray-1000)]">
                             {tx.description}
                           </p>
-                          <p className="text-xs text-[var(--ds-gray-700)]">
+                          <p className="truncate text-xs text-[var(--ds-gray-700)]">
                             {formatRelativeDate(tx.date)} · {flow}
                           </p>
                         </div>
@@ -503,14 +514,14 @@ function ContainerRow({ container }: { container: FinancialContainer }) {
   const meta = getContainerMeta(container.type);
   const liability = isLiabilityType(container.type);
   return (
-    <li className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <StatusDot color={container.color || meta.defaultColor} />
-        <div className="min-w-0">
+    <li className="flex min-w-0 items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden">
+        <StatusDot color={container.color || meta.defaultColor} className="shrink-0" />
+        <div className="min-w-0 flex-1 overflow-hidden">
           <p className="truncate text-sm text-[var(--ds-gray-1000)]">
             {container.name}
           </p>
-          <p className="text-xs text-[var(--ds-gray-700)]">{meta.label}</p>
+          <p className="truncate text-xs text-[var(--ds-gray-700)]">{meta.label}</p>
         </div>
       </div>
       <p className="shrink-0 text-sm font-medium tabular-nums">

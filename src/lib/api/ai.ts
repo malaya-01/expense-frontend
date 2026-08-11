@@ -55,23 +55,38 @@ export async function selectActiveAiProvider(payload: {
 }
 
 export async function updateMasterPrompt(master_prompt: string) {
-  try {
-    const res = await api.patch("/ai/master-prompt", { master_prompt });
-    const data = unwrap(res);
-    const userRaw = localStorage.getItem("expense-tracker:user");
-    const userId = userRaw ? JSON.parse(userRaw)?.id : null;
-    if (userId) {
-      const { saveAiPreferences } = await import("@/lib/offline/repos");
-      await saveAiPreferences(userId, { master_prompt });
+  const { isOnline } = await import("@/lib/offline/network");
+  const userRaw =
+    typeof localStorage !== "undefined"
+      ? localStorage.getItem("expense-tracker:user")
+      : null;
+  const userId = userRaw ? JSON.parse(userRaw)?.id : null;
+
+  if (isOnline()) {
+    try {
+      const res = await api.patch("/ai/master-prompt", { master_prompt });
+      const data = unwrap(res);
+      if (userId) {
+        const { offlineDb } = await import("@/lib/offline/db");
+        const existing = await offlineDb.ai_preferences.get(userId);
+        await offlineDb.ai_preferences.put({
+          ...(existing || {}),
+          id: userId,
+          user_id: userId,
+          master_prompt,
+          updated_at: new Date().toISOString(),
+          _pending: false,
+        } as any);
+      }
+      return data;
+    } catch {
+      /* queue locally if the live call fails */
     }
-    return data;
-  } catch {
-    const userRaw = localStorage.getItem("expense-tracker:user");
-    const userId = userRaw ? JSON.parse(userRaw)?.id : null;
-    if (!userId) throw new Error("Offline: user required");
-    const { saveAiPreferences } = await import("@/lib/offline/repos");
-    return saveAiPreferences(userId, { master_prompt });
   }
+
+  if (!userId) throw new Error("Offline: user required");
+  const { saveAiPreferences } = await import("@/lib/offline/repos");
+  return saveAiPreferences(userId, { master_prompt });
 }
 
 export async function getAiStarters() {
@@ -88,16 +103,20 @@ export async function getAiMemories(): Promise<{
 }
 
 export async function addAiMemory(content: string): Promise<AiMemory> {
-  try {
-    const res = await api.post("/ai/memories", { content });
-    return unwrap(res);
-  } catch {
-    const userRaw = localStorage.getItem("expense-tracker:user");
-    const userId = userRaw ? JSON.parse(userRaw)?.id : null;
-    if (!userId) throw new Error("Offline: user required");
-    const { addAiMemoryLocal } = await import("@/lib/offline/repos");
-    return addAiMemoryLocal(userId, content) as Promise<AiMemory>;
+  const { isOnline } = await import("@/lib/offline/network");
+  if (isOnline()) {
+    try {
+      const res = await api.post("/ai/memories", { content });
+      return unwrap(res);
+    } catch {
+      /* queue locally if the live call fails */
+    }
   }
+  const userRaw = localStorage.getItem("expense-tracker:user");
+  const userId = userRaw ? JSON.parse(userRaw)?.id : null;
+  if (!userId) throw new Error("Offline: user required");
+  const { addAiMemoryLocal } = await import("@/lib/offline/repos");
+  return addAiMemoryLocal(userId, content) as Promise<AiMemory>;
 }
 
 export async function deleteAiMemory(id: string) {

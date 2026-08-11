@@ -171,7 +171,23 @@ export default function SpaceDetailPage() {
         setExpenseOpen(false);
         return;
       }
-      await createSpaceExpense(spaceId, payload);
+      try {
+        await createSpaceExpense(spaceId, payload);
+      } catch {
+        await enqueueSpaceDraft({
+          client_op_id: `expense-${Date.now()}`,
+          entity_type: "space_expense",
+          space_id: spaceId,
+          payload,
+        });
+        showToast({
+          title: "Saved locally",
+          description: "Server was unreachable. Expense will sync when possible.",
+          tone: "warning",
+        });
+        setExpenseOpen(false);
+        return;
+      }
       setExpenseOpen(false);
       setTitle("");
       setAmount("");

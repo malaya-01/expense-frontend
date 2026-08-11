@@ -23,6 +23,7 @@ function normalizeAccount(row: any): FinancialContainer {
     ...row,
     balance: Number(row.balance),
     include_in_net_worth: row.include_in_net_worth !== false,
+    space_id: row.space_id || null,
     _pending: Boolean(row._pending),
     _sync_failed: Boolean(row._sync_failed),
   } as FinancialContainer;
@@ -208,10 +209,23 @@ export async function saveNotificationPreferences(
   preferences: Record<string, unknown>,
 ) {
   const existing = await offlineDb.notification_preferences.get(userId);
+  const existingPrefs =
+    (existing?.preferences as Record<string, unknown> | undefined) || {};
+  const existingIds = Array.isArray(existingPrefs.dismissed_ids)
+    ? existingPrefs.dismissed_ids.map(String)
+    : [];
+  const incomingIds = Array.isArray(preferences.dismissed_ids)
+    ? preferences.dismissed_ids.map(String)
+    : [];
+  const merged = {
+    ...existingPrefs,
+    ...preferences,
+    dismissed_ids: [...new Set([...existingIds, ...incomingIds])],
+  };
   const next = {
     id: userId,
     user_id: userId,
-    preferences,
+    preferences: merged,
     updated_at: new Date().toISOString(),
     sync_version: Number(existing?.sync_version || 1),
     _pending: true,
@@ -221,7 +235,7 @@ export async function saveNotificationPreferences(
     entity_type: "notification_preferences",
     entity_id: userId,
     op: "update",
-    payload: { preferences },
+    payload: { preferences: merged },
     base_sync_version: Number(existing?.sync_version || 1),
   });
   if (isOnline()) scheduleSync("notification_preferences");

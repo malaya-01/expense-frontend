@@ -38,10 +38,11 @@ export function AccountFormModal({
   open: boolean;
   onClose: () => void;
   initial?: FinancialContainer | null;
-  onSubmit: (input: CreateContainerInput) => void;
+  onSubmit: (input: CreateContainerInput) => void | Promise<void>;
   defaultCurrency?: string;
 }) {
   const [form, setForm] = useState<CreateContainerInput>(EMPTY);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -70,15 +71,20 @@ export function AccountFormModal({
     }));
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) return;
-    onSubmit({
-      ...form,
-      balance: Number(form.balance) || 0,
-      institution: form.institution || undefined,
-      notes: form.notes || undefined,
-    });
+    if (saving || !form.name.trim()) return;
+    setSaving(true);
+    try {
+      await onSubmit({
+        ...form,
+        balance: Number(form.balance) || 0,
+        institution: form.institution || undefined,
+        notes: form.notes || undefined,
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   const meta = getContainerMeta(form.type);
@@ -91,10 +97,10 @@ export function AccountFormModal({
       className="max-w-2xl"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button form="account-form" type="submit">
+          <Button form="account-form" type="submit" loading={saving}>
             {initial ? "Save" : "Create"}
           </Button>
         </>

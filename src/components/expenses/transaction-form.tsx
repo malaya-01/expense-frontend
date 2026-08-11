@@ -153,6 +153,7 @@ export function TransactionForm({
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     setError("");
     if (!form.description.trim()) {
       setError("Description is required");
@@ -265,9 +266,9 @@ export function TransactionForm({
           value={form.type}
           onChange={(e) => setType(e.target.value as TransactionType)}
         >
-          <option value="expense">Expense — money left a container</option>
-          <option value="income">Income — money entered a container</option>
-          <option value="transfer">Transfer — move between containers</option>
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
+          <option value="transfer">Transfer</option>
         </Select>
         {form.type === "transfer" ? (
           <p className="mt-1.5 text-[11px] text-[var(--ds-gray-700)]">

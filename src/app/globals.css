@@ -20,6 +20,9 @@
   --ds-focus-color: #0072f5;
   --ds-focus-input: #005fcc;
 
+  --brand-logo-plated: url("/brand/themes/vercel-light.png");
+  --brand-logo-mark: url("/brand/logo-mark-on-light.png");
+
   /* FinOS financial meaning colors */
   --finos-success: #16a34a;
   --finos-warning: #f59e0b;
@@ -652,7 +655,7 @@ html.native-app main.app-scrollbar {
   padding-left: 0.625rem !important;
   padding-right: 0.625rem !important;
   padding-top: 0.5rem !important;
-  padding-bottom: calc(3.75rem + env(safe-area-inset-bottom)) !important;
+  padding-bottom: calc(6.25rem + env(safe-area-inset-bottom)) !important;
 }
 
 html.native-app [data-kpi-card] {

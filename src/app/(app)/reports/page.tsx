@@ -1,58 +1,57 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Download, RefreshCw } from "lucide-react";
 import { EmptyState } from "@/components/ui/page-header";
 import { ModuleHeader } from "@/components/ui/module-header";
 import { Button } from "@/components/ui/button";
+import { CashFlowChart } from "@/components/dashboard/cash-flow-chart";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { StatusDot } from "@/components/ui/status-dot";
+import { listAccounts } from "@/lib/api/accounts";
 import { getReportOverview } from "@/lib/api/reports";
+import { listTransactions } from "@/lib/api/transactions";
 import { useAuth } from "@/lib/auth-context";
 import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { assetTypeLabel } from "@/lib/investments/meta";
-import type { ReportOverview } from "@/types";
+import type { FinancialContainer, LedgerTransaction, ReportOverview } from "@/types";
 import { Alert, CardGridSkeleton } from "@/components/ui/feedback";
 import { useToast } from "@/components/ui/toast";
-import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
-import { canCrud } from "@/lib/permissions";
-
-function monthLabel(key: string): string {
-  const [y, m] = key.split("-").map(Number);
-  if (!y || !m) return key;
-  return new Date(y, m - 1, 1).toLocaleString("en-US", {
-    month: "short",
-    year: "2-digit",
-  });
-}
 
 export default function ReportsPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
-  const { openTransactionModal } = useTransactionModal();
-  const canCreateTx = canCrud(user, "expenses", "create");
   const [months, setMonths] = useState(6);
   const [report, setReport] = useState<ReportOverview | null>(null);
+  const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
+  const [accounts, setAccounts] = useState<FinancialContainer[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    if (!user?.id) return;
     setLoading(true);
     setError("");
     try {
-      const data = await getReportOverview(months);
+      const [data, ledger, containers] = await Promise.all([
+        getReportOverview(months),
+        listTransactions(),
+        listAccounts(user.id),
+      ]);
       setReport(data);
+      setTransactions(ledger);
+      setAccounts(containers);
     } catch (err) {
       setError(getErrorMessage(err, "Could not load reports"));
       setReport(null);
     } finally {
       setLoading(false);
     }
-  }, [months]);
+  }, [months, user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -60,14 +59,6 @@ export default function ReportsPage() {
   }, [user?.id, refresh]);
 
   const currency = report?.base_currency || user?.currency || "USD";
-
-  const cashFlowMax = useMemo(() => {
-    if (!report?.cash_flow.length) return 1;
-    return Math.max(
-      1,
-      ...report.cash_flow.flatMap((m) => [m.income, m.expense]),
-    );
-  }, [report]);
 
   function download(content: string, type: string, extension: string) {
     const url = URL.createObjectURL(new Blob([content], { type }));
@@ -222,84 +213,14 @@ export default function ReportsPage() {
             />
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-3">
-            <Card className="xl:col-span-2">
-              <CardHeader>
-                <h2>Cash flow</h2>
-                <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-                  Income vs expenses by month ({currency})
-                </p>
-              </CardHeader>
-              <CardBody>
-                {report.cash_flow.every((m) => m.income === 0 && m.expense === 0) ? (
-                  <p className="text-sm text-[var(--ds-gray-900)]">
-                    No ledger activity in this window.
-                    {canCreateTx ? (
-                      <>
-                        {" "}
-                        <button
-                          type="button"
-                          onClick={openTransactionModal}
-                          className="text-[var(--ds-focus-color)]"
-                        >
-                          Record a transaction
-                        </button>
-                      </>
-                    ) : null}
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {report.cash_flow.map((m) => (
-                      <div key={m.month}>
-                        <div className="mb-1.5 flex items-center justify-between text-xs">
-                          <span className="text-[var(--ds-gray-1000)]">
-                            {monthLabel(m.month)}
-                          </span>
-                          <span
-                            className="tabular-nums"
-                            style={{
-                              color:
-                                m.net >= 0
-                                  ? "var(--ds-status-green)"
-                                  : "var(--ds-status-orange)",
-                            }}
-                          >
-                            {m.net >= 0 ? "+" : ""}
-                            {formatCurrency(m.net, currency)}
-                          </span>
-                        </div>
-                        <div className="flex h-2 gap-1">
-                          <div
-                            className="rounded-full bg-[var(--ds-status-green)] transition-[width] duration-500"
-                            style={{
-                              width: `${(m.income / cashFlowMax) * 100}%`,
-                              minWidth: m.income > 0 ? 4 : 0,
-                            }}
-                            title={`Income ${formatCurrency(m.income, currency)}`}
-                          />
-                          <div
-                            className="rounded-full bg-[var(--ds-status-orange)] transition-[width] duration-500"
-                            style={{
-                              width: `${(m.expense / cashFlowMax) * 100}%`,
-                              minWidth: m.expense > 0 ? 4 : 0,
-                            }}
-                            title={`Expense ${formatCurrency(m.expense, currency)}`}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                    <div className="flex gap-4 pt-1 text-[11px] text-[var(--ds-gray-700)]">
-                      <span className="inline-flex items-center gap-1.5">
-                        <StatusDot tone="green" /> Income
-                      </span>
-                      <span className="inline-flex items-center gap-1.5">
-                        <StatusDot tone="orange" /> Expense
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </CardBody>
-            </Card>
+          <div className="grid min-w-0 gap-4 xl:grid-cols-3">
+            <div className="min-w-0 xl:col-span-2">
+              <CashFlowChart
+                transactions={transactions}
+                accounts={accounts}
+                currency={currency}
+              />
+            </div>
 
             <Card>
               <CardHeader>

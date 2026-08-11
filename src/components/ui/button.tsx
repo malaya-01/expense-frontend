@@ -1,5 +1,7 @@
+"use client";
+
 import { cn } from "@/lib/cn";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md" | "lg";
@@ -25,8 +27,11 @@ export function Button({
   className,
   children,
   type = "button",
+  onClick,
   ...props
 }: ButtonProps) {
+  const [pending, setPending] = useState(false);
+  const busy = Boolean(loading || pending);
   const base =
     "inline-flex items-center justify-center gap-2 rounded-[9px] font-medium leading-none transition-[background-color,color,box-shadow,transform] duration-150 active:translate-y-px disabled:pointer-events-none disabled:opacity-45 ds-focus";
 
@@ -44,11 +49,22 @@ export function Button({
   return (
     <button
       type={type}
-      disabled={disabled || loading}
+      disabled={disabled || busy}
       className={cn(base, sizeClass[size], variants[variant], className)}
+      onClick={(event) => {
+        if (busy) {
+          event.preventDefault();
+          return;
+        }
+        const result = onClick?.(event);
+        if (result && typeof (result as Promise<void>).then === "function") {
+          setPending(true);
+          void Promise.resolve(result).finally(() => setPending(false));
+        }
+      }}
       {...props}
     >
-      {loading ? (
+      {busy ? (
         <span className="inline-block size-3.5 animate-spin rounded-full border-2 border-current border-r-transparent" />
       ) : null}
       {children}

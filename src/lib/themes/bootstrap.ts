@@ -1,5 +1,5 @@
 import { PRESET_THEMES } from "./presets";
-import { applyThemeTokens } from "./apply";
+import { applyBrandAssets, applyThemeTokens } from "./apply";
 import type { ThemeDefinition } from "./types";
 import { CUSTOM_THEMES_KEY, THEME_STORAGE_KEY } from "./types";
 
@@ -40,6 +40,18 @@ export function getThemeBootstrapScript(): string {
   root.style.setProperty("--ds-focus-ring","0 0 0 2px "+tokens.focusRingInner+", 0 0 0 4px "+tokens.focusColor);
   root.style.setProperty("--header-border-bottom","0 1px 0 0 rgba(0, 0, 0, "+(tokens.headerBorderAlpha||"0.1")+")");
   root.dataset.theme=theme.id;
+  function lin(v){v=v/255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4)}
+  function lum(hex){
+    hex=String(hex||"").replace("#","");
+    if(hex.length===3)hex=hex.split("").map(function(c){return c+c}).join("");
+    var n=parseInt(hex,16);if(!n&&n!==0)return 1;
+    return 0.2126*lin((n>>16)&255)+0.7152*lin((n>>8)&255)+0.0722*lin(n&255);
+  }
+  var isDark=lum(tokens.background100)<0.45;
+  var slug=(theme.id||"").indexOf("preset:")===0?theme.id.slice(7):"";
+  root.dataset.themeScheme=isDark?"dark":"light";
+  root.style.setProperty("--brand-logo-plated",'url("'+(slug?"/brand/themes/"+slug+".png":(isDark?"/brand/logo-dark.png":"/brand/logo-light.png"))+'")');
+  root.style.setProperty("--brand-logo-mark",'url("'+(isDark?"/brand/logo-mark-on-dark.png":"/brand/logo-mark-on-light.png")+'")');
   }catch(e){}})();`;
 }
 
@@ -72,5 +84,6 @@ export function applyStoredThemeFromBrowser() {
   const custom = customThemes.find((t) => t.id === activeThemeId);
   const theme = preset || custom || PRESET_THEMES[0];
   applyThemeTokens(theme.tokens);
+  applyBrandAssets(theme.tokens, theme.id);
   document.documentElement.dataset.theme = theme.id;
 }

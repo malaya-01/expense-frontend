@@ -47,7 +47,7 @@ export function TransactionTable({
 
   return (
     <>
-      <div className="space-y-1.5 md:hidden">
+      <div className="space-y-1.5 pb-4 md:hidden">
         {transactions.map((tx) => {
           const nativeCurrency = tx.currency || "USD";
           const baseAmount = Number(tx.amount_base ?? tx.amount);
@@ -65,17 +65,17 @@ export function TransactionTable({
           return (
             <article
               key={tx.id}
-              className="rounded-[12px] bg-[var(--ds-background-elevated)] px-3 py-2.5 ds-border"
+              className="min-w-0 overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] px-3 py-2.5 ds-border"
             >
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                   <StatusDot
                     tone={TYPE_TONE[tx.type]}
                     className="shrink-0"
                   />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <h2 className="truncate text-[13px] font-medium">{tx.description}</h2>
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <h2 className="min-w-0 flex-1 truncate text-[13px] font-medium">{tx.description}</h2>
                       <SyncBadge row={tx as any} />
                     </div>
                     <p className="mt-0.5 truncate text-[10px] text-[var(--ds-gray-700)]">

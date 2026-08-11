@@ -103,3 +103,17 @@ export async function changePassword(payload: {
   const res = await api.patch("/user/password", payload);
   return unwrap<{ message: string }>(res);
 }
+
+export async function getNotificationPreferences(): Promise<{
+  preferences: Record<string, unknown>;
+}> {
+  const res = await api.get("/user/notification-preferences");
+  return unwrap<{ preferences: Record<string, unknown> }>(res);
+}
+
+export async function patchNotificationPreferences(
+  preferences: Record<string, unknown>,
+): Promise<{ preferences: Record<string, unknown> }> {
+  const res = await api.patch("/user/notification-preferences", preferences);
+  return unwrap<{ preferences: Record<string, unknown> }>(res);
+}

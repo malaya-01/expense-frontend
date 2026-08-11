@@ -38,7 +38,7 @@ export function SummaryKpiCard({
   return (
     <article
       className={cn(
-        "rounded-[12px] bg-[var(--ds-background-elevated)] p-3 ds-border sm:rounded-[16px] sm:p-5",
+        "min-w-0 max-w-full overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] p-3 ds-border sm:rounded-[16px] sm:p-5",
         className,
       )}
       data-kpi-card
@@ -66,7 +66,7 @@ export function SummaryKpiCard({
           {title}
         </h2>
       </div>
-      <p className="mt-2 text-[20px] font-semibold leading-6 tracking-[-1px] tabular-nums text-[var(--ds-gray-1000)] sm:mt-4 sm:text-[28px] sm:leading-8" data-kpi-value>
+      <p className="mt-2 truncate text-[20px] font-semibold leading-6 tracking-[-1px] tabular-nums text-[var(--ds-gray-1000)] sm:mt-4 sm:text-[28px] sm:leading-8" data-kpi-value>
         {value}
       </p>
       {subtitle ? (

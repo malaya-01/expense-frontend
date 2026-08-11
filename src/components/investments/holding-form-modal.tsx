@@ -29,7 +29,7 @@ export function HoldingFormModal({
   initial?: InvestmentHolding | null;
   containers: FinancialContainer[];
   defaultCurrency?: string;
-  onSubmit: (input: CreateInvestmentInput) => void;
+  onSubmit: (input: CreateInvestmentInput) => void | Promise<void>;
 }) {
   const [form, setForm] = useState<CreateInvestmentInput>({
     name: "",
@@ -72,20 +72,27 @@ export function HoldingFormModal({
     }
   }, [open, initial, defaultCurrency]);
 
-  function handleSubmit(e: FormEvent) {
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) return;
-    onSubmit({
-      name: form.name.trim(),
-      symbol: form.symbol?.trim() || undefined,
-      asset_type: form.asset_type || "other",
-      quantity: Number(form.quantity) || 0,
-      avg_cost: Number(form.avg_cost) || 0,
-      current_price: Number(form.current_price) || 0,
-      currency: (form.currency || defaultCurrency).toUpperCase(),
-      container_id: form.container_id || null,
-      notes: form.notes || undefined,
-    });
+    if (saving || !form.name.trim()) return;
+    setSaving(true);
+    try {
+      await onSubmit({
+        name: form.name.trim(),
+        symbol: form.symbol?.trim() || undefined,
+        asset_type: form.asset_type || "other",
+        quantity: Number(form.quantity) || 0,
+        avg_cost: Number(form.avg_cost) || 0,
+        current_price: Number(form.current_price) || 0,
+        currency: (form.currency || defaultCurrency).toUpperCase(),
+        container_id: form.container_id || null,
+        notes: form.notes || undefined,
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   const investContainers = containers.filter((c) =>
@@ -100,10 +107,10 @@ export function HoldingFormModal({
       className="max-w-3xl"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button form="holding-form" type="submit">
+          <Button form="holding-form" type="submit" loading={saving}>
             {initial ? "Save" : "Create"}
           </Button>
         </>

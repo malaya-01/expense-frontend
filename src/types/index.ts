@@ -177,6 +177,8 @@ export type FinancialContainer = {
   color?: string | null;
   notes?: string | null;
   include_in_net_worth: boolean;
+  /** Set when this container is a collaborative space wallet. */
+  space_id?: string | null;
   created_at: string;
   updated_at: string;
 } & SyncLocalMeta;

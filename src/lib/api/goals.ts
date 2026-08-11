@@ -2,6 +2,8 @@ import { toDateOnly } from "@/lib/format";
 import type { CreateGoalInput, Goal } from "@/types";
 import { contributeGoalLocal, goalsRepo } from "@/lib/offline/repos";
 import { offlineDb } from "@/lib/offline/db";
+import { api, unwrap } from "./client";
+import { isOnline } from "@/lib/offline/network";
 
 function normalize(row: any): Goal {
   return {
@@ -61,6 +63,21 @@ export async function contributeToGoal(
   id: string,
   amount: number,
 ): Promise<Goal> {
+  if (isOnline()) {
+    try {
+      const res = await api.post(`/goals/${id}/contribute`, { amount });
+      const row = unwrap<Goal>(res);
+      await offlineDb.goals.put({
+        ...row,
+        id,
+        _pending: false,
+        _sync_failed: false,
+      } as any);
+      return normalize(row);
+    } catch {
+      /* queue locally if the live call fails */
+    }
+  }
   const row = await contributeGoalLocal(id, { amount });
   return normalize(row || { id, current_amount: amount, _pending: true });
 }

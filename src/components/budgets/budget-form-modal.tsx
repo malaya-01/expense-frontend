@@ -29,7 +29,7 @@ export function BudgetFormModal({
   initial?: Budget | null;
   categories: Category[];
   defaultCurrency?: string;
-  onSubmit: (input: CreateBudgetInput) => void;
+  onSubmit: (input: CreateBudgetInput) => void | Promise<void>;
 }) {
   const [form, setForm] = useState<CreateBudgetInput>({
     name: "",
@@ -63,17 +63,25 @@ export function BudgetFormModal({
     }
   }, [open, initial, defaultCurrency]);
 
-  function handleSubmit(e: FormEvent) {
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (saving) return;
     if (!form.name.trim() || !form.amount || form.amount <= 0) return;
-    onSubmit({
-      name: form.name.trim(),
-      amount: Number(form.amount),
-      period_type: form.period_type || "monthly",
-      category_id: form.category_id || undefined,
-      currency: (form.currency || defaultCurrency).toUpperCase(),
-      notes: form.notes || undefined,
-    });
+    setSaving(true);
+    try {
+      await onSubmit({
+        name: form.name.trim(),
+        amount: Number(form.amount),
+        period_type: form.period_type || "monthly",
+        category_id: form.category_id || undefined,
+        currency: (form.currency || defaultCurrency).toUpperCase(),
+        notes: form.notes || undefined,
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -84,10 +92,10 @@ export function BudgetFormModal({
       className="max-w-2xl"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button form="budget-form" type="submit">
+          <Button form="budget-form" type="submit" loading={saving}>
             {initial ? "Save" : "Create"}
           </Button>
         </>

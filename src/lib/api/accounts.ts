@@ -1,10 +1,12 @@
 import type { CreateContainerInput, FinancialContainer } from "@/types";
 import { accountsRepo } from "@/lib/offline/repos";
+import { personalAccounts } from "@/lib/accounts/personal";
 
 export async function listAccounts(
   _userId?: string,
 ): Promise<FinancialContainer[]> {
-  return accountsRepo.list() as Promise<FinancialContainer[]>;
+  const rows = (await accountsRepo.list()) as FinancialContainer[];
+  return personalAccounts(rows);
 }
 
 export async function createAccount(

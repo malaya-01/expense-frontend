@@ -11,7 +11,7 @@ export function SpaceCard({ space }: { space: CollaborativeSpace }) {
 
   return (
     <Link href={`/spaces/${space.id}`} className="block ds-focus rounded-[16px]">
-      <article className="relative h-full overflow-hidden rounded-[16px] bg-[var(--ds-background-elevated)] transition-colors hover:bg-[color-mix(in_srgb,var(--ds-gray-1000)_3%,var(--ds-background-elevated))] ds-border">
+      <article className="relative h-full min-w-0 overflow-hidden rounded-[16px] bg-[var(--ds-background-elevated)] transition-colors hover:bg-[color-mix(in_srgb,var(--ds-gray-1000)_3%,var(--ds-background-elevated))] ds-border">
         <div
           className="absolute inset-y-0 left-0 w-[3px]"
           style={{ background: accent }}
@@ -19,7 +19,7 @@ export function SpaceCard({ space }: { space: CollaborativeSpace }) {
         />
         <div className="p-4 pl-5 sm:p-5">
           <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
               <span
                 className="inline-flex size-10 shrink-0 items-center justify-center rounded-[12px]"
                 style={{

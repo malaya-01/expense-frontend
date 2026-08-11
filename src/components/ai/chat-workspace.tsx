@@ -332,7 +332,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
         </div>
       ) : null}
 
-      <div className="shrink-0 bg-[color-mix(in_srgb,var(--ds-background-100)_92%,transparent)] px-4 pb-4 pt-2 backdrop-blur-md sm:px-8">
+      <div className="shrink-0 bg-[color-mix(in_srgb,var(--ds-background-100)_92%,transparent)] px-3 pb-3 pt-1.5 backdrop-blur-md sm:px-8 sm:pb-4 sm:pt-2">
         {!perms.create ? (
           <p className="mx-auto mb-2 max-w-[720px] text-center text-[11px] text-[var(--ds-gray-700)]">
             You can view conversations, but sending messages requires AI create
@@ -369,7 +369,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
             void onAddFiles(event.dataTransfer.files);
           }}
           className={cn(
-            "relative mx-auto w-full max-w-[720px] rounded-[30px] bg-[var(--ds-background-elevated)] p-2 shadow-[var(--ds-shadow-sm,0_1px_2px_rgba(0,0,0,0.08))] transition-[box-shadow]",
+            "relative mx-auto w-full max-w-[720px] rounded-[22px] bg-[var(--ds-background-elevated)] px-1.5 py-1.5 ds-border transition-[box-shadow]",
             dragActive &&
               "shadow-[0_0_0_2px_color-mix(in_srgb,var(--ds-focus-color)_35%,transparent)]",
             !perms.create && "opacity-70",
@@ -404,7 +404,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
           ) : null}
 
           {attachments.length ? (
-            <div className="flex flex-wrap gap-2 px-2 pb-1 pt-1.5">
+            <div className="flex flex-wrap gap-2 px-1.5 pb-1.5 pt-0.5">
               {attachments.map((file, index) => {
                 const uploading = file.upload_status === "uploading";
                 const failed = file.upload_status === "failed";
@@ -477,15 +477,15 @@ export const ChatWorkspace = memo(function ChatWorkspace({
             </div>
           ) : null}
 
-          <div className="flex min-h-11 items-end gap-1">
+          <div className="flex items-end gap-0.5">
             <Popover
               align="start"
               triggerLabel="Add files and more"
               closeOnSelect
               className="w-[min(520px,calc(100vw-24px))] rounded-[20px] p-2"
               trigger={
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)]">
-                  <Plus size={21} />
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)]">
+                  <Plus size={18} />
                 </span>
               }
             >
@@ -527,6 +527,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
 
             <Textarea
               ref={textareaRef}
+              plain
               value={draft}
               readOnly={!perms.create}
               disabled={!perms.create}
@@ -578,18 +579,16 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                 }
               }}
               placeholder={
-                perms.create
-                  ? "Ask anything — paste a screenshot, or try /spend"
-                  : "Read-only — AI create permission required"
+                perms.create ? "Ask anything…" : "Read-only"
               }
               rows={1}
               aria-label="Message"
               style={{
-                minHeight: 44,
-                maxHeight: 280,
+                minHeight: 36,
+                maxHeight: 160,
                 resize: "none",
               }}
-              className="min-h-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-3 text-sm shadow-none [field-sizing:content]"
+              className="flex-1 overflow-y-auto px-1.5 py-2 text-[14px] leading-5 [field-sizing:content]"
             />
 
             {webSearchEnabled ? (
@@ -603,7 +602,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
               <button
                 type="button"
                 onClick={onStop}
-                className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)] ds-focus"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)] ds-focus"
                 aria-label="Stop response"
               >
                 <Square size={14} />
@@ -624,7 +623,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                         : "Voice unavailable in this browser"
                   }
                   className={cn(
-                    "flex size-11 shrink-0 items-center justify-center rounded-full ds-focus",
+                    "flex size-9 shrink-0 items-center justify-center rounded-full ds-focus",
                     listening
                       ? "bg-[color-mix(in_srgb,var(--ds-focus-color)_16%,transparent)] text-[var(--ds-focus-color)]"
                       : "text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)]",
@@ -638,7 +637,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                 <Button
                   type="submit"
                   disabled={!canSend}
-                  className="size-11 shrink-0 rounded-full px-0"
+                  className="size-9 shrink-0 rounded-full px-0"
                   aria-label={
                     attachmentsBusy
                       ? "Wait for uploads to finish"

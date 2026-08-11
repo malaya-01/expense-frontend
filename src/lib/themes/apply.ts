@@ -1,4 +1,6 @@
+import { markLogoSrc, platedLogoSrc } from "@/lib/brand";
 import type { ThemeDefinition, ThemeTokens } from "./types";
+import { luminance } from "./utils";
 
 function shadowBorder(alpha: string, ring: string) {
   return `0 0 0 1px rgba(0, 0, 0, ${alpha}), 0 0 0 1px ${ring}`;
@@ -81,7 +83,29 @@ export function applyThemeTokens(tokens: ThemeTokens, root: HTMLElement = docume
   );
 }
 
+export function themeScheme(tokens: ThemeTokens): "dark" | "light" {
+  return luminance(tokens.background100) < 0.45 ? "dark" : "light";
+}
+
+export function applyBrandAssets(
+  tokens: ThemeTokens,
+  themeId: string,
+  root: HTMLElement = document.documentElement,
+) {
+  const scheme = themeScheme(tokens);
+  root.dataset.themeScheme = scheme;
+  root.style.setProperty(
+    "--brand-logo-plated",
+    `url("${platedLogoSrc(themeId, scheme)}")`,
+  );
+  root.style.setProperty(
+    "--brand-logo-mark",
+    `url("${markLogoSrc(scheme)}")`,
+  );
+}
+
 export function applyTheme(theme: ThemeDefinition) {
   applyThemeTokens(theme.tokens);
+  applyBrandAssets(theme.tokens, theme.id);
   document.documentElement.dataset.theme = theme.id;
 }

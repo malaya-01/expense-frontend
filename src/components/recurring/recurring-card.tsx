@@ -27,7 +27,7 @@ export function RecurringCard({
   const accent = due ? "#FF990A" : "#2563EB";
 
   return (
-    <article className="relative overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] ds-border sm:rounded-[16px]">
+    <article className="relative min-w-0 overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] ds-border sm:rounded-[16px]">
       <div
         className="absolute inset-y-0 left-0 w-[3px]"
         style={{ background: accent }}
@@ -35,7 +35,7 @@ export function RecurringCard({
       />
       <div className="p-3 pl-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
             <span
               className="inline-flex size-8 shrink-0 items-center justify-center rounded-[10px] sm:size-10 sm:rounded-[12px]"
               style={{

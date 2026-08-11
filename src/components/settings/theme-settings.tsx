@@ -1,7 +1,9 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import { platedLogoSrc } from "@/lib/brand";
 import { useTheme } from "@/lib/theme-context";
+import { themeScheme } from "@/lib/themes/apply";
 import type { ThemeDefinition } from "@/lib/themes/types";
 
 function ThemePreviewCard({
@@ -40,7 +42,14 @@ function ThemePreviewCard({
             {theme.id.replace("preset:", "THEME_").toUpperCase()}
           </p>
         </div>
-        <div className="flex shrink-0 gap-1.5 pt-1">
+        <div className="flex shrink-0 items-center gap-2 pt-0.5">
+          <img
+            src={platedLogoSrc(theme.id, themeScheme(tokens))}
+            alt=""
+            width={28}
+            height={28}
+            className="size-7 rounded-[7px]"
+          />
           <span
             className="size-2.5 rounded-full"
             style={{ background: accent }}

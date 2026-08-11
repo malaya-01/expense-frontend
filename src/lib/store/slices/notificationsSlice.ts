@@ -7,7 +7,15 @@ import {
 import { listBudgets } from "@/lib/api/budgets";
 import { listGoals } from "@/lib/api/goals";
 import { listRecurringSchedules } from "@/lib/api/recurring";
-import { listSpaceNotifications } from "@/lib/api/spaces";
+import {
+  listSpaceNotifications,
+  markSpaceNotificationsRead,
+} from "@/lib/api/spaces";
+import {
+  getNotificationPreferences,
+  patchNotificationPreferences,
+} from "@/lib/api/user";
+import { saveNotificationPreferences } from "@/lib/offline/repos";
 
 export const DISMISSED_NOTIFICATIONS_KEY = "finos:dismissed-notifications";
 
@@ -48,13 +56,64 @@ function todayKey() {
   ].join("-");
 }
 
+function readLocalDismissed(): string[] {
+  try {
+    const raw = JSON.parse(
+      localStorage.getItem(DISMISSED_NOTIFICATIONS_KEY) || "[]",
+    );
+    return Array.isArray(raw) ? raw.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+function spaceNotificationUuid(id: string): string | null {
+  const raw = id.startsWith("space-") ? id.slice("space-".length) : id;
+  if (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      raw,
+    )
+  ) {
+    return raw;
+  }
+  return null;
+}
+
+async function loadRemoteDismissed(userId?: string | null): Promise<string[]> {
+  const ids: string[] = [];
+  try {
+    const data = await getNotificationPreferences();
+    const remote = data.preferences?.dismissed_ids;
+    if (Array.isArray(remote)) ids.push(...remote.map(String));
+  } catch {
+    /* offline or older API */
+  }
+  if (userId) {
+    try {
+      const { offlineDb } = await import("@/lib/offline/db");
+      const row = await offlineDb.notification_preferences.get(userId);
+      const local = (row?.preferences as { dismissed_ids?: unknown } | undefined)
+        ?.dismissed_ids;
+      if (Array.isArray(local)) ids.push(...local.map(String));
+    } catch {
+      /* ignore */
+    }
+  }
+  return [...new Set(ids)];
+}
+
 export const fetchNotifications = createAsyncThunk<
-  Notice[],
+  { notices: Notice[]; dismissed: string[] },
   void,
-  { state: { notifications: NotificationsState } }
+  {
+    state: {
+      notifications: NotificationsState;
+      auth: { user?: { id?: string } | null };
+    };
+  }
 >(
   "notifications/fetch",
-  async () => {
+  async (_argument, { getState }) => {
     const [budgets, goals, schedules, spaceNotices] = await Promise.all([
       listBudgets().catch(() => []),
       listGoals().catch(() => []),
@@ -137,6 +196,7 @@ export const fetchNotifications = createAsyncThunk<
     }
 
     for (const notice of spaceNotices as any[]) {
+      if (notice.read_at) continue;
       const isInvite = notice.kind === "invite" || notice.type === "invite";
       next.push({
         id: `space-${notice.id}`,
@@ -153,7 +213,21 @@ export const fetchNotifications = createAsyncThunk<
       });
     }
 
-    return next;
+    const userId = getState().auth.user?.id;
+    const dismissed = [
+      ...new Set([
+        ...readLocalDismissed(),
+        ...(await loadRemoteDismissed(userId)),
+      ]),
+    ];
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        DISMISSED_NOTIFICATIONS_KEY,
+        JSON.stringify(dismissed),
+      );
+    }
+
+    return { notices: next, dismissed };
   },
   {
     condition: (_argument, { getState }) => {
@@ -175,6 +249,11 @@ const notificationsSlice = createSlice({
         ...new Set([...state.dismissed, ...state.notices.map((item) => item.id)]),
       ];
     },
+    markNoticeRead(state, action: PayloadAction<string>) {
+      if (!state.dismissed.includes(action.payload)) {
+        state.dismissed.push(action.payload);
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -182,7 +261,10 @@ const notificationsSlice = createSlice({
         state.loading = true;
       })
       .addCase(fetchNotifications.fulfilled, (state, action) => {
-        state.notices = action.payload;
+        state.notices = action.payload.notices;
+        state.dismissed = [
+          ...new Set([...state.dismissed, ...action.payload.dismissed]),
+        ];
         state.loading = false;
         state.loaded = true;
       })
@@ -193,8 +275,34 @@ const notificationsSlice = createSlice({
   },
 });
 
-export const { hydrateDismissed, dismissAllNotifications } =
-  notificationsSlice.actions;
+export const {
+  hydrateDismissed,
+  dismissAllNotifications,
+  markNoticeRead,
+} = notificationsSlice.actions;
+
+export async function persistDismissedNotifications(
+  dismissed: string[],
+  userId?: string | null,
+) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(
+      DISMISSED_NOTIFICATIONS_KEY,
+      JSON.stringify(dismissed),
+    );
+  }
+  const spaceIds = dismissed
+    .map(spaceNotificationUuid)
+    .filter((id): id is string => Boolean(id));
+  const writes: Promise<unknown>[] = [markSpaceNotificationsRead(spaceIds)];
+  if (userId) {
+    writes.push(
+      saveNotificationPreferences(userId, { dismissed_ids: dismissed }),
+    );
+    writes.push(patchNotificationPreferences({ dismissed_ids: dismissed }));
+  }
+  await Promise.allSettled(writes);
+}
 export default notificationsSlice.reducer;
 
 export const selectVisibleNotifications = createSelector(

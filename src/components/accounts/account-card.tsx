@@ -66,7 +66,7 @@ export function AccountCard({
     : "—";
 
   return (
-    <article className="group relative overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] ds-border sm:rounded-[16px]">
+    <article className="group relative min-w-0 overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] ds-border sm:rounded-[16px]">
       <div
         className="absolute inset-y-0 left-0 w-[3px]"
         style={{ background: accent }}

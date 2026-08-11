@@ -17,6 +17,7 @@ import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import {
   dismissAllNotifications,
   fetchNotifications,
+  markNoticeRead,
   selectVisibleNotifications,
   type Notice,
 } from "@/lib/store/slices/notificationsSlice";
@@ -102,7 +103,10 @@ export function NotificationCenter() {
               <button
                 key={notice.id}
                 type="button"
-                onClick={() => router.push(notice.href)}
+                onClick={() => {
+                  dispatch(markNoticeRead(notice.id));
+                  router.push(notice.href);
+                }}
                 className="flex w-full items-start gap-3 rounded-[10px] px-3 py-3 text-left hover:bg-[var(--ds-background-100)] ds-focus"
               >
                 <span

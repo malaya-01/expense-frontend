@@ -24,6 +24,19 @@ allprojects {
     }
 }
 
+// Capacitor plugin modules do not set buildToolsVersion; force the installed revision
+// so Gradle does not require Build Tools 34.0.0 / 35.0.0.
+subprojects { sub ->
+    sub.afterEvaluate {
+        if (sub.plugins.hasPlugin("com.android.library") || sub.plugins.hasPlugin("com.android.application")) {
+            sub.android {
+                compileSdk rootProject.ext.compileSdkVersion
+                buildToolsVersion rootProject.ext.buildToolsVersion
+            }
+        }
+    }
+}
+
 task clean(type: Delete) {
     delete rootProject.buildDir
 }

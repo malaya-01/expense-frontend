@@ -278,7 +278,7 @@ export default function AccountsPage() {
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:mb-6 sm:gap-3 xl:grid-cols-4">
+      <div className="mb-4 grid min-w-0 grid-cols-2 gap-2 sm:mb-6 sm:gap-3 xl:grid-cols-4">
         <AccountKpiCard
           title="Net Worth"
           value={summary.netWorth}
@@ -322,7 +322,7 @@ export default function AccountsPage() {
           icon={PiggyBank}
           accent="#7C3AED"
           footerLeft={{
-            label: "Share of assets",
+            label: "Share",
             value:
               summary.totalAssets > 0
                 ? `${((summary.investmentValue / summary.totalAssets) * 100).toFixed(1)}%`
@@ -444,17 +444,17 @@ export default function AccountsPage() {
               <button
                 type="button"
                 onClick={openCreate}
-                className="flex w-full items-center gap-3 rounded-[16px] border border-dashed border-[color:color-mix(in_srgb,var(--ds-gray-1000)_18%,transparent)] bg-[var(--ds-background-elevated)] px-4 py-4 text-left transition-colors hover:bg-[var(--ds-gray-100)] ds-focus sm:px-5"
+                className="flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-[16px] border border-dashed border-[color:color-mix(in_srgb,var(--ds-gray-1000)_18%,transparent)] bg-[var(--ds-background-elevated)] px-4 py-4 text-left transition-colors hover:bg-[var(--ds-gray-100)] ds-focus sm:px-5"
               >
-                <span className="inline-flex size-11 items-center justify-center rounded-full bg-[var(--ds-gray-100)] text-[var(--ds-gray-900)]">
+                <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--ds-gray-100)] text-[var(--ds-gray-900)]">
                   <Plus size={18} />
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-[var(--ds-gray-1000)]">
+                <span className="min-w-0 flex-1 overflow-hidden">
+                  <span className="block truncate text-sm font-semibold text-[var(--ds-gray-1000)]">
                     Add a new account
                   </span>
-                  <span className="mt-0.5 block text-xs text-[var(--ds-gray-700)]">
-                    Cash, bank, credit card, investment, or loan container
+                  <span className="mt-0.5 block truncate text-xs text-[var(--ds-gray-700)]">
+                    Cash, bank, card, investment, or loan
                   </span>
                 </span>
                 <ChevronRight

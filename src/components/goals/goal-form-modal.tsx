@@ -29,7 +29,7 @@ export function GoalFormModal({
   initial?: Goal | null;
   containers: FinancialContainer[];
   defaultCurrency?: string;
-  onSubmit: (input: CreateGoalInput) => void;
+  onSubmit: (input: CreateGoalInput) => void | Promise<void>;
 }) {
   const [form, setForm] = useState<CreateGoalInput>({
     name: "",
@@ -69,23 +69,31 @@ export function GoalFormModal({
     }
   }, [open, initial, defaultCurrency]);
 
-  function handleSubmit(e: FormEvent) {
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (saving) return;
     if (!form.name.trim() || !form.target_amount || form.target_amount <= 0) {
       return;
     }
-    onSubmit({
-      name: form.name.trim(),
-      goal_type: form.goal_type || "other",
-      target_amount: Number(form.target_amount),
-      current_amount: form.container_id
-        ? undefined
-        : Number(form.current_amount) || 0,
-      currency: (form.currency || defaultCurrency).toUpperCase(),
-      target_date: form.target_date || undefined,
-      container_id: form.container_id || undefined,
-      notes: form.notes || undefined,
-    });
+    setSaving(true);
+    try {
+      await onSubmit({
+        name: form.name.trim(),
+        goal_type: form.goal_type || "other",
+        target_amount: Number(form.target_amount),
+        current_amount: form.container_id
+          ? undefined
+          : Number(form.current_amount) || 0,
+        currency: (form.currency || defaultCurrency).toUpperCase(),
+        target_date: form.target_date || undefined,
+        container_id: form.container_id || undefined,
+        notes: form.notes || undefined,
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   const linked = Boolean(form.container_id);
@@ -98,10 +106,10 @@ export function GoalFormModal({
       className="max-w-2xl"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button form="goal-form" type="submit">
+          <Button form="goal-form" type="submit" loading={saving}>
             {initial ? "Save" : "Create"}
           </Button>
         </>

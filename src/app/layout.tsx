@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { StoreProvider } from "@/lib/store/provider";
 import { ToastViewport } from "@/components/ui/toast";
 import { ExitConfirmHost } from "@/components/native/exit-confirm-host";
+import { ThemeFavicon } from "@/components/brand/theme-favicon";
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/brand";
 import { getThemeBootstrapScript } from "@/lib/themes/bootstrap";
 import "./globals.css";
@@ -12,9 +13,15 @@ export const metadata: Metadata = {
   description: APP_DESCRIPTION,
   applicationName: APP_NAME,
   icons: {
-    icon: "/brand/logo.png",
+    icon: "/brand/themes/vercel-light.png",
     apple: "/brand/logo.png",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -51,6 +58,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <StoreProvider>
+          <ThemeFavicon />
           {children}
           <ToastViewport />
           <ExitConfirmHost />

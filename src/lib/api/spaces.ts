@@ -252,3 +252,9 @@ export async function listSpaceNotifications() {
   const res = await api.get("/spaces/notifications");
   return unwrap(res);
 }
+
+export async function markSpaceNotificationsRead(ids: string[]) {
+  if (!ids.length) return { updated: 0 };
+  const res = await api.patch("/spaces/notifications/read", { ids });
+  return unwrap<{ updated: number }>(res);
+}

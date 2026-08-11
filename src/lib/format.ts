@@ -10,6 +10,19 @@ export function formatCurrency(
   }).format(amount);
 }
 
+export function formatCompactCurrency(
+  amount: number,
+  currency = "USD",
+  locale = "en-US",
+): string {
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(amount);
+}
+
 export function formatDate(value: string, locale = "en-US"): string {
   const date = parseCalendarDate(value);
   if (Number.isNaN(date.getTime())) return value;

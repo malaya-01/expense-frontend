@@ -40,7 +40,7 @@ export function BudgetCard({
         : "var(--ds-status-green)";
 
   return (
-    <article className="relative overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] ds-border sm:rounded-[16px]">
+    <article className="relative min-w-0 overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] ds-border sm:rounded-[16px]">
       <div
         className="absolute inset-y-0 left-0 w-[3px]"
         style={{ background: accent }}
@@ -48,7 +48,7 @@ export function BudgetCard({
       />
       <div className="p-3 pl-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-3">
             <span
               className="inline-flex size-8 shrink-0 items-center justify-center rounded-[10px] sm:size-10 sm:rounded-[12px]"
               style={{
@@ -58,7 +58,7 @@ export function BudgetCard({
             >
               <Wallet size={17} strokeWidth={1.85} />
             </span>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1 overflow-hidden">
               <h2 className="truncate text-sm font-semibold text-[var(--ds-gray-1000)]">
                 {budget.name}
               </h2>
