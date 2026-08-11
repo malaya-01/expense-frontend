@@ -19,13 +19,22 @@ export const LOGO_MARK_ON_LIGHT_SRC = "/brand/logo-mark-on-light.png";
 
 export type BrandScheme = "dark" | "light";
 
+/** Bump when theme plates are regenerated so the browser does not keep the old identical icons. */
+const BRAND_ASSET_VERSION = "4";
+
+function withVersion(src: string) {
+  return `${src}?v=${BRAND_ASSET_VERSION}`;
+}
+
 export function platedLogoSrc(themeId: string, scheme: BrandScheme) {
   if (themeId.startsWith("preset:")) {
-    return `/brand/themes/${themeId.slice("preset:".length)}.png`;
+    return withVersion(`/brand/themes/${themeId.slice("preset:".length)}.png`);
   }
-  return scheme === "dark" ? LOGO_DARK_SRC : LOGO_LIGHT_SRC;
+  return withVersion(scheme === "dark" ? LOGO_DARK_SRC : LOGO_LIGHT_SRC);
 }
 
 export function markLogoSrc(scheme: BrandScheme) {
-  return scheme === "dark" ? LOGO_MARK_ON_DARK_SRC : LOGO_MARK_ON_LIGHT_SRC;
+  return withVersion(
+    scheme === "dark" ? LOGO_MARK_ON_DARK_SRC : LOGO_MARK_ON_LIGHT_SRC,
+  );
 }

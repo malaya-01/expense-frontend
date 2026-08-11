@@ -50,8 +50,8 @@ export function getThemeBootstrapScript(): string {
   var isDark=lum(tokens.background100)<0.45;
   var slug=(theme.id||"").indexOf("preset:")===0?theme.id.slice(7):"";
   root.dataset.themeScheme=isDark?"dark":"light";
-  root.style.setProperty("--brand-logo-plated",'url("'+(slug?"/brand/themes/"+slug+".png":(isDark?"/brand/logo-dark.png":"/brand/logo-light.png"))+'")');
-  root.style.setProperty("--brand-logo-mark",'url("'+(isDark?"/brand/logo-mark-on-dark.png":"/brand/logo-mark-on-light.png")+'")');
+  root.style.setProperty("--brand-logo-plated",'url("'+(slug?"/brand/themes/"+slug+".png?v=4":(isDark?"/brand/logo-dark.png?v=4":"/brand/logo-light.png?v=4"))+'")');
+  root.style.setProperty("--brand-logo-mark",'url("'+(isDark?"/brand/logo-mark-on-dark.png?v=4":"/brand/logo-mark-on-light.png?v=4")+'")');
   }catch(e){}})();`;
 }
 

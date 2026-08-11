@@ -20,8 +20,8 @@
   --ds-focus-color: #0072f5;
   --ds-focus-input: #005fcc;
 
-  --brand-logo-plated: url("/brand/themes/vercel-light.png");
-  --brand-logo-mark: url("/brand/logo-mark-on-light.png");
+  --brand-logo-plated: url("/brand/themes/vercel-light.png?v=4");
+  --brand-logo-mark: url("/brand/logo-mark-on-light.png?v=4");
 
   /* FinOS financial meaning colors */
   --finos-success: #16a34a;
