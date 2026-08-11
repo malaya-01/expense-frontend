@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
 :root {
+  --font-app-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
   /* Core surfaces */
   --ds-background-100: #fafafa;
   --ds-background-200: #f2f2f2;
