@@ -317,6 +317,7 @@ async function loadEncryptedBlob(userId: string): Promise<string | null> {
  */
 export async function restoreDurableBackup(
   userId: string,
+  options?: { restoreEntities?: boolean },
 ): Promise<{ restored: number; from: "file" | "preferences" | null }> {
   if (!userId || typeof window === "undefined") {
     return { restored: 0, from: null };
@@ -357,6 +358,9 @@ export async function restoreDurableBackup(
     return { restored: 0, from: null };
   }
 
+  // Online hydrate already loaded the server snapshot. Only replay outbox rows
+  // so pending offline writes are not lost — do not overwrite live data.
+  if (options?.restoreEntities !== false) {
   // Restore entity rows first so UI has names/amounts.
   for (const [table, rows] of Object.entries(payload.entities || {})) {
     if (!rows?.length) continue;
@@ -374,6 +378,7 @@ export async function restoreDurableBackup(
         } as SyncedRecord);
       }
     });
+  }
   }
 
   let restored = 0;

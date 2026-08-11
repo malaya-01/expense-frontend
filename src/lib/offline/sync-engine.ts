@@ -1,8 +1,9 @@
-import { api, unwrap } from "@/lib/api/client";
+import { api, getErrorMessage, unwrap } from "@/lib/api/client";
 import {
   ENTITY_TABLE,
   getOrCreateDeviceId,
   getMeta,
+  newId,
   offlineDb,
   setMeta,
   type EntityTableName,
@@ -223,7 +224,18 @@ export async function runSync(reason = "manual"): Promise<void> {
       await requeueAllFailed();
     }
     await pushOutbox();
-    await pullChanges();
+    try {
+      await pullChanges();
+    } catch (error: any) {
+      const status = error?.response?.status;
+      if (status === 400 || status === 422) {
+        await setMeta("pull_cursor", "");
+        useRestFallback = true;
+        await hydrateViaRestLists();
+      } else {
+        throw error;
+      }
+    }
     const { purgeSyncedOutbox } = await import("./outbox");
     await purgeSyncedOutbox();
     await setMeta("last_sync_at", new Date().toISOString());
@@ -234,7 +246,7 @@ export async function runSync(reason = "manual"): Promise<void> {
       window.dispatchEvent(new Event("finos:sync-complete"));
     }
   } catch (error: any) {
-    lastError = error?.message || `Sync failed (${reason})`;
+    lastError = getErrorMessage(error, `Sync failed (${reason})`);
     // Never delete local data on sync failure — only requeue outbox.
     await recoverStuckSyncing();
     await persistDurableBackup();
@@ -302,20 +314,26 @@ async function pushBatch(
         "/sync/push",
         {
           device_id: deviceId,
-          changes: pending.map((item) => ({
-            client_op_id: item.client_op_id,
-            entity_type: item.entity_type,
-            entity_id: item.entity_id,
-            op: item.op,
-            payload: sanitizeOutboxPayload(
-              item.entity_type,
-              item.payload,
-              item.entity_id,
-            ),
-            client_updated_at: item.updated_at,
-            base_sync_version: item.base_sync_version,
-            force: item.force || false,
-          })),
+          changes: pending.map((item) => {
+            const updatedAt = String(item.updated_at || "");
+            const validDate = !Number.isNaN(Date.parse(updatedAt));
+            return {
+              client_op_id: String(item.client_op_id || item.id || newId()),
+              entity_type: item.entity_type,
+              entity_id: item.entity_id,
+              op: item.op,
+              payload: sanitizeOutboxPayload(
+                item.entity_type,
+                item.payload,
+                item.entity_id,
+              ),
+              ...(validDate ? { client_updated_at: updatedAt } : {}),
+              ...(Number.isFinite(Number(item.base_sync_version))
+                ? { base_sync_version: Number(item.base_sync_version) }
+                : {}),
+              force: Boolean(item.force),
+            };
+          }),
         },
         { timeout: SYNC_TIMEOUT_MS },
       ),
@@ -370,7 +388,11 @@ async function pushBatch(
       await flagLocalFailed(item.entity_type, item.entity_id, true);
     }
   } catch (error: any) {
-    if (isSyncApiMissing(error) || axios.isAxiosError(error) && error.response?.status === 404) {
+    const status = error?.response?.status;
+    if (
+      isSyncApiMissing(error) ||
+      (axios.isAxiosError(error) && (status === 404 || status === 400 || status === 422))
+    ) {
       useRestFallback = true;
       await pushBatchViaRest(pending);
       return;
@@ -446,7 +468,10 @@ async function pullChanges() {
 
   try {
     const deviceId = await getOrCreateDeviceId();
-    const since = (await getMeta("pull_cursor")) || undefined;
+    const rawSince = (await getMeta("pull_cursor")) || undefined;
+    const since =
+      rawSince && !Number.isNaN(Date.parse(rawSince)) ? rawSince : undefined;
+    if (rawSince && !since) await setMeta("pull_cursor", "");
     const res = await withTimeout(
       api.get("/sync/pull", {
         params: { since, device_id: deviceId },
@@ -487,11 +512,13 @@ async function mergePull(
   rows: Record<string, unknown>[] | undefined,
 ) {
   if (!rows?.length) return;
+  const { getActiveOfflineUserId } = await import("./clear-session");
+  const ownerId = getActiveOfflineUserId();
   await offlineDb.transaction("rw", offlineDb.table(table), async () => {
     for (const row of rows) {
       const id = String(row.id);
       const existing = (await offlineDb.table(table).get(id)) as
-        | { _pending?: boolean; _sync_failed?: boolean }
+        | { _pending?: boolean; _sync_failed?: boolean; user_id?: string }
         | undefined;
       // Never remove or overwrite unsynced local work.
       if (existing?._pending || existing?._sync_failed) continue;
@@ -501,6 +528,7 @@ async function mergePull(
         await offlineDb.table(table).put({
           ...row,
           id,
+          user_id: row.user_id || existing?.user_id || ownerId,
           _pending: false,
           _sync_failed: false,
         });
@@ -629,11 +657,22 @@ export async function bootstrapOfflineSync(userId?: string | null): Promise<void
     const { switchOfflineUser } = await import("./clear-session");
     await switchOfflineUser(userId);
     bindDurableBackupUser(userId);
-    const result = await restoreDurableBackup(userId);
-    if (result.restored > 0) {
-      lastError = null;
-      await emitStatus();
+    // Online: server is source of truth. Restore leftover outbox only after hydrate
+    // so a reinstall / Preferences backup cannot paint stale balances first.
+    if (isOnline()) {
+      try {
+        await hydrateViaRestLists();
+      } catch {
+        /* keep whatever is already on device */
+      }
+      await restoreDurableBackup(userId, { restoreEntities: false });
+    } else {
+      const result = await restoreDurableBackup(userId);
+      if (result.restored > 0) {
+        lastError = null;
+      }
     }
+    await emitStatus();
   }
   if (!bootstrapped) {
     bootstrapped = true;

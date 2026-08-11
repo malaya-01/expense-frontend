@@ -58,8 +58,8 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!ready || !user?.id) return;
     let alive = true;
-    setLoading(true);
-    void (async () => {
+    const load = async (showSpinner: boolean) => {
+      if (showSpinner) setLoading(true);
       try {
         const { bootstrapOfflineSync } = await import("@/lib/offline/sync-engine");
         await bootstrapOfflineSync(user.id);
@@ -85,9 +85,13 @@ export default function DashboardPage() {
       }
       setLoadError(results.some((result) => result.status === "rejected"));
       setLoading(false);
-    })();
+    };
+    void load(true);
+    const onSync = () => void load(false);
+    window.addEventListener("finos:sync-complete", onSync);
     return () => {
       alive = false;
+      window.removeEventListener("finos:sync-complete", onSync);
     };
   }, [ready, user?.id]);
 

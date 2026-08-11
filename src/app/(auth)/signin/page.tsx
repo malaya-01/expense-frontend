@@ -46,8 +46,10 @@ function SignInForm() {
     setLoading(true);
     try {
       const tokens = await loginUser({ email, password });
-      const id =
-        tokens.user?.id || userIdFromToken(tokens.accessToken) || "local";
+      const id = tokens.user?.id || userIdFromToken(tokens.accessToken);
+      if (!id) {
+        throw new Error("Sign-in succeeded but no user id was returned.");
+      }
       await setSession({
         id,
         email: tokens.user?.email || email,

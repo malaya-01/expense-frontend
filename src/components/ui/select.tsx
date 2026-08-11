@@ -5,6 +5,7 @@ import {
   isValidElement,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -80,23 +81,38 @@ export function Select({
   function place() {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const width = Math.min(Math.max(rect.width, 180), window.innerWidth - 24);
-    const maxH = Math.min(320, window.innerHeight - 24);
-    const below = rect.bottom + 6;
-    const top =
-      below + maxH > window.innerHeight - 12
-        ? Math.max(12, rect.top - maxH - 6)
-        : below;
+    const viewport = window.visualViewport;
+    const viewH = viewport?.height ?? window.innerHeight;
+    const viewW = viewport?.width ?? window.innerWidth;
+    const offsetTop = viewport?.offsetTop ?? 0;
+    const offsetLeft = viewport?.offsetLeft ?? 0;
+    const width = Math.min(Math.max(rect.width, 180), viewW - 24);
+    const panelH = Math.min(
+      panelRef.current?.offsetHeight || 0,
+      Math.min(320, viewH - 24),
+    );
+    const gap = 6;
+    const below = rect.bottom + gap;
+    const fitsBelow = !panelH || below + panelH <= viewH - 12;
+    const above = rect.top - (panelH || 0) - gap;
+    const top = fitsBelow ? below : Math.max(12, above);
     setPos({
-      top,
-      left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)),
+      top: top + offsetTop,
+      left:
+        Math.max(12, Math.min(rect.left, viewW - width - 12)) + offsetLeft,
       width,
     });
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
     place();
+    const frame = window.requestAnimationFrame(place);
+    return () => window.cancelAnimationFrame(frame);
+  }, [open, choices.length]);
+
+  useEffect(() => {
+    if (!open) return;
     const onWin = () => place();
     const onPointer = (e: PointerEvent) => {
       const t = e.target as Node;
@@ -109,11 +125,15 @@ export function Select({
       if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("resize", onWin);
+    window.visualViewport?.addEventListener("resize", onWin);
+    window.visualViewport?.addEventListener("scroll", onWin);
     window.addEventListener("scroll", onWin, true);
     window.addEventListener("pointerdown", onPointer);
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("resize", onWin);
+      window.visualViewport?.removeEventListener("resize", onWin);
+      window.visualViewport?.removeEventListener("scroll", onWin);
       window.removeEventListener("scroll", onWin, true);
       window.removeEventListener("pointerdown", onPointer);
       window.removeEventListener("keydown", onKey);
@@ -176,6 +196,7 @@ export function Select({
                 top: pos.top,
                 left: pos.left,
                 width: pos.width,
+                visibility: pos.width ? "visible" : "hidden",
               }}
               className="fixed z-[220] max-h-80 overflow-y-auto rounded-xl border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_10%,transparent)] bg-[var(--ds-background-elevated)] py-1 shadow-[0_12px_40px_rgba(0,0,0,0.16)]"
             >

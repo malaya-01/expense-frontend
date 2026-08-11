@@ -146,6 +146,11 @@ export async function pushOutboxItemViaRest(
     case "user_settings":
       return unwrap(await api.patch("/user/profile", payload));
 
+    case "notification_preferences":
+      return unwrap(
+        await api.patch("/user/notification-preferences", payload),
+      );
+
     default:
       throw new Error(`No REST fallback for ${type}/${item.op}`);
   }

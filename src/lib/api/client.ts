@@ -348,7 +348,12 @@ export function getErrorMessage(error: unknown, fallback = "Something went wrong
         `Cannot reach ${base}. Check mobile data / Wi‑Fi, and that the server is awake.`
       );
     }
-    const data = error.response?.data as { message?: string } | undefined;
+    const data = error.response?.data as
+      | { message?: string | string[] }
+      | undefined;
+    if (Array.isArray(data?.message)) {
+      return data.message.filter(Boolean).join(", ") || fallback;
+    }
     return data?.message || error.message || fallback;
   }
   if (error instanceof Error) return error.message;

@@ -30,7 +30,8 @@ function belongsToActiveUser(row: SyncedRecord): boolean {
   const uid = getActiveOfflineUserId();
   if (!uid) return false;
   const owner = row.user_id;
-  if (owner == null || owner === "") return false;
+  // Legacy / pulled rows sometimes omit user_id — keep them for the active session.
+  if (owner == null || owner === "") return true;
   return String(owner) === uid;
 }
 
