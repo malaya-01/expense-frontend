@@ -47,7 +47,7 @@ function SignInForm() {
       const tokens = await loginUser({ email, password });
       const id =
         tokens.user?.id || userIdFromToken(tokens.accessToken) || "local";
-      setSession({
+      await setSession({
         id,
         email: tokens.user?.email || email,
         full_name: tokens.user?.full_name ?? null,

@@ -62,7 +62,7 @@ export default function SignUpPage() {
       const tokens = await loginUser({ email, password });
       const id =
         tokens.user?.id || userIdFromToken(tokens.accessToken) || "local";
-      setSession({
+      await setSession({
         id,
         email: tokens.user?.email || email,
         full_name: tokens.user?.full_name ?? fullName,
@@ -71,6 +71,8 @@ export default function SignUpPage() {
         timezone: tokens.user?.timezone,
         locale: tokens.user?.locale,
         avatar_url: tokens.user?.avatar_url ?? null,
+        is_admin: tokens.user?.is_admin ?? false,
+        permissions: tokens.user?.permissions ?? [],
       });
       showToast({
         title: "Welcome to FinOS",

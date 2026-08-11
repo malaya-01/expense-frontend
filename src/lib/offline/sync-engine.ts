@@ -50,6 +50,11 @@ const listeners = new Set<SyncListener>();
 let syncing = false;
 let lastError: string | null = null;
 let bootstrapped = false;
+
+export function resetOfflineSyncRuntime() {
+  syncing = false;
+  lastError = null;
+}
 /** Once we know /api/sync is missing on the server, skip it and use REST. */
 let useRestFallback = false;
 
@@ -561,6 +566,8 @@ async function loadLocalRow(
 export async function bootstrapOfflineSync(userId?: string | null): Promise<void> {
   if (typeof window === "undefined") return;
   if (userId) {
+    const { switchOfflineUser } = await import("./clear-session");
+    await switchOfflineUser(userId);
     bindDurableBackupUser(userId);
     const result = await restoreDurableBackup(userId);
     if (result.restored > 0) {

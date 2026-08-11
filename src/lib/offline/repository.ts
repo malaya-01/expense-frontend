@@ -10,6 +10,7 @@ import { enqueueOutbox } from "./outbox";
 import type { OutboxOp } from "./db";
 import { isOnline } from "./network";
 import { runSync } from "./sync-engine";
+import { getActiveOfflineUserId } from "./clear-session";
 
 export type SyncUiState = "synced" | "pending" | "offline" | "failed";
 
@@ -24,8 +25,16 @@ type RepoConfig<T extends SyncedRecord> = {
   remoteGet?: (id: string) => Promise<T>;
 };
 
+function belongsToActiveUser(row: SyncedRecord): boolean {
+  const uid = getActiveOfflineUserId();
+  if (!uid) return false;
+  const owner = row.user_id;
+  if (owner == null || owner === "") return false;
+  return String(owner) === uid;
+}
+
 function activeOnly<T extends SyncedRecord>(rows: T[]): T[] {
-  return rows.filter((r) => !r.deleted_at);
+  return rows.filter((r) => !r.deleted_at && belongsToActiveUser(r));
 }
 
 /** Tag for list/detail UI — never drop local rows without this. */
@@ -54,9 +63,11 @@ export function createRepository<T extends SyncedRecord>(
           | SyncedRecord
           | undefined;
         if (existing?._pending || existing?._sync_failed) continue;
+        const ownerId = getActiveOfflineUserId();
         await offlineDb.table(config.table).put({
           ...row,
           id,
+          user_id: (row as SyncedRecord).user_id || ownerId,
           _pending: false,
           _sync_failed: false,
         } as SyncedRecord);
@@ -126,9 +137,11 @@ export function createRepository<T extends SyncedRecord>(
   async function create(payload: Record<string, unknown>): Promise<T> {
     const id = String(payload.id || newId());
     const now = new Date().toISOString();
+    const ownerId = getActiveOfflineUserId();
     const local = config.normalize({
       ...payload,
       id,
+      user_id: payload.user_id || ownerId,
       sync_version: 1,
       created_at: now,
       updated_at: now,

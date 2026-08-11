@@ -10,6 +10,10 @@ import {
   updatePermissions as updatePermissionsAction,
 } from "@/lib/store/slices/authSlice";
 import { canAccessAdmin, canCrud, hasPermission } from "@/lib/permissions";
+import {
+  clearAccountLocalData,
+  switchOfflineUser,
+} from "@/lib/offline/clear-session";
 
 export function useAuth() {
   const dispatch = useAppDispatch();
@@ -18,7 +22,8 @@ export function useAuth() {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
   const setSession = useCallback(
-    (next: User) => {
+    async (next: User) => {
+      await switchOfflineUser(next.id);
       dispatch(setSessionAction(next));
     },
     [dispatch],
@@ -31,9 +36,10 @@ export function useAuth() {
     [dispatch],
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await clearAccountLocalData(user?.id);
     dispatch(logoutAction());
-  }, [dispatch]);
+  }, [dispatch, user?.id]);
 
   const can = useCallback((code: string) => hasPermission(user, code), [user]);
 

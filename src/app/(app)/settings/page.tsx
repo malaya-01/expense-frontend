@@ -539,8 +539,7 @@ function SettingsPageInner() {
                   <Button
                     variant="danger"
                     onClick={() => {
-                      logout();
-                      router.replace("/signin");
+                      void logout().then(() => router.replace("/signin"));
                     }}
                   >
                     Log out

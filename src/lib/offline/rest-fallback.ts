@@ -150,6 +150,8 @@ export async function pushOutboxItemViaRest(
 
 export async function hydrateViaRestLists(): Promise<void> {
   const { offlineDb } = await import("./db");
+  const { getActiveOfflineUserId } = await import("./clear-session");
+  const ownerId = getActiveOfflineUserId();
   const endpoints: Array<{ path: string; table: keyof typeof offlineDb }> = [
     { path: "/accounts", table: "accounts" },
     { path: "/transactions", table: "transactions" },
@@ -179,6 +181,7 @@ export async function hydrateViaRestLists(): Promise<void> {
           await offlineDb.table(table as any).put({
             ...row,
             id,
+            user_id: row.user_id || ownerId,
             _pending: false,
             _sync_failed: false,
           });
@@ -202,6 +205,7 @@ export async function hydrateViaRestLists(): Promise<void> {
         await offlineDb.investments.put({
           ...row,
           id,
+          user_id: row.user_id || ownerId,
           _pending: false,
           _sync_failed: false,
         } as any);

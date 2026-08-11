@@ -262,8 +262,7 @@ function SidebarContents({
           <button
             type="button"
             onClick={() => {
-              logout();
-              router.replace("/signin");
+              void logout().then(() => router.replace("/signin"));
             }}
             className="flex size-7 items-center justify-center rounded-[6px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] ds-focus"
             aria-label="Log out"

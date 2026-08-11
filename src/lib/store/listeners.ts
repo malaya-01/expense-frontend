@@ -71,6 +71,11 @@ export function bootstrapAppState(dispatch: AppDispatch) {
   }
   if (token && storedUser) {
     dispatch(hydrateAuth({ user: storedUser, hasAccessToken: true }));
+    if (storedUser.id) {
+      void import("@/lib/offline/clear-session").then(({ setActiveOfflineUserId }) => {
+        setActiveOfflineUserId(storedUser.id);
+      });
+    }
   } else {
     if (!token) localStorage.removeItem(USER_STORAGE_KEY);
     dispatch(hydrateAuth({ user: null, hasAccessToken: Boolean(token) }));
@@ -104,6 +109,9 @@ startAppListening({
     clearTokens();
     localStorage.removeItem(USER_STORAGE_KEY);
     api.dispatch(resetSidebarTransient());
+    void import("@/lib/offline/clear-session").then(({ clearAccountLocalData }) =>
+      clearAccountLocalData(),
+    );
   },
 });
 
