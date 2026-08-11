@@ -130,7 +130,17 @@ export function AccountCard({
           </p>
         </div>
 
-        {(() => {
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {onEdit ? (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="rounded-[6px] px-2 py-1 text-[11px] font-medium text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] ds-focus"
+            >
+              Edit
+            </button>
+          ) : null}
+          {(() => {
           const items = [
             onEdit
               ? { id: "edit", label: "Edit", onSelect: onEdit }
@@ -162,6 +172,7 @@ export function AccountCard({
             />
           );
         })()}
+        </div>
       </div>
     </article>
   );

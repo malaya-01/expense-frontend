@@ -110,6 +110,9 @@ export default function AccountsPage() {
 
   useEffect(() => {
     void refresh();
+    const onSync = () => void refresh();
+    window.addEventListener("finos:sync-complete", onSync);
+    return () => window.removeEventListener("finos:sync-complete", onSync);
   }, [refresh]);
 
   const baseCurrency = user?.currency || "USD";

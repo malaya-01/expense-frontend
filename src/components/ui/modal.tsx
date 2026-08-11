@@ -34,10 +34,8 @@ export function Modal({
   useEffect(() => {
     if (open) {
       setMounted(true);
-      const id = window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => setVisible(true));
-      });
-      return () => window.cancelAnimationFrame(id);
+      setVisible(true);
+      return;
     }
     setVisible(false);
     const timer = window.setTimeout(() => setMounted(false), EXIT_MS);

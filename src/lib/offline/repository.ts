@@ -11,6 +11,7 @@ import type { OutboxOp } from "./db";
 import { isOnline } from "./network";
 import { runSync } from "./sync-engine";
 import { getActiveOfflineUserId } from "./clear-session";
+import { pushOutboxItemViaRest } from "./rest-fallback";
 
 export type SyncUiState = "synced" | "pending" | "offline" | "failed";
 
@@ -150,6 +151,39 @@ export function createRepository<T extends SyncedRecord>(
       _sync_failed: false,
     });
     await offlineDb.table(config.table).put(local as SyncedRecord);
+
+    if (isOnline()) {
+      try {
+        const serverRow = await pushOutboxItemViaRest({
+          client_op_id: id,
+          entity_type: config.entityType,
+          entity_id: id,
+          op: "create",
+          payload: { ...payload, id },
+          status: "pending",
+          retry_count: 0,
+          next_retry_at: null,
+          last_error: null,
+          created_at: now,
+          updated_at: now,
+        });
+        const synced = config.normalize({
+          ...(serverRow || local),
+          id: String(serverRow?.id || id),
+          user_id: (serverRow as SyncedRecord | null)?.user_id || ownerId,
+          _pending: false,
+          _sync_failed: false,
+        });
+        if (serverRow?.id && String(serverRow.id) !== id) {
+          await offlineDb.table(config.table).delete(id);
+        }
+        await offlineDb.table(config.table).put(synced as SyncedRecord);
+        return synced;
+      } catch {
+        /* queue for retry — user stays able to edit locally */
+      }
+    }
+
     await enqueueOutbox({
       entity_type: config.entityType,
       entity_id: id,
@@ -179,6 +213,36 @@ export function createRepository<T extends SyncedRecord>(
       sync_version: Number(existing?.sync_version || 1),
     });
     await offlineDb.table(config.table).put(next as SyncedRecord);
+
+    if (isOnline()) {
+      try {
+        const serverRow = await pushOutboxItemViaRest({
+          client_op_id: id,
+          entity_type: config.entityType,
+          entity_id: id,
+          op: "update",
+          payload,
+          status: "pending",
+          retry_count: 0,
+          next_retry_at: null,
+          last_error: null,
+          created_at: now,
+          updated_at: now,
+        });
+        const synced = config.normalize({
+          ...next,
+          ...(serverRow || {}),
+          id,
+          _pending: false,
+          _sync_failed: false,
+        });
+        await offlineDb.table(config.table).put(synced as SyncedRecord);
+        return synced;
+      } catch {
+        /* keep local edit and queue */
+      }
+    }
+
     await enqueueOutbox({
       entity_type: config.entityType,
       entity_id: id,
@@ -204,6 +268,28 @@ export function createRepository<T extends SyncedRecord>(
         _sync_failed: false,
       } as SyncedRecord);
     }
+    if (isOnline()) {
+      try {
+        await pushOutboxItemViaRest({
+          client_op_id: id,
+          entity_type: config.entityType,
+          entity_id: id,
+          op: "delete",
+          payload: {},
+          status: "pending",
+          retry_count: 0,
+          next_retry_at: null,
+          last_error: null,
+          created_at: now,
+          updated_at: now,
+        });
+        await offlineDb.table(config.table).delete(id);
+        return;
+      } catch {
+        /* queue archive */
+      }
+    }
+
     await enqueueOutbox({
       entity_type: config.entityType,
       entity_id: id,

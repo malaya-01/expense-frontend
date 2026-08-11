@@ -96,13 +96,16 @@ export async function markOutboxSyncing(ids: number[]): Promise<void> {
 }
 
 export async function markOutboxSynced(id: number): Promise<void> {
-  await offlineDb.outbox.update(id, {
-    status: "synced",
-    last_error: null,
-    next_retry_at: null,
-    updated_at: new Date().toISOString(),
-  });
+  // Successful live push — drop the queue row so it is not retried.
+  await offlineDb.outbox.delete(id);
   scheduleDurableBackup();
+}
+
+export async function purgeSyncedOutbox(): Promise<void> {
+  const rows = await offlineDb.outbox.where("status").equals("synced").toArray();
+  for (const row of rows) {
+    if (row.id != null) await offlineDb.outbox.delete(row.id);
+  }
 }
 
 export async function markOutboxFailed(

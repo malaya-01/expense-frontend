@@ -4,10 +4,10 @@ import { getRecordSyncState, type SyncUiState } from "@/lib/offline/repository";
 import { cn } from "@/lib/cn";
 
 const LABELS: Record<SyncUiState, string> = {
-  synced: "Synced",
-  pending: "Pending sync",
-  offline: "Offline",
-  failed: "Sync failed",
+  synced: "Saved on server",
+  pending: "Saved here — waiting to reach the server",
+  offline: "Saved on this device (offline)",
+  failed: "Saved here — server sync failed, will retry",
 };
 
 export function SyncBadge({

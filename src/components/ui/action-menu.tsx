@@ -33,7 +33,6 @@ export function ActionMenu({
       align={align}
       className="w-44 p-1.5"
       triggerLabel={label}
-      closeOnSelect
       trigger={
         trigger || (
           <span
@@ -52,11 +51,11 @@ export function ActionMenu({
             type="button"
             role="menuitem"
             disabled={item.disabled}
-            onClick={() => {
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              item.onSelect();
               setOpen(false);
-              window.dispatchEvent(new Event("finos:close-overlays"));
-              // Wait a frame so the menu portal unmounts before a modal opens.
-              window.setTimeout(() => item.onSelect(), 0);
             }}
             className={cn(
               "flex w-full items-center rounded-[8px] px-2.5 py-2 text-left text-xs transition-colors ds-focus disabled:opacity-40",

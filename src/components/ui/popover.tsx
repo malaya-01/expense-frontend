@@ -124,14 +124,14 @@ export function Popover({
               role="dialog"
               data-finos-popover
               style={{ top: position.top, left: position.left }}
-              onClickCapture={(event) => {
+              onClick={(event) => {
                 if (
                   closeOnSelect &&
                   (event.target as HTMLElement).closest(
                     "button, [role='menuitem']",
                   )
                 ) {
-                  setOpen(false);
+                  window.setTimeout(() => setOpen(false), 0);
                 }
               }}
               className={cn(

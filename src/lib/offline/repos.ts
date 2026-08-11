@@ -22,7 +22,7 @@ function normalizeAccount(row: any): FinancialContainer {
   return {
     ...row,
     balance: Number(row.balance),
-    include_in_net_worth: Boolean(row.include_in_net_worth),
+    include_in_net_worth: row.include_in_net_worth !== false,
     _pending: Boolean(row._pending),
     _sync_failed: Boolean(row._sync_failed),
   } as FinancialContainer;

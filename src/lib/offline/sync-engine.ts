@@ -175,9 +175,14 @@ export async function runSync(reason = "manual"): Promise<void> {
     }
     await pushOutbox();
     await pullChanges();
+    const { purgeSyncedOutbox } = await import("./outbox");
+    await purgeSyncedOutbox();
     await setMeta("last_sync_at", new Date().toISOString());
     lastError = null;
     await persistDurableBackup();
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("finos:sync-complete"));
+    }
   } catch (error: any) {
     lastError = error?.message || `Sync failed (${reason})`;
     // Never delete local data on sync failure — only requeue outbox.
