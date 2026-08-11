@@ -345,7 +345,7 @@ export default function AdminPage() {
                     size="sm"
                     variant="secondary"
                     className="w-full sm:w-auto"
-                    disabled={saving || selectedId === user.id}
+                    disabled={saving || selectedId === user?.id}
                     onClick={() => void onToggleAdmin(!detail.is_admin)}
                   >
                     {detail.is_admin
