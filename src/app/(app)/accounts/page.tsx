@@ -223,7 +223,7 @@ export default function AccountsPage() {
   }
 
   return (
-    <div>
+    <div className="min-w-0 max-w-full overflow-x-hidden">
       <div className="mb-4 flex flex-col gap-2.5 sm:mb-5 sm:gap-3 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0">
           <h1 className="text-[22px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
@@ -357,8 +357,8 @@ export default function AccountsPage() {
         <p className="mb-4 text-sm text-[var(--ds-status-red)]">{error}</p>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
+        <div className="min-w-0 max-w-full overflow-hidden">
           {loading ? (
             <CardGridSkeleton />
           ) : containers.length === 0 ? (
@@ -444,10 +444,10 @@ export default function AccountsPage() {
               <button
                 type="button"
                 onClick={openCreate}
-                className="flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-[16px] border border-dashed border-[color:color-mix(in_srgb,var(--ds-gray-1000)_18%,transparent)] bg-[var(--ds-background-elevated)] px-4 py-4 text-left transition-colors hover:bg-[var(--ds-gray-100)] ds-focus sm:px-5"
+                className="flex h-[4.25rem] w-full min-w-0 items-center gap-3 overflow-hidden rounded-[12px] border border-dashed border-[color:color-mix(in_srgb,var(--ds-gray-1000)_18%,transparent)] bg-[var(--ds-background-elevated)] px-3 pl-4 text-left transition-colors hover:bg-[var(--ds-gray-100)] ds-focus sm:h-[4.75rem] sm:rounded-[16px] sm:px-5"
               >
-                <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--ds-gray-100)] text-[var(--ds-gray-900)]">
-                  <Plus size={18} />
+                <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--ds-gray-100)] text-[var(--ds-gray-900)] sm:size-10">
+                  <Plus size={16} />
                 </span>
                 <span className="min-w-0 flex-1 overflow-hidden">
                   <span className="block truncate text-sm font-semibold text-[var(--ds-gray-1000)]">
@@ -467,12 +467,14 @@ export default function AccountsPage() {
           )}
         </div>
 
-        <AccountsSidebar
-          insights={insights}
-          allocation={allocation}
-          activity={activity}
-          currency={baseCurrency}
-        />
+        <div className="min-w-0 max-w-full overflow-hidden">
+          <AccountsSidebar
+            insights={insights}
+            allocation={allocation}
+            activity={activity}
+            currency={baseCurrency}
+          />
+        </div>
       </div>
 
       <AccountFormModal
