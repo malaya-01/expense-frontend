@@ -70,9 +70,9 @@ export function SettingsGuide() {
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/ai", label: "AI Advisor" },
-          { href: "/guide/offline-sync", label: "Offline & sync" },
-          { href: "/guide/admin", label: "Admin" },
+          { href: "/documentation/ai", label: "AI Advisor" },
+          { href: "/documentation/offline-sync", label: "Offline & sync" },
+          { href: "/documentation/admin", label: "Admin" },
           { href: "/settings", label: "Open settings" },
         ]}
       />

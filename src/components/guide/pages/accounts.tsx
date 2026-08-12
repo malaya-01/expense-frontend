@@ -85,9 +85,9 @@ export function AccountsGuide() {
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/transactions", label: "Transactions" },
-          { href: "/guide/loans", label: "Loans" },
-          { href: "/guide/investments", label: "Investments" },
+          { href: "/documentation/transactions", label: "Transactions" },
+          { href: "/documentation/loans", label: "Loans" },
+          { href: "/documentation/investments", label: "Investments" },
           { href: "/accounts", label: "Open accounts" },
         ]}
       />

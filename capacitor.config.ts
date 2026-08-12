@@ -11,6 +11,12 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: true,
   },
+  // Route XHR/fetch through native HTTP so WebView CORS cannot block the API.
+  plugins: {
+    CapacitorHttp: {
+      enabled: true,
+    },
+  },
 };
 
 export default config;

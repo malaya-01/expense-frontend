@@ -234,11 +234,14 @@ h3 {
   margin: 0;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
+/* Unlayered so these always win over base inherit + utility order quirks. */
 a.link-accent {
   color: var(--ds-link-color);
 }
@@ -249,6 +252,15 @@ a.link-accent:hover {
 
 a.link-accent:focus-visible {
   outline: 2px auto var(--ds-link-color);
+}
+
+/** Solid primary CTA rendered as a link (bg = gray-1000). */
+a.ds-btn-solid {
+  color: var(--ds-primary-foreground);
+}
+
+a.ds-btn-solid:hover {
+  color: var(--ds-primary-foreground);
 }
 
 /* Help / popover content: theme link accent even when parent text is muted. */

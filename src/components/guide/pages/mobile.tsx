@@ -37,15 +37,15 @@ export function MobileGuide() {
       </div>
 
       <Callout tone="note" title="Same product">
-        Features match the web app. Prefer the Guide on either surface — chapters
-        stay in sync.
+        Features match the web app. Documentation opens on the web portal (new
+        tab / system browser) rather than inside the native shell.
       </Callout>
 
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/offline-sync", label: "Offline & sync" },
-          { href: "/guide/getting-started", label: "Getting started" },
+          { href: "/documentation/offline-sync", label: "Offline & sync" },
+          { href: "/documentation/getting-started", label: "Getting started" },
         ]}
       />
     </article>

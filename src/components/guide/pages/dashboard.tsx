@@ -72,9 +72,9 @@ export function DashboardGuide() {
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/accounts", label: "Accounts" },
-          { href: "/guide/transactions", label: "Transactions" },
-          { href: "/guide/reports", label: "Reports" },
+          { href: "/documentation/accounts", label: "Accounts" },
+          { href: "/documentation/transactions", label: "Transactions" },
+          { href: "/documentation/reports", label: "Reports" },
           { href: "/dashboard", label: "Open dashboard" },
         ]}
       />

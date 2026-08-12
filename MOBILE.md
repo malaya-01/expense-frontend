@@ -42,13 +42,15 @@ Mobile builds **must not** use `localhost`. `npm run build:mobile` now bakes in:
 
 `https://expense-backend-2tg0.onrender.com/api`
 
-On Render, set `CLIENT_HOST` to include Capacitor origins:
+On Render, set `CLIENT_HOST` to include your web origin (Capacitor origins are also allowed in code):
 
 ```text
 https://expense-frontend-theta-two.vercel.app,https://localhost,capacitor://localhost,http://localhost
 ```
 
-After installing the APK: **Settings → Offline & Sync → Use Render production → Save & test connection**, then **Sync now**.
+Mobile builds enable **CapacitorHttp** so API calls use native networking (avoids WebView CORS). Rebuild the APK after pulling these changes (`npm run mobile:android`).
+
+After installing the APK: if login still fails, open **Settings → Offline & Sync → Use Render production → Save & test connection**, then **Sync now**.
 
 ### Build & open
 

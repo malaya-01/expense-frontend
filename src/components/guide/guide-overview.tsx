@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { GuideShell } from "@/components/guide/guide-shell";
 import { APP_NAME } from "@/lib/brand";
+import { documentationPath } from "@/lib/docs/portal";
 import { GUIDE_CHAPTERS, GUIDE_GROUPS } from "@/lib/guide/chapters";
 
 export function GuideOverview() {
@@ -12,7 +13,7 @@ export function GuideOverview() {
       <header className="rounded-[16px] border border-[var(--ds-gray-200)] bg-[linear-gradient(165deg,color-mix(in_srgb,var(--ds-focus-color)_10%,transparent),transparent_55%),var(--ds-background-elevated)] px-5 py-6 sm:px-8 sm:py-8">
         <div className="inline-flex items-center gap-2 rounded-full border border-[var(--ds-gray-200)] bg-[var(--ds-background-100)] px-3 py-1 text-[11px] font-medium text-[var(--ds-gray-900)]">
           <BookOpen size={13} />
-          Product guide
+          Product documentation
         </div>
         <h1 className="mt-4 text-[28px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[34px]">
           Learn {APP_NAME} end to end
@@ -24,14 +25,14 @@ export function GuideOverview() {
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
           <Link
-            href="/guide/getting-started"
-            className="inline-flex items-center gap-1.5 rounded-[9px] bg-[var(--ds-gray-1000)] px-3.5 py-2 text-sm font-medium text-[var(--ds-primary-foreground)]"
+            href={documentationPath("getting-started")}
+            className="ds-btn-solid inline-flex items-center gap-1.5 rounded-[9px] bg-[var(--ds-gray-1000)] px-3.5 py-2 text-sm font-medium hover:bg-[var(--ds-primary-hover)]"
           >
             Start here
             <ArrowRight size={14} />
           </Link>
           <Link
-            href="/guide/offline-sync"
+            href={documentationPath("offline-sync")}
             className="inline-flex items-center rounded-[9px] border border-[var(--ds-gray-200)] bg-[var(--ds-background-100)] px-3.5 py-2 text-sm font-medium text-[var(--ds-gray-1000)]"
           >
             Offline & sync
@@ -54,7 +55,7 @@ export function GuideOverview() {
                   return (
                     <Link
                       key={chapter.slug}
-                      href={`/guide/${chapter.slug}`}
+                      href={documentationPath(chapter.slug)}
                       className="group rounded-[14px] border border-[var(--ds-gray-200)] bg-[var(--ds-background-elevated)] p-4 transition-colors hover:border-[var(--ds-gray-400)]"
                     >
                       <div className="flex items-start gap-3">

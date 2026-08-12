@@ -74,8 +74,8 @@ export function OfflineSyncGuide() {
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/mobile", label: "Mobile app" },
-          { href: "/guide/settings", label: "Settings" },
+          { href: "/documentation/mobile", label: "Mobile app" },
+          { href: "/documentation/settings", label: "Settings" },
           { href: "/settings?section=sync", label: "Open sync settings" },
         ]}
       />

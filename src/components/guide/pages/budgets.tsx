@@ -79,9 +79,9 @@ export function BudgetsGuide() {
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/categories", label: "Categories" },
-          { href: "/guide/goals", label: "Goals" },
-          { href: "/guide/transactions", label: "Transactions" },
+          { href: "/documentation/categories", label: "Categories" },
+          { href: "/documentation/goals", label: "Goals" },
+          { href: "/documentation/transactions", label: "Transactions" },
           { href: "/budgets", label: "Open budgets" },
         ]}
       />

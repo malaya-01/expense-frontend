@@ -64,16 +64,16 @@ export function CategoriesGuide() {
 
       <Callout tone="tip" title="AI can propose categories">
         In{" "}
-        <InlineLink href="/guide/ai">AI Advisor</InlineLink>, ask to review or
+        <InlineLink href="/documentation/ai">AI Advisor</InlineLink>, ask to review or
         seed categories — confirm proposals before they apply.
       </Callout>
 
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/budgets", label: "Budgets" },
-          { href: "/guide/transactions", label: "Transactions" },
-          { href: "/guide/ai", label: "AI Advisor" },
+          { href: "/documentation/budgets", label: "Budgets" },
+          { href: "/documentation/transactions", label: "Transactions" },
+          { href: "/documentation/ai", label: "AI Advisor" },
           { href: "/categories", label: "Open categories" },
         ]}
       />

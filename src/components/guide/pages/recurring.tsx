@@ -70,8 +70,8 @@ export function RecurringGuide() {
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/transactions", label: "Transactions" },
-          { href: "/guide/budgets", label: "Budgets" },
+          { href: "/documentation/transactions", label: "Transactions" },
+          { href: "/documentation/budgets", label: "Budgets" },
           { href: "/recurring", label: "Open recurring" },
         ]}
       />

@@ -2,6 +2,6 @@
 
 import { GuideOverview } from "@/components/guide/guide-overview";
 
-export default function GuidePage() {
+export default function DocumentationPage() {
   return <GuideOverview />;
 }

@@ -265,10 +265,20 @@ export function CommandPalette() {
       .map((item) => ({
         id: `nav-${item.href}`,
         title: item.label,
-        subtitle: "Go to module",
-        keywords: `${item.label} navigation open`,
+        subtitle: item.externalDocs
+          ? "Open in new tab"
+          : "Go to module",
+        keywords: `${item.label} navigation open documentation guide docs`,
         icon: item.icon,
-        run: () => router.push(item.href),
+        run: () => {
+          if (item.externalDocs) {
+            void import("@/lib/docs/portal").then(({ openDocumentation }) => {
+              openDocumentation(item.href);
+            });
+            return;
+          }
+          router.push(item.href);
+        },
       }));
     const commands: PaletteItem[] = [];
     if (canCreateTx) {

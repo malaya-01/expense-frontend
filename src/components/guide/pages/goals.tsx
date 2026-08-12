@@ -71,8 +71,8 @@ export function GoalsGuide() {
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/budgets", label: "Budgets" },
-          { href: "/guide/accounts", label: "Accounts" },
+          { href: "/documentation/budgets", label: "Budgets" },
+          { href: "/documentation/accounts", label: "Accounts" },
           { href: "/goals", label: "Open goals" },
         ]}
       />

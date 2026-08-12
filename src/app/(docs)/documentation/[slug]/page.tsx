@@ -7,16 +7,17 @@ import {
   GuideShell,
 } from "@/components/guide/guide-shell";
 import { GUIDE_PAGE_CONTENT } from "@/components/guide/pages";
+import { DOCUMENTATION_BASE } from "@/lib/docs/portal";
 import { getGuideChapter, isGuideSlug } from "@/lib/guide/chapters";
 
-export default function GuideChapterPage() {
+export default function DocumentationChapterPage() {
   const params = useParams<{ slug: string }>();
   const router = useRouter();
   const slug = typeof params.slug === "string" ? params.slug : "";
 
   useEffect(() => {
     if (!slug || !isGuideSlug(slug)) {
-      router.replace("/guide");
+      router.replace(DOCUMENTATION_BASE);
     }
   }, [router, slug]);
 
@@ -26,7 +27,7 @@ export default function GuideChapterPage() {
   if (!chapter || !Content) {
     return (
       <div className="px-4 py-10 text-sm text-[var(--ds-gray-900)]">
-        Loading guide…
+        Loading documentation…
       </div>
     );
   }

@@ -71,8 +71,8 @@ export function InvestmentsGuide() {
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/accounts", label: "Accounts" },
-          { href: "/guide/reports", label: "Reports" },
+          { href: "/documentation/accounts", label: "Accounts" },
+          { href: "/documentation/reports", label: "Reports" },
           { href: "/investments", label: "Open investments" },
         ]}
       />

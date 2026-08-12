@@ -77,16 +77,17 @@ export function GettingStartedGuide() {
       <DocP>
         The left sidebar (menu on mobile) is the main map of {APP_NAME}. Open
         any module from there, or jump with the command palette (
-        <InlineLink href="/guide/tips">Tips</InlineLink>). The Guide itself is
-        under the same sidebar so you can flip between docs and the live screen.
+        <InlineLink href="/documentation/tips">Tips</InlineLink>). Documentation
+        opens in a new browser tab from the sidebar (on mobile, the web portal)
+        so it stays separate from the signed-in app.
       </DocP>
 
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/dashboard", label: "Dashboard guide" },
-          { href: "/guide/accounts", label: "Accounts guide" },
-          { href: "/guide/transactions", label: "Transactions guide" },
+          { href: "/documentation/dashboard", label: "Dashboard docs" },
+          { href: "/documentation/accounts", label: "Accounts docs" },
+          { href: "/documentation/transactions", label: "Transactions docs" },
           { href: "/dashboard", label: "Open dashboard" },
         ]}
       />

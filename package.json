@@ -6,7 +6,7 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
-    "build:mobile": "cross-env MOBILE=1 NEXT_PUBLIC_API_BASE_URL=https://expense-backend-2tg0.onrender.com/api next build",
+    "build:mobile": "cross-env MOBILE=1 NEXT_PUBLIC_API_BASE_URL=https://expense-backend-2tg0.onrender.com/api NEXT_PUBLIC_WEB_PORTAL_URL=https://expense-frontend-theta-two.vercel.app next build",
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
     "mobile:android": "npm run build:mobile && npx cap sync android"

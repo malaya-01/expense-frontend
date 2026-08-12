@@ -100,9 +100,9 @@ export function TransactionsGuide() {
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/accounts", label: "Accounts" },
-          { href: "/guide/categories", label: "Categories" },
-          { href: "/guide/recurring", label: "Recurring" },
+          { href: "/documentation/accounts", label: "Accounts" },
+          { href: "/documentation/categories", label: "Categories" },
+          { href: "/documentation/recurring", label: "Recurring" },
           { href: "/expenses", label: "Open transactions" },
         ]}
       />

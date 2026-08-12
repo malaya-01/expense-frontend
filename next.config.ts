@@ -15,7 +15,22 @@ const nextConfig: NextConfig = {
         images: { unoptimized: true },
         trailingSlash: true,
       }
-    : {}),
+    : {
+        async redirects() {
+          return [
+            {
+              source: "/guide",
+              destination: "/documentation",
+              permanent: true,
+            },
+            {
+              source: "/guide/:slug",
+              destination: "/documentation/:slug",
+              permanent: true,
+            },
+          ];
+        },
+      }),
 };
 
 export default nextConfig;

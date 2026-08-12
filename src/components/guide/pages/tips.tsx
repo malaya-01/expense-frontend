@@ -51,8 +51,8 @@ export function TipsGuide() {
           <Plus size={16} className="mt-1 shrink-0" />
           <span>
             Need help again? Return to the{" "}
-            <InlineLink href="/guide">Guide overview</InlineLink> anytime from
-            the sidebar.
+            <InlineLink href="/documentation">Documentation overview</InlineLink> anytime —
+            it opens in a new tab from the app sidebar.
           </span>
         </li>
       </ul>
@@ -67,24 +67,24 @@ export function TipsGuide() {
       <div className="mt-6 flex flex-wrap gap-2">
         <Link
           href="/dashboard"
-          className="inline-flex items-center rounded-[9px] bg-[var(--ds-gray-1000)] px-3.5 py-2 text-sm font-medium text-[var(--ds-primary-foreground)]"
+          className="ds-btn-solid inline-flex items-center rounded-[9px] bg-[var(--ds-gray-1000)] px-3.5 py-2 text-sm font-medium hover:bg-[var(--ds-primary-hover)]"
         >
           Open dashboard
         </Link>
         <Link
-          href="/guide"
+          href="/documentation"
           className="inline-flex items-center rounded-[9px] border border-[var(--ds-gray-200)] bg-[var(--ds-background-elevated)] px-3.5 py-2 text-sm font-medium"
         >
-          Guide overview
+          Documentation overview
         </Link>
       </div>
 
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/getting-started", label: "Getting started" },
-          { href: "/guide/offline-sync", label: "Offline & sync" },
-          { href: "/guide/ai", label: "AI Advisor" },
+          { href: "/documentation/getting-started", label: "Getting started" },
+          { href: "/documentation/offline-sync", label: "Offline & sync" },
+          { href: "/documentation/ai", label: "AI Advisor" },
         ]}
       />
     </article>

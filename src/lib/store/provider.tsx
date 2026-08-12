@@ -5,6 +5,7 @@ import { Provider } from "react-redux";
 import { makeStore, type AppStore } from "./index";
 import { bootstrapAppState } from "./listeners";
 import {
+  ensureNativeApiBase,
   ensureSession,
   registerAuthFailureHandler,
 } from "@/lib/api/client";
@@ -71,6 +72,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     void (async () => {
       await markNativeAppChrome();
+      ensureNativeApiBase();
       await registerAndroidBackHandler();
       // Restore Preferences tokens + refresh expired access via 7d refresh token.
       await ensureSession();

@@ -71,9 +71,9 @@ export function ReportsGuide() {
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/transactions", label: "Transactions" },
-          { href: "/guide/categories", label: "Categories" },
-          { href: "/guide/ai", label: "AI Advisor" },
+          { href: "/documentation/transactions", label: "Transactions" },
+          { href: "/documentation/categories", label: "Categories" },
+          { href: "/documentation/ai", label: "AI Advisor" },
           { href: "/reports", label: "Open reports" },
         ]}
       />

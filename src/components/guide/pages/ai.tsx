@@ -102,8 +102,8 @@ export function AiGuide() {
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/settings", label: "Settings" },
-          { href: "/guide/reports", label: "Reports" },
+          { href: "/documentation/settings", label: "Settings" },
+          { href: "/documentation/reports", label: "Reports" },
           { href: "/settings?section=ai", label: "AI settings" },
           { href: "/ai", label: "Open AI Advisor" },
         ]}

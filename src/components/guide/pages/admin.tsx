@@ -63,7 +63,7 @@ export function AdminGuide() {
       <DocH2>Related</DocH2>
       <RelatedLinks
         items={[
-          { href: "/guide/settings", label: "Settings" },
+          { href: "/documentation/settings", label: "Settings" },
           { href: "/admin", label: "Open admin" },
         ]}
       />

@@ -50,6 +50,29 @@ export function isLocalhostApiUrl(url = getApiBaseUrl()): boolean {
   return /localhost|127\.0\.0\.1|10\.0\.2\.2/i.test(url);
 }
 
+/**
+ * Capacitor cannot reach host-machine localhost. If a stale Settings override
+ * still points there, clear it so the baked production API URL is used.
+ */
+export function ensureNativeApiBase(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const bridge = (window as Window & {
+      Capacitor?: { isNativePlatform?: () => boolean };
+    }).Capacitor;
+    if (!bridge?.isNativePlatform?.()) return;
+    if (!isLocalhostApiUrl()) return;
+    localStorage.removeItem(API_BASE_STORAGE_KEY);
+    try {
+      api.defaults.baseURL = DEFAULT_API_BASE.replace(/\/$/, "");
+    } catch {
+      /* api may not be ready yet; next request uses getApiBaseUrl() */
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 function readCookie(name: string): string | undefined {
   if (typeof document === "undefined") return undefined;
   const encodedName = `${encodeURIComponent(name)}=`;

@@ -23,9 +23,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { ready, isAuthenticated, user, setPermissions } = useAuth();
   const isAiWorkspace = pathname === "/ai" || pathname.startsWith("/ai/");
-  const isGuideWorkspace =
-    pathname === "/guide" || pathname.startsWith("/guide/");
-  const isFullBleedWorkspace = isAiWorkspace || isGuideWorkspace;
+  const isFullBleedWorkspace = isAiWorkspace;
 
   useEffect(() => {
     if (!ready) return;

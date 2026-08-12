@@ -60,6 +60,8 @@ export type NavItem = {
   label: string;
   icon: LucideIcon;
   soon?: boolean;
+  /** Opens outside app chrome (new tab / web portal on native). */
+  externalDocs?: boolean;
 };
 
 export const PRIMARY_NAV: NavItem[] = [
@@ -77,7 +79,12 @@ export const PRIMARY_NAV: NavItem[] = [
 
 export const SECONDARY_NAV: NavItem[] = [
   { href: "/categories", label: "Categories", icon: Tags },
-  { href: "/guide", label: "Guide", icon: BookOpen },
+  {
+    href: "/documentation",
+    label: "Documentation",
+    icon: BookOpen,
+    externalDocs: true,
+  },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/admin", label: "Admin", icon: Shield },
 ];
@@ -100,21 +107,19 @@ function NavLink({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const active =
-    pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const active = item.externalDocs
+    ? false
+    : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
-  return (
-    <Link
-      href={item.href}
-      onClick={onNavigate}
-      title={collapsed ? item.label : undefined}
-      className={cn(
-        "group flex min-h-8 items-center rounded-[7px] text-[12px] transition-colors ds-focus",
-        collapsed ? "justify-center px-2" : "justify-between px-2",
-        "text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)]",
-        active && "bg-[var(--ds-gray-100)] font-medium text-[var(--ds-gray-1000)]",
-      )}
-    >
+  const className = cn(
+    "group flex min-h-8 w-full items-center rounded-[7px] text-[12px] transition-colors ds-focus",
+    collapsed ? "justify-center px-2" : "justify-between px-2",
+    "text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)]",
+    active && "bg-[var(--ds-gray-100)] font-medium text-[var(--ds-gray-1000)]",
+  );
+
+  const content = (
+    <>
       <span className="flex items-center gap-2.5">
         <item.icon
           size={15}
@@ -131,6 +136,35 @@ function NavLink({
           Soon
         </span>
       ) : null}
+    </>
+  );
+
+  if (item.externalDocs) {
+    return (
+      <button
+        type="button"
+        title={collapsed ? item.label : undefined}
+        className={className}
+        onClick={() => {
+          onNavigate?.();
+          void import("@/lib/docs/portal").then(({ openDocumentation }) => {
+            openDocumentation(item.href);
+          });
+        }}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      title={collapsed ? item.label : undefined}
+      className={className}
+    >
+      {content}
     </Link>
   );
 }
