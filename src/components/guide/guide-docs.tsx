@@ -518,6 +518,21 @@ export function GuideDocs() {
             about your money habits. Configure models under{" "}
             <InlineLink href="/settings?section=ai">Settings → AI</InlineLink>.
           </DocP>
+          <Callout tone="tip" title="Recommended: OpenRouter">
+            Use{" "}
+            <a
+              href="https://openrouter.ai/docs/quickstart"
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-[var(--ds-focus-color)] underline-offset-2 hover:underline"
+            >
+              OpenRouter
+            </a>{" "}
+            for the simplest setup: paste one API key, then choose any model
+            slug (OpenAI, Claude, Gemini, Llama, and more) from the picker or
+            catalog at openrouter.ai/models. Direct OpenAI, Anthropic, Vertex,
+            and local servers remain available if you prefer them.
+          </Callout>
           <Callout tone="note" title="AI needs a provider">
             If chat fails, check that an API key / provider is set in Settings.
             Your transaction data stays in {APP_NAME}; the model only sees what the

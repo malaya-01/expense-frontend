@@ -35,6 +35,7 @@ import { cn } from "@/lib/cn";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 
 const PROVIDER_ORDER: AiProviderId[] = [
+  "openrouter",
   "openai",
   "anthropic",
   "local",
@@ -42,13 +43,18 @@ const PROVIDER_ORDER: AiProviderId[] = [
 ];
 
 const PROVIDER_LABEL: Record<AiProviderId, string> = {
+  openrouter: "OpenRouter",
   openai: "OpenAI",
   anthropic: "Anthropic",
   local: "Local model",
   vertex: "Google Vertex AI",
 };
 
-const PROVIDER_TONE: Record<AiProviderId, "blue" | "orange" | "purple" | "green"> = {
+const PROVIDER_TONE: Record<
+  AiProviderId,
+  "blue" | "orange" | "purple" | "green" | "cyan"
+> = {
+  openrouter: "cyan",
   openai: "green",
   anthropic: "orange",
   local: "purple",
@@ -223,8 +229,9 @@ export function AiProvidersSection() {
               <InfoTip title="Bring your own key">
                 <p>
                   FinOS never stores provider keys in the browser. Keys and Vertex
-                  JSON are encrypted on the server. Pick one active provider for
-                  the Advisor.
+                  JSON are encrypted on the server. OpenRouter is recommended: one
+                  key unlocks many models. Pick one active provider for the
+                  Advisor.
                 </p>
               </InfoTip>
             </div>
@@ -232,7 +239,7 @@ export function AiProvidersSection() {
               Active:{" "}
               {settings?.active_provider
                 ? `${PROVIDER_LABEL[settings.active_provider]} · ${settings.active_model || "default model"}`
-                : "None selected"}
+                : "None — OpenRouter recommended"}
             </p>
           </div>
           <Button size="sm" variant="secondary" onClick={() => setPromptOpen(true)}>
@@ -263,13 +270,22 @@ export function AiProvidersSection() {
                 <div className="flex min-w-0 items-center gap-2">
                   <StatusDot tone={PROVIDER_TONE[p.provider]} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-[var(--ds-gray-1000)]">
-                      {PROVIDER_LABEL[p.provider]}
-                    </p>
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <p className="truncate text-sm font-medium text-[var(--ds-gray-1000)]">
+                        {PROVIDER_LABEL[p.provider]}
+                      </p>
+                      {(p.recommended || p.provider === "openrouter") && (
+                        <span className="shrink-0 rounded-[4px] bg-[color:color-mix(in_srgb,var(--ds-focus-color)_16%,transparent)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--ds-focus-color)]">
+                          Recommended
+                        </span>
+                      )}
+                    </div>
                     <p className="truncate text-[11px] text-[var(--ds-gray-700)]">
                       {p.connected
                         ? `Ready · ${p.model || "model"}`
-                        : "Not connected"}
+                        : p.provider === "openrouter"
+                          ? "One key · hundreds of models"
+                          : "Not connected"}
                     </p>
                   </div>
                   {guide ? (
@@ -566,9 +582,14 @@ function ProviderConfigureModal({
 }) {
   const [model, setModel] = useState(existing?.model || "");
   const [models, setModels] = useState<string[]>(existing?.default_models || []);
+  const [modelFilter, setModelFilter] = useState("");
+  const [customModel, setCustomModel] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState(
-    existing?.base_url || "http://127.0.0.1:11434/v1",
+    existing?.base_url ||
+      (provider === "openrouter"
+        ? "https://openrouter.ai/api/v1"
+        : "http://127.0.0.1:11434/v1"),
   );
   const [projectId, setProjectId] = useState(existing?.project_id || "");
   const [location, setLocation] = useState(existing?.location || "us-central1");
@@ -576,12 +597,14 @@ function ProviderConfigureModal({
   const [saFileName, setSaFileName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [modelsSource, setModelsSource] = useState("defaults");
 
   useEffect(() => {
     listAiModels(provider)
       .then((r) => {
         const valid = r.models.filter((item) => item && item !== "default");
         setModels(valid);
+        setModelsSource(r.source || "defaults");
         if ((!model || model === "default") && valid[0]) setModel(valid[0]);
       })
       .catch(() => {
@@ -589,6 +612,21 @@ function ProviderConfigureModal({
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider]);
+
+  const filteredModels = useMemo(() => {
+    const q = modelFilter.trim().toLowerCase();
+    const list = models.length ? models : [model].filter(Boolean);
+    if (!q) return list;
+    return list.filter((m) => m.toLowerCase().includes(q));
+  }, [models, model, modelFilter]);
+
+  const modelOptions = useMemo(() => {
+    const list = [...filteredModels];
+    if (model && !list.includes(model)) list.unshift(model);
+    return list.filter(Boolean);
+  }, [filteredModels, model]);
+
+  const resolvedModel = (customModel.trim() || model).trim();
 
   async function onServiceAccountFile(file?: File) {
     if (!file) return;
@@ -623,11 +661,15 @@ function ProviderConfigureModal({
     setLoading(true);
     setError("");
     try {
+      if (!resolvedModel) {
+        throw new Error("Choose or enter a model.");
+      }
       await upsertAiProvider({
         provider,
-        model: model || undefined,
+        model: resolvedModel,
         api_key: apiKey || undefined,
-        base_url: provider === "local" || provider === "openai" ? baseUrl : undefined,
+        base_url:
+          provider === "local" || provider === "openai" ? baseUrl : undefined,
         project_id: provider === "vertex" ? projectId || undefined : undefined,
         location: provider === "vertex" ? location || undefined : undefined,
         service_account_json:
@@ -642,6 +684,7 @@ function ProviderConfigureModal({
   }
 
   const guide = existing?.setup;
+  const isOpenRouter = provider === "openrouter";
 
   return (
     <Modal
@@ -663,28 +706,103 @@ function ProviderConfigureModal({
       <form id="provider-form" onSubmit={onSubmit} className="space-y-4">
         {guide ? (
           <div className="rounded-[8px] bg-[var(--ds-background-100)] p-3 text-xs leading-4 text-[var(--ds-gray-900)]">
-            <p className="font-medium text-[var(--ds-gray-1000)]">{guide.summary}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-medium text-[var(--ds-gray-1000)]">
+                {guide.summary}
+              </p>
+              {isOpenRouter ? (
+                <span className="rounded-[4px] bg-[color:color-mix(in_srgb,var(--ds-focus-color)_16%,transparent)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--ds-focus-color)]">
+                  Recommended
+                </span>
+              ) : null}
+            </div>
             <ol className="mt-2 list-decimal space-y-1 pl-4">
               {guide.steps.slice(0, 4).map((s) => (
                 <li key={s}>{s}</li>
               ))}
             </ol>
+            {isOpenRouter ? (
+              <p className="mt-2 text-[11px] text-[var(--ds-gray-700)]">
+                Docs:{" "}
+                <a
+                  href="https://openrouter.ai/docs/quickstart"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[var(--ds-focus-color)]"
+                >
+                  openrouter.ai/docs/quickstart
+                </a>
+              </p>
+            ) : null}
           </div>
         ) : null}
 
-        <div>
-          <Label htmlFor="model">Model</Label>
+        <div className="space-y-2">
+          <div className="flex items-end justify-between gap-2">
+            <Label htmlFor="model">Model</Label>
+            {isOpenRouter ? (
+              <a
+                href="https://openrouter.ai/models"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-[var(--ds-focus-color)]"
+              >
+                Browse catalog ↗
+              </a>
+            ) : null}
+          </div>
+
+          {isOpenRouter || models.length > 12 ? (
+            <Input
+              value={modelFilter}
+              onChange={(e) => setModelFilter(e.target.value)}
+              placeholder="Filter models…"
+              aria-label="Filter models"
+            />
+          ) : null}
+
           <Select
             id="model"
             value={model}
-            onChange={(e) => setModel(e.target.value)}
+            onChange={(e) => {
+              setModel(e.target.value);
+              setCustomModel("");
+            }}
           >
-            {(models.length ? models : [model]).filter(Boolean).map((m) => (
+            {modelOptions.map((m) => (
               <option key={m} value={m}>
                 {m}
               </option>
             ))}
           </Select>
+
+          {isOpenRouter ? (
+            <div>
+              <Label htmlFor="custom-model">
+                Custom model slug (optional)
+              </Label>
+              <Input
+                id="custom-model"
+                value={customModel}
+                onChange={(e) => setCustomModel(e.target.value)}
+                placeholder="e.g. anthropic/claude-sonnet-4 or openai/gpt-4o"
+                className="mt-1 font-mono text-xs"
+              />
+              <p className="mt-1.5 text-[11px] text-[var(--ds-gray-700)]">
+                OpenRouter uses <code>provider/model</code> slugs. Leave blank to
+                use the selection above
+                {modelsSource === "provider"
+                  ? " (list refreshed from your key)."
+                  : "."}
+                {resolvedModel ? (
+                  <>
+                    {" "}
+                    Saving as <code>{resolvedModel}</code>.
+                  </>
+                ) : null}
+              </p>
+            </div>
+          ) : null}
         </div>
 
         {provider === "local" || provider === "openai" ? (
@@ -722,9 +840,25 @@ function ProviderConfigureModal({
                   ? "Leave blank to keep saved key"
                   : provider === "local"
                     ? "Optional for many local servers"
-                    : "Paste secret key"
+                    : isOpenRouter
+                      ? "Paste OpenRouter key (sk-or-…)"
+                      : "Paste secret key"
               }
             />
+            {isOpenRouter ? (
+              <p className="mt-1.5 text-[11px] text-[var(--ds-gray-700)]">
+                Create a key at{" "}
+                <a
+                  href="https://openrouter.ai/keys"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[var(--ds-focus-color)]"
+                >
+                  openrouter.ai/keys
+                </a>
+                . Keys are encrypted on the server, never stored in the browser.
+              </p>
+            ) : null}
           </div>
         ) : (
           <>

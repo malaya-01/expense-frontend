@@ -514,7 +514,12 @@ export type ReportOverview = {
   };
 };
 
-export type AiProviderId = "openai" | "anthropic" | "local" | "vertex";
+export type AiProviderId =
+  | "openrouter"
+  | "openai"
+  | "anthropic"
+  | "local"
+  | "vertex";
 
 export type AiSetupGuide = {
   title: string;
@@ -543,6 +548,7 @@ export type AiProviderConfigPublic = {
   last_test_message?: string | null;
   default_models?: string[];
   setup?: AiSetupGuide;
+  recommended?: boolean;
 };
 
 export type AiSettings = {
