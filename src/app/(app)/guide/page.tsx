@@ -1,7 +1,7 @@
 "use client";
 
-import { GuideDocs } from "@/components/guide/guide-docs";
+import { GuideOverview } from "@/components/guide/guide-overview";
 
 export default function GuidePage() {
-  return <GuideDocs />;
+  return <GuideOverview />;
 }

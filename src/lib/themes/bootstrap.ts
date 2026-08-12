@@ -30,6 +30,8 @@ export function getThemeBootstrapScript(): string {
   root.style.setProperty("--ds-gray-900",tokens.gray900);
   root.style.setProperty("--ds-gray-700",tokens.gray700);
   root.style.setProperty("--ds-focus-color",tokens.focusColor);
+  root.style.setProperty("--ds-link-color",tokens.linkColor||tokens.focusColor);
+  root.style.setProperty("--ds-link-hover",tokens.linkHover||tokens.focusColor);
   root.style.setProperty("--ds-focus-input",tokens.focusInput);
   root.style.setProperty("--ds-focus-ring-inner",tokens.focusRingInner);
   root.style.setProperty("--ds-primary-hover",tokens.primaryHover);

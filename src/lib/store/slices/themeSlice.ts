@@ -26,7 +26,26 @@ export function resolveTheme(
   const preset = PRESET_THEMES.find((theme) => theme.id === id);
   if (preset) return preset;
   const custom = customThemes.find((theme) => theme.id === id);
-  if (custom) return custom;
+  if (custom) {
+    // Older saved custom themes may lack link tokens — rebuild so links stay readable.
+    if (!custom.tokens.linkColor || !custom.tokens.linkHover) {
+      return {
+        ...custom,
+        tokens: createCustomTheme(
+          {
+            name: custom.name,
+            background100: custom.tokens.background100,
+            backgroundElevated: custom.tokens.backgroundElevated,
+            gray1000: custom.tokens.gray1000,
+            gray900: custom.tokens.gray900,
+            focusColor: custom.tokens.focusColor,
+          },
+          custom.id,
+        ).tokens,
+      };
+    }
+    return custom;
+  }
   return PRESET_THEMES[0];
 }
 

@@ -130,7 +130,7 @@ export function ProposalPayloadView({
         <p className="text-[var(--ds-gray-900)]">{proposal.summary}</p>
       ) : (
         <p className="text-[var(--ds-gray-900)]">
-          Review what FinOS will apply.
+          Review what Opal will apply.
         </p>
       )}
       <p className="text-xs text-[var(--ds-gray-700)]">

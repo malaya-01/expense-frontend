@@ -18,19 +18,29 @@
 
   /* Interactive */
   --ds-focus-color: #0072f5;
+  --ds-link-color: #0072f5;
+  --ds-link-hover: #005fcc;
   --ds-focus-input: #005fcc;
 
   --brand-logo-plated: url("/brand/themes/vercel-light.png?v=4");
   --brand-logo-mark: url("/brand/logo-mark-on-light.png?v=4");
 
-  /* FinOS financial meaning colors */
-  --finos-success: #16a34a;
-  --finos-warning: #f59e0b;
-  --finos-danger: #dc2626;
-  --finos-investment: #7c3aed;
-  --finos-cash: #10b981;
-  --finos-expense: #f97316;
-  --finos-income: #22c55e;
+  /* Opal financial meaning colors */
+  --opal-success: #16a34a;
+  --opal-warning: #f59e0b;
+  --opal-danger: #dc2626;
+  --opal-investment: #7c3aed;
+  --opal-cash: #10b981;
+  --opal-expense: #f97316;
+  --opal-income: #22c55e;
+  /* Back-compat aliases */
+  --finos-success: var(--opal-success);
+  --finos-warning: var(--opal-warning);
+  --finos-danger: var(--opal-danger);
+  --finos-investment: var(--opal-investment);
+  --finos-cash: var(--opal-cash);
+  --finos-expense: var(--opal-expense);
+  --finos-income: var(--opal-income);
 
   /* Status indicators (dots only) */
   --ds-status-blue: #0062d1;
@@ -100,6 +110,7 @@
   --color-recessed: var(--ds-background-200);
   --color-hover: var(--ds-gray-100);
   --color-accent: var(--ds-focus-color);
+  --color-link: var(--ds-link-color);
   --color-danger: var(--ds-status-red);
   --color-success: var(--ds-status-green);
   --font-sans: var(--font-app-sans);
@@ -229,11 +240,24 @@ a {
 }
 
 a.link-accent {
-  color: var(--ds-focus-color);
+  color: var(--ds-link-color);
+}
+
+a.link-accent:hover {
+  color: var(--ds-link-hover);
 }
 
 a.link-accent:focus-visible {
-  outline: 2px auto var(--ds-focus-color);
+  outline: 2px auto var(--ds-link-color);
+}
+
+/* Help / popover content: theme link accent even when parent text is muted. */
+[data-finos-popover] a {
+  color: var(--ds-link-color);
+}
+
+[data-finos-popover] a:hover {
+  color: var(--ds-link-hover);
 }
 
 button,
@@ -285,9 +309,9 @@ select {
 .ai-markdown {
   line-height: 1.65;
   color: var(--ds-gray-1000);
-  /* Links stay clearly blue even when brand accent is orange/brown. */
-  --ai-md-link: var(--ds-status-blue);
-  --ai-md-link-hover: color-mix(in srgb, var(--ds-status-blue) 82%, #000);
+  /* Prefer theme link accent; stay readable on every palette. */
+  --ai-md-link: var(--ds-link-color);
+  --ai-md-link-hover: var(--ds-link-hover);
 }
 
 .ai-markdown > * + * {

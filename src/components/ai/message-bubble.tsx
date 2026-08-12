@@ -51,11 +51,11 @@ export const AssistantMessage = memo(function AssistantMessage({
 
   return (
     <div className="flex gap-3 [content-visibility:auto]">
-      <Avatar name="FinOS Advisor" className="mt-0.5 shrink-0" />
+      <Avatar name="Opal Advisor" className="mt-0.5 shrink-0" />
       <div className="min-w-0 max-w-[min(680px,92%)] flex-1">
         <div className="mb-1.5 flex items-center gap-2">
           <p className="text-xs font-semibold text-[var(--ds-gray-1000)]">
-            FinOS Advisor
+            Opal Advisor
           </p>
           <time className="text-[10px] text-[var(--ds-gray-700)]">
             {new Date(message.created_at).toLocaleTimeString([], {

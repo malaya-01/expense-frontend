@@ -274,7 +274,7 @@ function createClient(): AxiosInstance {
         config.headers.set("Authorization", `Bearer ${token}`);
       }
       if (typeof window !== "undefined") {
-        config.headers.set("X-FinOS-Client", getClientPlatform().code);
+        config.headers.set("X-Opal-Client", getClientPlatform().code);
       }
       if (typeof FormData !== "undefined" && config.data instanceof FormData) {
         config.headers.delete("Content-Type");

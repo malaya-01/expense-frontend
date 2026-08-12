@@ -152,7 +152,7 @@ export function SyncSettingsSection() {
             Offline & sync
           </h2>
           <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-            FinOS stores your finance data locally and syncs when the network is
+            Opal stores your finance data locally and syncs when the network is
             available.
           </p>
         </CardHeader>
@@ -183,7 +183,7 @@ export function SyncSettingsSection() {
           </h2>
           <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
             Pending changes are copied to a durable backup (device preferences +
-            shared FinOS folder when allowed). After uninstall, reinstall and sign
+            shared Opal folder when allowed). After uninstall, reinstall and sign
             in with the same account to restore them. Once synced, that backup is
             removed. Best protection is still Sync now before removing the app.
           </p>

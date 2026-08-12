@@ -50,10 +50,10 @@ export function AiAdvisorWorkspace() {
             One step to start
           </span>
           <h2 className="text-2xl font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)]">
-            Connect FinOS to an AI model
+            Connect Opal to an AI model
           </h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--ds-gray-900)]">
-            Your financial context stays on the FinOS backend. Choose a
+            Your financial context stays on the Opal backend. Choose a
             provider, test it, and the Advisor can analyze your twin with
             confirmation before any change.
           </p>
@@ -126,29 +126,60 @@ export function AiAdvisorWorkspace() {
       </div>
 
       {workspace.error ? (
-        <div className="flex items-center justify-between gap-3 bg-[color-mix(in_srgb,var(--ds-status-red)_8%,var(--ds-background-100))] px-4 py-2">
-          <p className="text-sm text-[var(--ds-status-red)]" role="alert">
-            {workspace.error}
-          </p>
-          {workspace.failedPrompt ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                void workspace.onSend(undefined, workspace.failedPrompt)
-              }
-            >
-              Retry
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => workspace.setError("")}
-            >
-              Dismiss
-            </Button>
-          )}
+        <div
+          className={
+            workspace.errorInfo?.tone === "warn"
+              ? "border-b border-[color:color-mix(in_srgb,var(--ds-status-orange)_28%,transparent)] bg-[color-mix(in_srgb,var(--ds-status-orange)_10%,var(--ds-background-100))] px-4 py-3"
+              : "border-b border-[color:color-mix(in_srgb,var(--ds-status-red)_28%,transparent)] bg-[color-mix(in_srgb,var(--ds-status-red)_8%,var(--ds-background-100))] px-4 py-3"
+          }
+          role="alert"
+        >
+          <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p
+                className={
+                  workspace.errorInfo?.tone === "warn"
+                    ? "text-sm font-semibold text-[var(--ds-status-orange)]"
+                    : "text-sm font-semibold text-[var(--ds-status-red)]"
+                }
+              >
+                {workspace.errorInfo?.title || "Couldn’t get a reply"}
+              </p>
+              <p className="mt-1 text-sm leading-5 text-[var(--ds-gray-900)]">
+                {workspace.error}
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {workspace.failedPrompt &&
+              (workspace.errorInfo?.canRetry ?? true) ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() =>
+                    void workspace.onSend(undefined, workspace.failedPrompt)
+                  }
+                >
+                  Retry
+                </Button>
+              ) : null}
+              {workspace.errorInfo?.showSettings ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => router.push("/settings?section=ai")}
+                >
+                  AI settings
+                </Button>
+              ) : null}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => workspace.clearError()}
+              >
+                Dismiss
+              </Button>
+            </div>
+          </div>
         </div>
       ) : null}
 

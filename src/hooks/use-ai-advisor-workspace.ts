@@ -13,6 +13,7 @@ import { humanizeAdvisorStatus } from "@/components/ai/tool-labels";
 import { parseInvokedToolsFromText } from "@/lib/ai/command-catalog";
 import { invalidateProposalNameMaps } from "@/components/ai/proposal-payload-view";
 import { getErrorMessage } from "@/lib/api/client";
+import { humanizeAiProviderError, type AiErrorInfo } from "@/lib/ai/provider-errors";
 import {
   archiveAiConversation,
   bulkDecideAiProposals,
@@ -82,6 +83,7 @@ export function useAiAdvisorWorkspace() {
   const [draft, setDraft] = useState(initialQ);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [errorInfo, setErrorInfo] = useState<AiErrorInfo | null>(null);
   const [failedPrompt, setFailedPrompt] = useState("");
   const [attachments, setAttachments] = useState<AiAttachment[]>([]);
   const [dragActive, setDragActive] = useState(false);
@@ -102,6 +104,21 @@ export function useAiAdvisorWorkspace() {
   const recognitionRef = useRef<{ stop: () => void } | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
   const lastFocusRefresh = useRef(0);
+
+  const clearError = useCallback(() => {
+    setError("");
+    setErrorInfo(null);
+    setFailedPrompt("");
+  }, []);
+
+  const reportError = useCallback((err: unknown, fallback: string) => {
+    const info = humanizeAiProviderError(
+      typeof err === "string" ? err : getErrorMessage(err, fallback),
+      fallback,
+    );
+    setErrorInfo(info);
+    setError(info.message);
+  }, []);
 
   useEffect(() => {
     const SpeechRecognitionCtor =
@@ -136,13 +153,13 @@ export function useAiAdvisorWorkspace() {
         if (report) setOverview(report);
       } catch (err) {
         if (!options?.silent) {
-          setError(getErrorMessage(err, "Could not load advisor"));
+          reportError(err, "Could not load advisor");
         }
       } finally {
         if (!options?.silent) setPageLoading(false);
       }
     },
-    [],
+    [reportError],
   );
 
   useEffect(() => {
@@ -190,6 +207,7 @@ export function useAiAdvisorWorkspace() {
 
   const loadConversation = useCallback(async (id: string) => {
     setError("");
+    setErrorInfo(null);
     try {
       const data = await getAiConversation(id);
       setActiveId(id);
@@ -197,9 +215,9 @@ export function useAiAdvisorWorkspace() {
       setProposals(data.proposals || []);
       setStarters([]);
     } catch (err) {
-      setError(getErrorMessage(err, "Could not open conversation"));
+      reportError(err, "Could not open conversation");
     }
-  }, []);
+  }, [reportError]);
 
   const startNewChat = useCallback(() => {
     abortRef.current?.abort();
@@ -209,14 +227,13 @@ export function useAiAdvisorWorkspace() {
     setDraft("");
     setAttachments([]);
     setWebSearchEnabled(false);
-    setError("");
-    setFailedPrompt("");
+    clearError();
     setStatus("");
     setStarters([]);
     setSelectedDocumentId(null);
     setSelectedDocument(null);
     setArchivedView(false);
-  }, []);
+  }, [clearError]);
 
   const onSend = useCallback(
     async (e?: FormEvent, content?: string) => {
@@ -234,10 +251,11 @@ export function useAiAdvisorWorkspace() {
             file.upload_status === "uploading" || file.upload_status === "failed",
         )
       ) {
-        setError(
+        reportError(
           selectedAttachments.some((file) => file.upload_status === "failed")
             ? "Remove failed attachments before sending."
             : "Wait for attachments to finish uploading.",
+          "Could not send message",
         );
         return;
       }
@@ -255,8 +273,7 @@ export function useAiAdvisorWorkspace() {
       const userMsgId = `local-user-${requestTime}`;
       setLoading(true);
       setStreamingId(streamMsgId);
-      setError("");
-      setFailedPrompt("");
+      clearError();
       setStatus("Thinking…");
       setStarters([]);
       setDraft("");
@@ -371,7 +388,7 @@ export function useAiAdvisorWorkspace() {
                 setStarters([]);
                 setStatus("");
               } else if (event.type === "error") {
-                setError(humanizeAdvisorStatus(event.message));
+                // streamAiChat throws after this; catch handles cleanup + friendly copy.
                 setStatus("");
               }
             },
@@ -383,7 +400,7 @@ export function useAiAdvisorWorkspace() {
       } catch (err) {
         if ((err as Error)?.name === "AbortError" || ac.signal.aborted) {
           setStatus("");
-          setError("");
+          clearError();
           setMessages((prev) => {
             const stream = prev.find((m) => m.id === streamMsgId);
             if (stream?.content?.trim()) {
@@ -401,14 +418,28 @@ export function useAiAdvisorWorkspace() {
             );
           });
         } else {
-          setError(getErrorMessage(err, "Advisor request failed"));
+          reportError(err, "Advisor request failed");
           setFailedPrompt(text);
           setDraft(text);
           setAttachments(selectedAttachments);
           setWebSearchEnabled(shouldSearchWeb);
-          setMessages((prev) =>
-            prev.filter((m) => m.id !== streamMsgId && m.id !== userMsgId),
-          );
+          setMessages((prev) => {
+            const stream = prev.find((m) => m.id === streamMsgId);
+            // Keep partial reply if any tokens arrived; otherwise remove the empty bubble.
+            if (stream?.content?.trim()) {
+              return prev.map((m) =>
+                m.id === streamMsgId
+                  ? {
+                      ...m,
+                      content: `${m.content.trim()}\n\n_Reply interrupted — see the notice above to retry._`,
+                    }
+                  : m,
+              );
+            }
+            return prev.filter(
+              (m) => m.id !== streamMsgId && m.id !== userMsgId,
+            );
+          });
         }
       } finally {
         setLoading(false);
@@ -421,9 +452,11 @@ export function useAiAdvisorWorkspace() {
       activeId,
       archivedView,
       attachments,
+      clearError,
       draft,
       loading,
       refreshLists,
+      reportError,
       search,
       webSearchEnabled,
     ],
@@ -432,15 +465,18 @@ export function useAiAdvisorWorkspace() {
   const addFiles = useCallback(
     async (files: FileList | File[] | null) => {
       if (!files?.length) return;
-      setError("");
+      clearError();
       const slots = Math.max(0, 3 - attachments.length);
       for (const file of Array.from(files).slice(0, slots)) {
         if (!ALLOWED_TYPES.has(file.type)) {
-          setError(`${file.name}: unsupported file type.`);
+          reportError(`${file.name}: unsupported file type.`, "Upload failed");
           continue;
         }
         if (file.size > 5 * 1024 * 1024) {
-          setError(`${file.name}: file must be 5 MB or smaller.`);
+          reportError(
+            `${file.name}: file must be 5 MB or smaller.`,
+            "Upload failed",
+          );
           continue;
         }
 
@@ -483,7 +519,7 @@ export function useAiAdvisorWorkspace() {
           setAttachments((current) =>
             current.filter((item) => item.client_key !== clientKey),
           );
-          setError(`${file.name}: could not read file.`);
+          reportError(`${file.name}: could not read file.`, "Upload failed");
           continue;
         }
 
@@ -578,13 +614,14 @@ export function useAiAdvisorWorkspace() {
             ),
           );
           setDocuments((prev) => prev.filter((item) => item.id !== clientKey));
-          setError(
-            getErrorMessage(err, `${file.name}: upload failed. Remove and try again.`),
+          reportError(
+            err,
+            `${file.name}: upload failed. Remove and try again.`,
           );
         }
       }
     },
-    [activeId, attachments.length],
+    [activeId, attachments.length, clearError, reportError],
   );
 
   useEffect(() => {
@@ -608,11 +645,11 @@ export function useAiAdvisorWorkspace() {
       setPendingGlobal((prev) => prev.filter((p) => p.id !== confirming.id));
       setConfirming(null);
     } catch (err) {
-      setError(getErrorMessage(err, "Could not confirm action"));
+      reportError(err, "Could not confirm action");
     } finally {
       setBusyProposal(null);
     }
-  }, [confirming]);
+  }, [confirming, reportError]);
 
   const onReject = useCallback(async (id: string) => {
     setBusyProposal(id);
@@ -623,11 +660,11 @@ export function useAiAdvisorWorkspace() {
       );
       setPendingGlobal((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
-      setError(getErrorMessage(err, "Could not reject action"));
+      reportError(err, "Could not reject action");
     } finally {
       setBusyProposal(null);
     }
-  }, []);
+  }, [reportError]);
 
   const openBatchReview = useCallback((ids?: string[]) => {
     setBatchReviewIds(ids?.length ? ids : null);
@@ -661,8 +698,9 @@ export function useAiAdvisorWorkspace() {
           prev.filter((p) => !confirmed.has(p.id) && !rejected.has(p.id)),
         );
         if (result.failed?.length) {
-          setError(
+          reportError(
             `${result.failed.length} action${result.failed.length === 1 ? "" : "s"} failed. Others were applied.`,
+            "Bulk review failed",
           );
         } else {
           setBatchReviewOpen(false);
@@ -670,12 +708,12 @@ export function useAiAdvisorWorkspace() {
         }
         await refreshLists({ silent: true });
       } catch (err) {
-        setError(getErrorMessage(err, "Bulk review failed"));
+        reportError(err, "Bulk review failed");
       } finally {
         setBusyBulk(false);
       }
     },
-    [refreshLists],
+    [refreshLists, reportError],
   );
 
   const renameConversation = useCallback(
@@ -757,9 +795,9 @@ export function useAiAdvisorWorkspace() {
       const doc = await getAiDocument(id);
       setSelectedDocument(doc);
     } catch (err) {
-      setError(getErrorMessage(err, "Could not open document"));
+      reportError(err, "Could not open document");
     }
-  }, []);
+  }, [reportError]);
 
   const removeDocument = useCallback(
     async (id: string) => {
@@ -778,7 +816,10 @@ export function useAiAdvisorWorkspace() {
       (window as any).SpeechRecognition ||
       (window as any).webkitSpeechRecognition;
     if (!SpeechRecognitionCtor) {
-      setError("Voice input is not supported in this browser.");
+      reportError(
+        "Voice input is not supported in this browser.",
+        "Voice unavailable",
+      );
       return;
     }
     if (listening && recognitionRef.current) {
@@ -804,6 +845,11 @@ export function useAiAdvisorWorkspace() {
     recognition.onerror = () => {
       setListening(false);
       setError("Voice capture failed. You can keep typing instead.");
+      setErrorInfo(
+        humanizeAiProviderError(
+          "Voice capture failed. You can keep typing instead.",
+        ),
+      );
     };
     recognition.onend = () => setListening(false);
     recognitionRef.current = recognition;
@@ -819,7 +865,7 @@ export function useAiAdvisorWorkspace() {
     );
     if (!savedProvider) return;
     setLoading(true);
-    setError("");
+    clearError();
     try {
       await selectActiveAiProvider({
         provider: savedProvider.provider,
@@ -827,11 +873,11 @@ export function useAiAdvisorWorkspace() {
       });
       await refreshLists({ silent: true });
     } catch (err) {
-      setError(getErrorMessage(err, "Could not activate provider"));
+      reportError(err, "Could not activate provider");
     } finally {
       setLoading(false);
     }
-  }, [refreshLists, settings?.providers]);
+  }, [clearError, refreshLists, reportError, settings?.providers]);
 
   const pendingProposals = useMemo(() => {
     const map = new Map<string, AiActionProposal>();
@@ -875,7 +921,16 @@ export function useAiAdvisorWorkspace() {
     setDraft,
     status,
     error,
-    setError,
+    errorInfo,
+    setError: (value: string) => {
+      if (!value) {
+        clearError();
+        return;
+      }
+      setError(value);
+      setErrorInfo(humanizeAiProviderError(value));
+    },
+    clearError,
     failedPrompt,
     attachments,
     setAttachments,

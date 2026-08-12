@@ -3,7 +3,7 @@
  *
  * Android deletes IndexedDB on uninstall. To keep pending work:
  * 1. Mirror into Capacitor Preferences (survives via Google Auto Backup on reinstall)
- * 2. On native, also write Documents/FinOS/pending-<userId>.json on shared storage
+ * 2. On native, also write Documents/Opal/pending-<userId>.json on shared storage
  *
  * After sync succeeds and the outbox is empty, both copies are removed.
  */
@@ -21,7 +21,7 @@ import {
 
 export const DURABLE_BACKUP_VERSION = 1 as const;
 const PREFS_KEY_PREFIX = "finos_durable_backup_";
-const FILE_DIR = "FinOS";
+const FILE_DIR = "Opal";
 const APP_SALT = "finos-durable-backup-v1";
 const META_USER_KEY = "backup_user_id";
 

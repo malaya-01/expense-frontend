@@ -151,7 +151,7 @@ export type CreateCategoryInput = {
   budget_period?: string;
 };
 
-/** FinOS Financial Container — any place value lives */
+/** Opal Financial Container — any place value lives */
 export type ContainerType =
   | "cash"
   | "wallet"

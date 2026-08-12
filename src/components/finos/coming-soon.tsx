@@ -22,7 +22,7 @@ export function ComingSoon({
               {question}
             </p>
             <p className="mt-2 max-w-xl text-xs leading-4 text-[var(--ds-gray-900)]">
-              This FinOS module is on the Phase 1 roadmap. The dashboard shell
+              This Opal module is on the Phase 1 roadmap. The dashboard shell
               and navigation are live so the product feels like an operating
               system—not a marketing site—while the ledger and containers are
               built out.

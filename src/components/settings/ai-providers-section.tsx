@@ -228,7 +228,7 @@ export function AiProvidersSection() {
               <h2 className="truncate text-sm sm:text-base">AI &amp; models</h2>
               <InfoTip title="Bring your own key">
                 <p>
-                  FinOS never stores provider keys in the browser. Keys and Vertex
+                  Opal never stores provider keys in the browser. Keys and Vertex
                   JSON are encrypted on the server. OpenRouter is recommended: one
                   key unlocks many models. Pick one active provider for the
                   Advisor.
@@ -303,7 +303,7 @@ export function AiProvidersSection() {
                             href={link.href}
                             target="_blank"
                             rel="noreferrer"
-                            className="block text-[var(--ds-focus-color)]"
+                            className="link-accent block"
                           >
                             {link.label} ↗
                           </a>
@@ -502,7 +502,7 @@ export function AiProvidersSection() {
                 setPromptDraft(settings?.master_prompt_default || "");
               }}
             >
-              Load FinOS default
+              Load Opal default
             </Button>
             <Button
               loading={busy === "prompt"}
@@ -516,9 +516,9 @@ export function AiProvidersSection() {
       >
         <div className="space-y-4">
           <p className="text-xs leading-4 text-[var(--ds-gray-700)]">
-            FinOS layers prompts as: protected safety rules + FinOS Personal CFO
+            Opal layers prompts as: protected safety rules + Opal Personal CFO
             default (from the product vision) + your optional customization.
-            Leave customization empty to use the FinOS default as-is.
+            Leave customization empty to use the Opal default as-is.
           </p>
 
           <div>
@@ -529,7 +529,7 @@ export function AiProvidersSection() {
           </div>
 
           <div>
-            <Label>FinOS default (Personal Financial Operating System)</Label>
+            <Label>Opal default (Personal Financial Operating System)</Label>
             <div className="mt-1 max-h-40 overflow-auto rounded-[8px] bg-[var(--ds-background-100)] p-3 text-[11px] leading-4 whitespace-pre-wrap text-[var(--ds-gray-900)] ds-strong-border">
               {settings?.master_prompt_default}
             </div>
@@ -541,7 +541,7 @@ export function AiProvidersSection() {
               id="master-prompt"
               value={promptDraft}
               onChange={(e) => setPromptDraft(e.target.value)}
-              placeholder="Add personal coaching preferences, or click Load FinOS default to edit the full product prompt."
+              placeholder="Add personal coaching preferences, or click Load Opal default to edit the full product prompt."
               className="min-h-[180px]"
             />
           </div>
@@ -552,7 +552,7 @@ export function AiProvidersSection() {
         title="Disconnect AI provider?"
         description={
           disconnectTarget
-            ? `${PROVIDER_LABEL[disconnectTarget]} credentials will be permanently removed from FinOS.`
+            ? `${PROVIDER_LABEL[disconnectTarget]} credentials will be permanently removed from Opal.`
             : undefined
         }
         confirmLabel="Disconnect provider"
@@ -728,7 +728,7 @@ function ProviderConfigureModal({
                   href="https://openrouter.ai/docs/quickstart"
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[var(--ds-focus-color)]"
+                  className="link-accent"
                 >
                   openrouter.ai/docs/quickstart
                 </a>
@@ -745,7 +745,7 @@ function ProviderConfigureModal({
                 href="https://openrouter.ai/models"
                 target="_blank"
                 rel="noreferrer"
-                className="text-[11px] text-[var(--ds-focus-color)]"
+                className="link-accent text-[11px]"
               >
                 Browse catalog ↗
               </a>
@@ -852,7 +852,7 @@ function ProviderConfigureModal({
                   href="https://openrouter.ai/keys"
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[var(--ds-focus-color)]"
+                  className="link-accent"
                 >
                   openrouter.ai/keys
                 </a>
@@ -908,7 +908,7 @@ function ProviderConfigureModal({
                 }
               />
               <p className="mt-1.5 text-[11px] text-[var(--ds-gray-700)]">
-                Project ID is read from the file. The JSON is sent only to FinOS
+                Project ID is read from the file. The JSON is sent only to Opal
                 and encrypted server-side.
               </p>
             </div>

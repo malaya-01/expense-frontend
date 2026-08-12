@@ -1,4 +1,4 @@
-# FinOS Android (Capacitor) + Offline Sync
+# Opal Android (Capacitor) + Offline Sync
 
 ## What you get
 

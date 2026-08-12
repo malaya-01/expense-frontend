@@ -48,7 +48,7 @@ export function ApiActivityIndicator() {
     <div
       role="status"
       aria-live="polite"
-      aria-label="FinOS is syncing data"
+      aria-label="Opal is syncing data"
       className="pointer-events-none fixed inset-x-0 top-0 z-[190] flex justify-center"
     >
       <span className="api-loader-track absolute inset-x-0 top-0 h-0.5 overflow-hidden">

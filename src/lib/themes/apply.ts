@@ -43,6 +43,8 @@ function selectionColor(focus: string, alpha: string) {
 export function applyThemeTokens(tokens: ThemeTokens, root: HTMLElement = document.documentElement) {
   const alpha = tokens.shadowAlpha;
   const ring = tokens.background200;
+  const linkColor = tokens.linkColor || tokens.focusColor;
+  const linkHover = tokens.linkHover || linkColor;
 
   root.style.setProperty("--ds-background-100", tokens.background100);
   root.style.setProperty("--ds-background-200", tokens.background200);
@@ -56,6 +58,8 @@ export function applyThemeTokens(tokens: ThemeTokens, root: HTMLElement = docume
   root.style.setProperty("--ds-gray-900", tokens.gray900);
   root.style.setProperty("--ds-gray-700", tokens.gray700);
   root.style.setProperty("--ds-focus-color", tokens.focusColor);
+  root.style.setProperty("--ds-link-color", linkColor);
+  root.style.setProperty("--ds-link-hover", linkHover);
   root.style.setProperty("--ds-focus-input", tokens.focusInput);
   root.style.setProperty("--ds-focus-ring-inner", tokens.focusRingInner);
   root.style.setProperty("--ds-primary-hover", tokens.primaryHover);

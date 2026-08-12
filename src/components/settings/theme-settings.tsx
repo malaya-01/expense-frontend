@@ -17,6 +17,7 @@ function ThemePreviewCard({
 }) {
   const { tokens } = theme;
   const accent = tokens.focusColor;
+  const link = tokens.linkColor || tokens.focusColor;
   const muted = tokens.gray900;
   const surface = tokens.backgroundElevated;
   const canvas = tokens.background100;
@@ -129,6 +130,14 @@ function ThemePreviewCard({
         <div className="flex items-center gap-2 text-[11px] text-[var(--ds-gray-900)]">
           <span
             className="size-3.5 rounded-[4px]"
+            style={{ background: link }}
+          />
+          <span className="w-14 text-[var(--ds-gray-700)]">Links</span>
+          <span className="font-mono text-[10px] tabular-nums">{link}</span>
+        </div>
+        <div className="flex items-center gap-2 text-[11px] text-[var(--ds-gray-900)]">
+          <span
+            className="size-3.5 rounded-[4px]"
             style={{ background: muted }}
           />
           <span className="w-14 text-[var(--ds-gray-700)]">Muted</span>
@@ -156,7 +165,7 @@ export function AppearanceSection() {
           Themes
         </h2>
         <p className="mt-0.5 hidden text-xs leading-5 text-[var(--ds-gray-700)] sm:block">
-          Pick a workspace palette. Changes apply instantly across FinOS.
+          Pick a workspace palette. Changes apply instantly across Opal.
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

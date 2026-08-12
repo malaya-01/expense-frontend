@@ -311,7 +311,7 @@ export function CommandPalette() {
       {
         id: "settings",
         title: "Open settings",
-        subtitle: "Configure FinOS",
+        subtitle: "Configure Opal",
         keywords: "preferences configuration settings",
         icon: Settings,
         run: () => router.push("/settings"),

@@ -62,6 +62,40 @@ export function lighten(hex: string, amount: number) {
   return mix(hex, "#ffffff", amount);
 }
 
+/** 0 = grayscale, 1 = fully saturated. */
+export function saturation(hex: string): number {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return 0;
+  const max = Math.max(rgb.r, rgb.g, rgb.b) / 255;
+  const min = Math.min(rgb.r, rgb.g, rgb.b) / 255;
+  const l = (max + min) / 2;
+  if (max === min) return 0;
+  const d = max - min;
+  return d / (1 - Math.abs(2 * l - 1) || 1);
+}
+
+/**
+ * Link accent that stays theme-specific but readable against body text.
+ * Neutral focus colors (e.g. Charcoal gray) get a cool accent so links
+ * do not blend into muted copy.
+ */
+export function resolveLinkColor(
+  focusColor: string,
+  opts: { isDark: boolean; gray900: string },
+): string {
+  const sat = saturation(focusColor);
+  if (sat < 0.18) {
+    return opts.isDark ? "#7dd3fc" : "#0072f5";
+  }
+  // Keep brand accent, but nudge lightness so it separates from muted body text.
+  const focusLum = luminance(focusColor);
+  const bodyLum = luminance(opts.gray900);
+  if (Math.abs(focusLum - bodyLum) < 0.12) {
+    return opts.isDark ? lighten(focusColor, 0.22) : darken(focusColor, 0.12);
+  }
+  return focusColor;
+}
+
 export function buildTokens(partial: Partial<ThemeTokens> & Pick<ThemeTokens, "background100" | "backgroundElevated" | "gray1000" | "gray900" | "focusColor">): ThemeTokens {
   const isDark = luminance(partial.background100) < 0.45;
   const background100 = partial.background100;
@@ -69,6 +103,9 @@ export function buildTokens(partial: Partial<ThemeTokens> & Pick<ThemeTokens, "b
   const gray1000 = partial.gray1000;
   const gray900 = partial.gray900;
   const focusColor = partial.focusColor;
+  const linkColor =
+    partial.linkColor ??
+    resolveLinkColor(focusColor, { isDark, gray900 });
 
   return {
     background100,
@@ -85,6 +122,10 @@ export function buildTokens(partial: Partial<ThemeTokens> & Pick<ThemeTokens, "b
       partial.gray700 ??
       (isDark ? lighten(gray900, 0.25) : darken(gray900, 0.15)),
     focusColor,
+    linkColor,
+    linkHover:
+      partial.linkHover ??
+      (isDark ? lighten(linkColor, 0.12) : darken(linkColor, 0.1)),
     focusInput: partial.focusInput ?? darken(focusColor, 0.12),
     focusRingInner: partial.focusRingInner ?? backgroundElevated,
     primaryHover: partial.primaryHover ?? darken(gray1000, 0.08),

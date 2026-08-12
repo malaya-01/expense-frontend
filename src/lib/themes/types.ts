@@ -7,6 +7,9 @@ export type ThemeTokens = {
   gray900: string;
   gray700: string;
   focusColor: string;
+  /** Readable accent for inline / help links (may differ from focus on neutral themes). */
+  linkColor: string;
+  linkHover: string;
   focusInput: string;
   focusRingInner: string;
   primaryHover: string;

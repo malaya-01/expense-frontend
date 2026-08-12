@@ -157,7 +157,7 @@ export function ThemeMenu({
                   <Link
                     href="/settings?section=appearance"
                     onClick={() => setOpen(false)}
-                    className="block rounded-[8px] px-2.5 py-1.5 text-[13px] text-[var(--ds-focus-color)] hover:bg-[var(--ds-background-100)]"
+                    className="link-accent block rounded-[8px] px-2.5 py-1.5 text-[13px] hover:bg-[var(--ds-background-100)]"
                   >
                     Browse all themes…
                   </Link>

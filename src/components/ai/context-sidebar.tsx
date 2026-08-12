@@ -285,7 +285,7 @@ export const ContextSidebar = memo(function ContextSidebar({
                 />
                 <p className="text-[11px] leading-4 text-[var(--ds-gray-900)]">
                   Start with a real decision: ask about spending, upload a
-                  statement, or have FinOS propose a budget for approval.
+                  statement, or have Opal propose a budget for approval.
                 </p>
               </div>
             </section>
