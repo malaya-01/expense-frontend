@@ -23,6 +23,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { ready, isAuthenticated, user, setPermissions } = useAuth();
   const isAiWorkspace = pathname === "/ai" || pathname.startsWith("/ai/");
+  const isGuideWorkspace =
+    pathname === "/guide" || pathname.startsWith("/guide/");
+  const isFullBleedWorkspace = isAiWorkspace || isGuideWorkspace;
 
   useEffect(() => {
     if (!ready) return;
@@ -73,20 +76,22 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <main
           className={cn(
             "h-[calc(100dvh-2.75rem)] translate-y-11 transition-[margin-left] duration-200 md:ml-[var(--app-sidebar-offset)]",
-            isAiWorkspace
+            isFullBleedWorkspace
               ? "overflow-hidden p-0 pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-0"
               : "app-scrollbar overflow-x-hidden overflow-y-auto overscroll-contain scroll-pt-3 px-3 pt-5 pb-[calc(6.25rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 sm:pb-6 md:pb-10",
           )}
         >
           <div
             className={cn(
-              isAiWorkspace
+              isFullBleedWorkspace
                 ? "flex h-full w-full max-w-none flex-col"
                 : "mx-auto w-full min-w-0 max-w-[var(--ds-page-width)]",
             )}
           >
             <NetworkStatusBanner />
-            <div className={cn(isAiWorkspace && "min-h-0 flex-1")}>{children}</div>
+            <div className={cn(isFullBleedWorkspace && "min-h-0 flex-1")}>
+              {children}
+            </div>
           </div>
         </main>
         <MobileNav />

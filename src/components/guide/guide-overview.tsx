@@ -25,7 +25,7 @@ export function GuideOverview() {
         <div className="mt-5 flex flex-wrap gap-2">
           <Link
             href="/guide/getting-started"
-            className="inline-flex items-center gap-1.5 rounded-[9px] bg-[var(--ds-gray-1000)] px-3.5 py-2 text-sm font-medium text-[var(--ds-background-100)]"
+            className="inline-flex items-center gap-1.5 rounded-[9px] bg-[var(--ds-gray-1000)] px-3.5 py-2 text-sm font-medium text-[var(--ds-primary-foreground)]"
           >
             Start here
             <ArrowRight size={14} />

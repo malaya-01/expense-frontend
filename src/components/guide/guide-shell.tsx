@@ -21,7 +21,7 @@ function SidebarNav({ activeSlug }: { activeSlug?: string }) {
           "flex items-center gap-2 rounded-[9px] px-2.5 py-2 text-sm transition-colors",
           !activeSlug
             ? "bg-[var(--ds-gray-100)] font-semibold text-[var(--ds-gray-1000)]"
-            : "text-[var(--ds-gray-700)] hover:bg-[var(--ds-background-100)] hover:text-[var(--ds-gray-1000)]",
+            : "text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)]",
         )}
       >
         <BookOpen size={15} />
@@ -48,7 +48,7 @@ function SidebarNav({ activeSlug }: { activeSlug?: string }) {
                         "flex items-center gap-2 rounded-[9px] px-2.5 py-1.5 text-[13px] leading-5 transition-colors",
                         active
                           ? "bg-[var(--ds-gray-100)] font-medium text-[var(--ds-gray-1000)]"
-                          : "text-[var(--ds-gray-700)] hover:bg-[var(--ds-background-100)] hover:text-[var(--ds-gray-1000)]",
+                          : "text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)]",
                       )}
                     >
                       <Icon size={14} className="shrink-0 opacity-80" />
@@ -141,47 +141,57 @@ export function GuideShell({
   const activeSlug = chapter?.slug;
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10">
-      <aside className="hidden lg:block">
-        <div className="sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pr-2">
+    <div className="flex h-full min-h-0 bg-[var(--ds-background-100)]">
+      <aside
+        className="hidden h-full w-[272px] shrink-0 flex-col border-r border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-background-100)] lg:flex"
+        aria-label="Guide navigation"
+      >
+        <div className="flex items-center justify-between gap-2 px-3 pb-2 pt-3">
+          <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-[var(--ds-gray-700)]">
+            Guide
+          </p>
+        </div>
+        <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-4">
           <SidebarNav activeSlug={activeSlug} />
         </div>
       </aside>
 
-      <div className="min-w-0 pb-16">
-        <nav
-          aria-label="Guide chapters"
-          className="mb-4 flex gap-2 overflow-x-auto pb-1 lg:hidden"
-        >
-          <Link
-            href="/guide"
-            className={cn(
-              "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium",
-              pathname === "/guide"
-                ? "border-[var(--ds-gray-1000)] bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)]"
-                : "border-[var(--ds-gray-200)] bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)]",
-            )}
+      <div className="app-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-3xl px-4 py-5 pb-16 sm:px-8 sm:py-6">
+          <nav
+            aria-label="Guide chapters"
+            className="mb-4 flex gap-2 overflow-x-auto pb-1 lg:hidden"
           >
-            Overview
-          </Link>
-          {GUIDE_CHAPTERS.map((item) => (
             <Link
-              key={item.slug}
-              href={`/guide/${item.slug}`}
+              href="/guide"
               className={cn(
                 "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium",
-                activeSlug === item.slug
-                  ? "border-[var(--ds-gray-1000)] bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)]"
+                pathname === "/guide"
+                  ? "border-[var(--ds-gray-1000)] bg-[var(--ds-gray-1000)] text-[var(--ds-primary-foreground)]"
                   : "border-[var(--ds-gray-200)] bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)]",
               )}
             >
-              {item.title}
+              Overview
             </Link>
-          ))}
-        </nav>
+            {GUIDE_CHAPTERS.map((item) => (
+              <Link
+                key={item.slug}
+                href={`/guide/${item.slug}`}
+                className={cn(
+                  "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium",
+                  activeSlug === item.slug
+                    ? "border-[var(--ds-gray-1000)] bg-[var(--ds-gray-1000)] text-[var(--ds-primary-foreground)]"
+                    : "border-[var(--ds-gray-200)] bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)]",
+                )}
+              >
+                {item.title}
+              </Link>
+            ))}
+          </nav>
 
-        {children}
-        {chapter ? <ChapterPager chapter={chapter} /> : null}
+          {children}
+          {chapter ? <ChapterPager chapter={chapter} /> : null}
+        </div>
       </div>
     </div>
   );

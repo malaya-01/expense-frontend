@@ -46,7 +46,7 @@ export function Step({
 }) {
   return (
     <li className="relative flex gap-3 sm:gap-4">
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[var(--ds-gray-1000)] text-xs font-bold text-[var(--ds-background-100)]">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[var(--ds-gray-1000)] text-xs font-bold text-[var(--ds-primary-foreground)]">
         {n}
       </span>
       <div className="min-w-0 pb-5">

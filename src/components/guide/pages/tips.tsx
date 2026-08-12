@@ -67,7 +67,7 @@ export function TipsGuide() {
       <div className="mt-6 flex flex-wrap gap-2">
         <Link
           href="/dashboard"
-          className="inline-flex items-center rounded-[9px] bg-[var(--ds-gray-1000)] px-3.5 py-2 text-sm font-medium text-[var(--ds-background-100)]"
+          className="inline-flex items-center rounded-[9px] bg-[var(--ds-gray-1000)] px-3.5 py-2 text-sm font-medium text-[var(--ds-primary-foreground)]"
         >
           Open dashboard
         </Link>
