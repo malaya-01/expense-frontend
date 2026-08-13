@@ -125,6 +125,24 @@ export function AiProvidersSection() {
     setBusy(`use-${provider}`);
     setError("");
     try {
+      if (provider === "omniroute") {
+        const result = await testAiProvider(provider);
+        setTestNotes((prev) => ({
+          ...prev,
+          omniroute: {
+            ok: Boolean(result.ok),
+            message:
+              result.message ||
+              (result.ok ? "Free route ready" : "Connection check failed"),
+          },
+        }));
+        if (!result.ok) {
+          throw new Error(
+            result.message ||
+              "Free OmniRoute could not connect. Try again or use OpenRouter.",
+          );
+        }
+      }
       await selectActiveAiProvider({
         provider,
         model: model || undefined,
@@ -685,6 +703,13 @@ function ProviderConfigureModal({
           provider: "omniroute",
           model: resolvedModel,
         });
+        const result = await testAiProvider("omniroute");
+        if (!result.ok) {
+          throw new Error(
+            result.message ||
+              "Free OmniRoute could not connect. Try again shortly.",
+          );
+        }
         await selectActiveAiProvider({
           provider: "omniroute",
           model: resolvedModel,

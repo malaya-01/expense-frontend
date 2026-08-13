@@ -18,6 +18,15 @@ const TOOL_LABELS: Record<string, string> = {
   search_public_web: "Live web sources",
 };
 
+const ROTATING_OPAL_STATUS = [
+  "Opening your Financial Twin…",
+  "Reading accounts and cash flow…",
+  "Finding a free Opal route…",
+  "Opal Advisor is thinking…",
+  "Drafting a clear next step…",
+  "Keeping this grounded in your twin…",
+];
+
 export function humanizeToolName(name: string) {
   if (TOOL_LABELS[name]) return TOOL_LABELS[name];
   return name
@@ -45,9 +54,10 @@ export function toolActivityLabel(tool: AiToolActivity) {
   return `${label} loaded`;
 }
 
+/** Keep live status human and Opal-voiced — never collapse to one stale line. */
 export function humanizeAdvisorStatus(message: string) {
-  let result = message.trim();
-  if (!result) return "Thinking…";
+  let result = (message || "").trim();
+  if (!result) return "Opal Advisor is thinking…";
 
   for (const [tool, label] of Object.entries(TOOL_LABELS)) {
     result = result.replaceAll(tool, label);
@@ -59,21 +69,19 @@ export function humanizeAdvisorStatus(message: string) {
     .replace(/\bfunction(s)?\b/gi, "source$1")
     .replace(/\bAPI\b/gi, "data")
     .replace(/\bget[_ ]/gi, "")
-    .replace(/\blist[_ ]/gi, "");
+    .replace(/\blist[_ ]/gi, "")
+    .replace(/\bGenerating reply\b/gi, "Opal Advisor is thinking")
+    .replace(
+      /\bGenerating personalized response\b/gi,
+      "Writing your Opal Advisor reply",
+    )
+    .replace(/\bLoading provider and twin context\b/gi, "Opening your Financial Twin");
 
-  if (/^loading\b/i.test(result) || /^thinking\b/i.test(result)) {
-    return result.endsWith("…") || result.endsWith("...")
-      ? result
-      : `${result.replace(/\.*$/, "")}…`;
-  }
-
-  if (/generat/i.test(result) || /respond/i.test(result)) {
-    return "Generating personalized response…";
-  }
-
-  if (/context|twin|overview/i.test(result)) {
-    return "Loading Financial Twin…";
-  }
-
+  if (!/[.…]$/.test(result)) result = `${result}…`;
   return result;
+}
+
+/** Rotate calming Opal status lines while waiting for the first token. */
+export function nextRotatingAdvisorStatus(tick: number) {
+  return ROTATING_OPAL_STATUS[tick % ROTATING_OPAL_STATUS.length];
 }

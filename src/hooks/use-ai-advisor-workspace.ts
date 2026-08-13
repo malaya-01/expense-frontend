@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { useSearchParams } from "next/navigation";
-import { humanizeAdvisorStatus } from "@/components/ai/tool-labels";
+import { humanizeAdvisorStatus, nextRotatingAdvisorStatus } from "@/components/ai/tool-labels";
 import { parseInvokedToolsFromText } from "@/lib/ai/command-catalog";
 import { invalidateProposalNameMaps } from "@/components/ai/proposal-payload-view";
 import { getErrorMessage } from "@/lib/api/client";
@@ -110,6 +110,31 @@ export function useAiAdvisorWorkspace() {
     setErrorInfo(null);
     setFailedPrompt("");
   }, []);
+
+  // Keep waiting copy alive — never leave a single stale “personalized” line.
+  useEffect(() => {
+    if (!streamingId || !loading) return;
+    const streamMsg = messages.find((m) => m.id === streamingId);
+    if (streamMsg?.content?.trim()) return;
+    let tick = 0;
+    const id = window.setInterval(() => {
+      tick += 1;
+      setStatus((prev) => {
+        // Prefer live backend status; only rotate when idle/static.
+        if (
+          prev &&
+          !/personalized response|thinking…$/i.test(prev) &&
+          /trying |finding |opening |reading |connected|retry|route|opal advisor/i.test(
+            prev,
+          )
+        ) {
+          return prev;
+        }
+        return nextRotatingAdvisorStatus(tick);
+      });
+    }, 2200);
+    return () => window.clearInterval(id);
+  }, [streamingId, loading, messages]);
 
   const reportError = useCallback((err: unknown, fallback: string) => {
     const info = humanizeAiProviderError(
@@ -274,7 +299,7 @@ export function useAiAdvisorWorkspace() {
       setLoading(true);
       setStreamingId(streamMsgId);
       clearError();
-      setStatus("Thinking…");
+      setStatus("Opening your Financial Twin…");
       setStarters([]);
       setDraft("");
       setAttachments([]);
@@ -326,7 +351,9 @@ export function useAiAdvisorWorkspace() {
               } else if (event.type === "meta") {
                 setActiveId(event.conversation_id);
               } else if (event.type === "context") {
-                setStatus("Generating personalized response…");
+                setStatus(
+                  humanizeAdvisorStatus("Finding a free Opal route…"),
+                );
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === streamMsgId

@@ -116,7 +116,7 @@ export const AssistantMessage = memo(function AssistantMessage({
 
           <div aria-live={streaming ? "polite" : undefined}>
             {streaming && !hasContent ? (
-              <ThinkingDots label={status || "Thinking…"} />
+              <ThinkingDots label={status || "Opal Advisor is thinking…"} />
             ) : hasContent ? (
               <MarkdownRenderer
                 content={message.content}
@@ -334,7 +334,7 @@ function ThinkingDots({ label }: { label: string }) {
 export function TypingIndicator({ label }: { label?: string }) {
   return (
     <div className="pl-11">
-      <ThinkingDots label={label || "Thinking…"} />
+      <ThinkingDots label={label || "Opal Advisor is thinking…"} />
     </div>
   );
 }
