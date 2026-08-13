@@ -858,11 +858,19 @@ export function useAiAdvisorWorkspace() {
   }, [listening]);
 
   const activateSavedProvider = useCallback(async () => {
-    const savedProvider = settings?.providers.find(
+    const freeProvider = settings?.providers.find(
       (provider) =>
-        provider.credentials_meta?.has_api_key ||
-        provider.credentials_meta?.has_service_account,
+        provider.provider === "omniroute" ||
+        provider.platform_free ||
+        provider.credentials_meta?.no_auth_required,
     );
+    const savedProvider =
+      freeProvider ||
+      settings?.providers.find(
+        (provider) =>
+          provider.credentials_meta?.has_api_key ||
+          provider.credentials_meta?.has_service_account,
+      );
     if (!savedProvider) return;
     setLoading(true);
     clearError();
@@ -895,11 +903,18 @@ export function useAiAdvisorWorkspace() {
   }, [batchReviewIds, pendingProposals]);
 
   const needsProvider = !settings?.active_provider;
-  const savedProvider = settings?.providers.find(
-    (provider) =>
-      provider.credentials_meta?.has_api_key ||
-      provider.credentials_meta?.has_service_account,
-  );
+  const savedProvider =
+    settings?.providers.find(
+      (provider) =>
+        provider.provider === "omniroute" ||
+        provider.platform_free ||
+        provider.credentials_meta?.no_auth_required,
+    ) ||
+    settings?.providers.find(
+      (provider) =>
+        provider.credentials_meta?.has_api_key ||
+        provider.credentials_meta?.has_service_account,
+    );
 
   return {
     settings,

@@ -35,6 +35,7 @@ import { cn } from "@/lib/cn";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 
 const PROVIDER_ORDER: AiProviderId[] = [
+  "omniroute",
   "openrouter",
   "openai",
   "anthropic",
@@ -43,6 +44,7 @@ const PROVIDER_ORDER: AiProviderId[] = [
 ];
 
 const PROVIDER_LABEL: Record<AiProviderId, string> = {
+  omniroute: "OmniRoute (free)",
   openrouter: "OpenRouter",
   openai: "OpenAI",
   anthropic: "Anthropic",
@@ -54,6 +56,7 @@ const PROVIDER_TONE: Record<
   AiProviderId,
   "blue" | "orange" | "purple" | "green" | "cyan"
 > = {
+  omniroute: "green",
   openrouter: "cyan",
   openai: "green",
   anthropic: "orange",
@@ -226,12 +229,13 @@ export function AiProvidersSection() {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="truncate text-sm sm:text-base">AI &amp; models</h2>
-              <InfoTip title="Bring your own key">
+              <InfoTip title="Free OmniRoute + optional BYOK">
                 <p>
-                  Opal never stores provider keys in the browser. Keys and Vertex
-                  JSON are encrypted on the server. OpenRouter is recommended: one
-                  key unlocks many models. Pick one active provider for the
-                  Advisor.
+                  Start with OmniRoute free — no API key. It routes across
+                  no-auth free backends and can switch mid-flow if one is busy.
+                  For unlimited use, connect OpenRouter or another bring-your-own-key
+                  provider. Keys are encrypted on the server, never stored in the
+                  browser.
                 </p>
               </InfoTip>
             </div>
@@ -239,7 +243,10 @@ export function AiProvidersSection() {
               Active:{" "}
               {settings?.active_provider
                 ? `${PROVIDER_LABEL[settings.active_provider]} · ${settings.active_model || "default model"}`
-                : "None — OpenRouter recommended"}
+                : "None — use OmniRoute free to start"}
+              {settings?.omniroute_quota
+                ? ` · Free today ${settings.omniroute_quota.used}/${settings.omniroute_quota.limit}`
+                : ""}
             </p>
           </div>
           <Button size="sm" variant="secondary" onClick={() => setPromptOpen(true)}>
@@ -274,18 +281,22 @@ export function AiProvidersSection() {
                       <p className="truncate text-sm font-medium text-[var(--ds-gray-1000)]">
                         {PROVIDER_LABEL[p.provider]}
                       </p>
-                      {(p.recommended || p.provider === "openrouter") && (
+                      {(p.recommended || p.provider === "omniroute") && (
                         <span className="shrink-0 rounded-[4px] bg-[color:color-mix(in_srgb,var(--ds-focus-color)_16%,transparent)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--ds-focus-color)]">
-                          Recommended
+                          {p.provider === "omniroute" ? "Free" : "Recommended"}
                         </span>
                       )}
                     </div>
                     <p className="truncate text-[11px] text-[var(--ds-gray-700)]">
-                      {p.connected
-                        ? `Ready · ${p.model || "model"}`
-                        : p.provider === "openrouter"
-                          ? "One key · hundreds of models"
-                          : "Not connected"}
+                      {p.provider === "omniroute"
+                        ? p.daily_quota
+                          ? `Free · ${p.daily_quota.remaining}/${p.daily_quota.limit} left today · ${p.model || "auto"}`
+                          : `Free · no key · ${p.model || "auto"}`
+                        : p.connected
+                          ? `Ready · ${p.model || "model"}`
+                          : p.provider === "openrouter"
+                            ? "One key · hundreds of models"
+                            : "Not connected"}
                     </p>
                   </div>
                   {guide ? (
@@ -330,7 +341,8 @@ export function AiProvidersSection() {
                     loading={busy === `test-${p.provider}`}
                     disabled={
                       !perms.create ||
-                      (!p.connected &&
+                      (p.provider !== "omniroute" &&
+                        !p.connected &&
                         !p.credentials_meta?.has_api_key &&
                         !p.credentials_meta?.has_service_account)
                     }
@@ -343,14 +355,18 @@ export function AiProvidersSection() {
                     variant="secondary"
                     className="h-7 min-w-0 flex-1 px-2 text-[11px]"
                     loading={busy === `use-${p.provider}`}
-                    disabled={!perms.create || (!p.connected && !p.model)}
+                    disabled={
+                      !perms.create ||
+                      (p.provider !== "omniroute" && !p.connected && !p.model)
+                    }
                     onClick={() => onUse(p.provider, p.model)}
                   >
-                    Use
+                    {p.provider === "omniroute" ? "Use free" : "Use"}
                   </Button>
-                  {(p.connected ||
-                    p.credentials_meta?.has_api_key ||
-                    p.credentials_meta?.has_service_account) && (
+                  {p.provider !== "omniroute" &&
+                    (p.connected ||
+                      p.credentials_meta?.has_api_key ||
+                      p.credentials_meta?.has_service_account) && (
                     <Button
                       size="sm"
                       variant="ghost"
@@ -664,6 +680,18 @@ function ProviderConfigureModal({
       if (!resolvedModel) {
         throw new Error("Choose or enter a model.");
       }
+      if (provider === "omniroute") {
+        await upsertAiProvider({
+          provider: "omniroute",
+          model: resolvedModel,
+        });
+        await selectActiveAiProvider({
+          provider: "omniroute",
+          model: resolvedModel,
+        });
+        await onSaved();
+        return;
+      }
       await upsertAiProvider({
         provider,
         model: resolvedModel,
@@ -685,12 +713,17 @@ function ProviderConfigureModal({
 
   const guide = existing?.setup;
   const isOpenRouter = provider === "openrouter";
+  const isOmniroute = provider === "omniroute";
 
   return (
     <Modal
       open
       onClose={onClose}
-      title={`Configure ${PROVIDER_LABEL[provider]}`}
+      title={
+        isOmniroute
+          ? "OmniRoute free models"
+          : `Configure ${PROVIDER_LABEL[provider]}`
+      }
       className="max-w-2xl"
       footer={
         <>
@@ -698,7 +731,7 @@ function ProviderConfigureModal({
             Cancel
           </Button>
           <Button form="provider-form" type="submit" loading={loading}>
-            Save
+            {isOmniroute ? "Use free AI" : "Save"}
           </Button>
         </>
       }
@@ -710,9 +743,9 @@ function ProviderConfigureModal({
               <p className="font-medium text-[var(--ds-gray-1000)]">
                 {guide.summary}
               </p>
-              {isOpenRouter ? (
+              {isOmniroute || isOpenRouter ? (
                 <span className="rounded-[4px] bg-[color:color-mix(in_srgb,var(--ds-focus-color)_16%,transparent)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--ds-focus-color)]">
-                  Recommended
+                  {isOmniroute ? "No signup" : "Recommended"}
                 </span>
               ) : null}
             </div>
@@ -721,6 +754,12 @@ function ProviderConfigureModal({
                 <li key={s}>{s}</li>
               ))}
             </ol>
+            {isOmniroute && existing?.daily_quota ? (
+              <p className="mt-2 text-[var(--ds-gray-700)]">
+                Today: {existing.daily_quota.used}/{existing.daily_quota.limit}{" "}
+                successful requests used ({existing.daily_quota.remaining} left).
+              </p>
+            ) : null}
             {isOpenRouter ? (
               <p className="mt-2 text-[11px] text-[var(--ds-gray-700)]">
                 Docs:{" "}
@@ -821,7 +860,7 @@ function ProviderConfigureModal({
           </div>
         ) : null}
 
-        {provider !== "vertex" ? (
+        {provider !== "vertex" && !isOmniroute ? (
           <div>
             <Label htmlFor="api-key">
               API key

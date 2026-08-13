@@ -44,6 +44,22 @@ export function humanizeAiProviderError(
   }
 
   if (
+    /omniroute_daily_limit|daily free omniroute|omniroute limit|20 successful/.test(
+      lower,
+    )
+  ) {
+    return {
+      kind: "rate_limit",
+      title: "Free OmniRoute limit reached",
+      message:
+        "You’ve used today’s 20 free OmniRoute replies. Resets at UTC midnight — or connect OpenRouter / your own key in Settings → AI for unlimited use.",
+      tone: "warn",
+      showSettings: true,
+      canRetry: false,
+    };
+  }
+
+  if (
     /rate.?limit|too many requests|free-models-per-day|free.?tier|free daily|quota.?exceeded|429/.test(
       lower,
     )
@@ -52,7 +68,7 @@ export function humanizeAiProviderError(
       kind: "rate_limit",
       title: "Daily free limit reached",
       message:
-        "OpenRouter’s free allowance for this model is used up for now. Wait for it to reset, switch to another free model (often ending in :free), or add credits — then retry.",
+        "A free-tier allowance is used up for now. Wait for it to reset, switch OmniRoute model (auto fails over), or connect a BYOK provider in Settings → AI.",
       tone: "warn",
       showSettings: true,
       canRetry: true,

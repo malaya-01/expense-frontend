@@ -515,11 +515,20 @@ export type ReportOverview = {
 };
 
 export type AiProviderId =
+  | "omniroute"
   | "openrouter"
   | "openai"
   | "anthropic"
   | "local"
   | "vertex";
+
+export type AiOmnirouteQuota = {
+  provider: "omniroute";
+  limit: number;
+  used: number;
+  remaining: number;
+  usage_date: string;
+};
 
 export type AiSetupGuide = {
   title: string;
@@ -542,6 +551,8 @@ export type AiProviderConfigPublic = {
     has_api_key?: boolean;
     has_service_account?: boolean;
     service_account_email?: string | null;
+    platform_managed?: boolean;
+    no_auth_required?: boolean;
   };
   last_tested_at?: string | null;
   last_test_status?: string | null;
@@ -549,6 +560,8 @@ export type AiProviderConfigPublic = {
   default_models?: string[];
   setup?: AiSetupGuide;
   recommended?: boolean;
+  platform_free?: boolean;
+  daily_quota?: AiOmnirouteQuota;
 };
 
 export type AiSettings = {
@@ -561,6 +574,7 @@ export type AiSettings = {
   prompt_version: string;
   providers: AiProviderConfigPublic[];
   setup_guides: Record<AiProviderId, AiSetupGuide>;
+  omniroute_quota?: AiOmnirouteQuota;
 };
 
 export type AiCitation = {
