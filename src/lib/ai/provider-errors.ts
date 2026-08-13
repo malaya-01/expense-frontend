@@ -50,9 +50,9 @@ export function humanizeAiProviderError(
   ) {
     return {
       kind: "rate_limit",
-      title: "Free OmniRoute limit reached",
+      title: "Free Opal Free limit reached",
       message:
-        "You’ve used today’s 20 free OmniRoute replies. Resets at UTC midnight — or connect OpenRouter / your own key in Settings → AI for unlimited use.",
+        "You’ve used today’s 20 free Opal Free replies. Resets at UTC midnight — or connect OpenRouter / your own key in Settings → AI for unlimited use.",
       tone: "warn",
       showSettings: true,
       canRetry: false,

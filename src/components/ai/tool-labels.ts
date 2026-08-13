@@ -20,11 +20,9 @@ const TOOL_LABELS: Record<string, string> = {
 
 const ROTATING_OPAL_STATUS = [
   "Opening your Financial Twin…",
-  "Reading accounts and cash flow…",
-  "Finding a free Opal route…",
+  "Asking Groq…",
   "Opal Advisor is thinking…",
   "Drafting a clear next step…",
-  "Keeping this grounded in your twin…",
 ];
 
 export function humanizeToolName(name: string) {

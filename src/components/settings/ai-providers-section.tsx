@@ -44,7 +44,7 @@ const PROVIDER_ORDER: AiProviderId[] = [
 ];
 
 const PROVIDER_LABEL: Record<AiProviderId, string> = {
-  omniroute: "OmniRoute (free)",
+  omniroute: "Opal Free",
   openrouter: "OpenRouter",
   openai: "OpenAI",
   anthropic: "Anthropic",
@@ -139,7 +139,7 @@ export function AiProvidersSection() {
         if (!result.ok) {
           throw new Error(
             result.message ||
-              "Free OmniRoute could not connect. Try again or use OpenRouter.",
+              "Free route could not connect. Try again or use OpenRouter.",
           );
         }
       }
@@ -247,13 +247,12 @@ export function AiProvidersSection() {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="truncate text-sm sm:text-base">AI &amp; models</h2>
-              <InfoTip title="Free OmniRoute + optional BYOK">
+              <InfoTip title="Opal Free + optional BYOK">
                 <p>
-                  Start with OmniRoute free — no API key. It routes across
-                  no-auth free backends and can switch mid-flow if one is busy.
-                  For unlimited use, connect OpenRouter or another bring-your-own-key
-                  provider. Keys are encrypted on the server, never stored in the
-                  browser.
+                  Start with Opal Free — no API key for you. The server uses
+                  Groq (very fast) or Gemini when configured, otherwise built-in
+                  Opal Advisor. For unlimited use, connect OpenRouter or another
+                  bring-your-own-key provider. Keys are encrypted on the server.
                 </p>
               </InfoTip>
             </div>
@@ -261,7 +260,7 @@ export function AiProvidersSection() {
               Active:{" "}
               {settings?.active_provider
                 ? `${PROVIDER_LABEL[settings.active_provider]} · ${settings.active_model || "default model"}`
-                : "None — use OmniRoute free to start"}
+                : "None — use Opal Free to start"}
               {settings?.omniroute_quota
                 ? ` · Free today ${settings.omniroute_quota.used}/${settings.omniroute_quota.limit}`
                 : ""}
@@ -707,7 +706,7 @@ function ProviderConfigureModal({
         if (!result.ok) {
           throw new Error(
             result.message ||
-              "Free OmniRoute could not connect. Try again shortly.",
+              "Free route could not connect. Try again shortly.",
           );
         }
         await selectActiveAiProvider({
@@ -746,7 +745,7 @@ function ProviderConfigureModal({
       onClose={onClose}
       title={
         isOmniroute
-          ? "OmniRoute free models"
+          ? "Opal Free models"
           : `Configure ${PROVIDER_LABEL[provider]}`
       }
       className="max-w-2xl"
