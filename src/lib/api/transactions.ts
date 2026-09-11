@@ -27,6 +27,11 @@ function apiPayload(
     notes: payload.notes || undefined,
     currency: currency || payload.currency || undefined,
     exchange_rate: payload.exchange_rate,
+    payment_method: payload.payment_method || undefined,
+    upi_vpa: payload.upi_vpa || undefined,
+    upi_txn_id: payload.upi_txn_id || undefined,
+    payment_status: payload.payment_status || undefined,
+    paid_at: payload.paid_at || undefined,
   };
 }
 

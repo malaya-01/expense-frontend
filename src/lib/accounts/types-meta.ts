@@ -56,6 +56,11 @@ export function isLiquidType(type: ContainerType) {
   return type === "cash" || type === "wallet" || type === "bank";
 }
 
+/** Containers that can fund a UPI Scan & Pay expense. */
+export function isUpiPayableType(type: ContainerType) {
+  return type === "bank" || type === "wallet" || type === "credit_card";
+}
+
 export const GROUP_LABELS: Record<string, string> = {
   liquid: "Cash & Bank Accounts",
   invest: "Investments",

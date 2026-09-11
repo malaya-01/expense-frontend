@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
+  transpilePackages: [
+    "@capacitor/core",
+    "@capacitor-mlkit/barcode-scanning",
+  ],
   ...(isMobile
     ? {
         output: "export" as const,

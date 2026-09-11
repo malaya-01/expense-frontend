@@ -23,6 +23,8 @@ import { AccountCard } from "@/components/accounts/account-card";
 import { AccountFormModal } from "@/components/accounts/account-form-modal";
 import { AccountKpiCard } from "@/components/accounts/account-kpi-card";
 import { AccountsSidebar } from "@/components/accounts/accounts-sidebar";
+import { TRANSACTION_CREATED_EVENT } from "@/components/expenses/transaction-modal-provider";
+import { useScanPay } from "@/components/payments/scan-pay-provider";
 import { summarizeTwin } from "@/lib/accounts/metrics";
 import {
   allocationSlices,
@@ -43,6 +45,7 @@ import {
   CONTAINER_TYPES,
   GROUP_LABELS,
   getContainerMeta,
+  isUpiPayableType,
 } from "@/lib/accounts/types-meta";
 import { useAuth } from "@/lib/auth-context";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
@@ -77,6 +80,7 @@ export default function AccountsPage() {
   const perms = useModulePermissions("accounts");
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { startScanPay } = useScanPay();
   const [containers, setContainers] = useState<FinancialContainer[]>([]);
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -112,7 +116,11 @@ export default function AccountsPage() {
     void refresh();
     const onSync = () => void refresh();
     window.addEventListener("finos:sync-complete", onSync);
-    return () => window.removeEventListener("finos:sync-complete", onSync);
+    window.addEventListener(TRANSACTION_CREATED_EVENT, onSync);
+    return () => {
+      window.removeEventListener("finos:sync-complete", onSync);
+      window.removeEventListener(TRANSACTION_CREATED_EVENT, onSync);
+    };
   }, [refresh]);
 
   const baseCurrency = user?.currency || "USD";
@@ -423,6 +431,12 @@ export default function AccountsPage() {
                         <AccountCard
                           key={container.id}
                           container={container}
+                          onScanPay={
+                            isUpiPayableType(container.type) &&
+                            (container.currency || "").toUpperCase() === "INR"
+                              ? () => startScanPay(container)
+                              : undefined
+                          }
                           onEdit={
                             perms.update
                               ? () => openEdit(container)

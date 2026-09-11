@@ -6,6 +6,7 @@ import {
   Landmark,
   MoreHorizontal,
   PiggyBank,
+  QrCode,
   Users,
   Wallet,
 } from "lucide-react";
@@ -52,10 +53,12 @@ export function AccountCard({
   container,
   onEdit,
   onDelete,
+  onScanPay,
 }: {
   container: FinancialContainer;
   onEdit?: () => void;
   onDelete?: () => void;
+  onScanPay?: () => void;
 }) {
   const meta = getContainerMeta(container.type);
   const liability = isLiabilityType(container.type);
@@ -67,6 +70,9 @@ export function AccountCard({
     .join(" · ");
 
   const menuItems = [
+    onScanPay
+      ? { id: "scan-pay", label: "Scan & Pay", onSelect: onScanPay }
+      : null,
     onEdit ? { id: "edit", label: "Edit", onSelect: onEdit } : null,
     onDelete
       ? {
@@ -131,6 +137,22 @@ export function AccountCard({
           {liability ? "−" : ""}
           {formatCurrency(container.balance, container.currency)}
         </p>
+
+        {onScanPay ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onScanPay();
+            }}
+            title="Scan & Pay"
+            aria-label={`Scan & Pay from ${container.name}`}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] ds-focus"
+          >
+            <QrCode size={16} />
+          </button>
+        ) : null}
 
         {menuItems.length ? (
           <ActionMenu

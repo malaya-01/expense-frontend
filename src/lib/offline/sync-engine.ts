@@ -95,6 +95,11 @@ const TRANSACTION_KEYS = [
   "notes",
   "currency",
   "exchange_rate",
+  "payment_method",
+  "upi_vpa",
+  "upi_txn_id",
+  "payment_status",
+  "paid_at",
 ] as const;
 
 function sanitizeOutboxPayload(

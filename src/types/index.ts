@@ -81,6 +81,11 @@ export type LedgerTransaction = {
   fx_rate_to_base?: number;
   amount_base?: number;
   notes?: string | null;
+  payment_method?: string | null;
+  upi_vpa?: string | null;
+  upi_txn_id?: string | null;
+  payment_status?: string | null;
+  paid_at?: string | null;
   source_name?: string | null;
   source_currency?: string | null;
   destination_name?: string | null;
@@ -140,6 +145,11 @@ export type CreateTransactionInput = {
   currency?: string;
   exchange_rate?: number;
   notes?: string;
+  payment_method?: string;
+  upi_vpa?: string;
+  upi_txn_id?: string;
+  payment_status?: string;
+  paid_at?: string;
 };
 
 export type CreateCategoryInput = {

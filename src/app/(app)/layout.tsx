@@ -6,6 +6,7 @@ import { AppSidebar, MobileNav } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { TransactionModalProvider } from "@/components/expenses/transaction-modal-provider";
+import { ScanPayProvider } from "@/components/payments/scan-pay-provider";
 import { useAuth } from "@/lib/auth-context";
 import { getAccessToken } from "@/lib/api/client";
 import { fetchMyPermissions } from "@/lib/api/permissions";
@@ -68,33 +69,35 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <TransactionModalProvider>
-      <div className="h-dvh overflow-hidden bg-[var(--ds-background-100)]">
-        <AppTopbar />
-        <AppSidebar />
-        <main
-          className={cn(
-            "h-[calc(100dvh-2.75rem)] translate-y-11 transition-[margin-left] duration-200 md:ml-[var(--app-sidebar-offset)]",
-            isFullBleedWorkspace
-              ? "overflow-hidden p-0 pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-0"
-              : "app-scrollbar overflow-x-hidden overflow-y-auto overscroll-contain scroll-pt-3 px-3 pt-5 pb-[calc(6.25rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 sm:pb-6 md:pb-10",
-          )}
-        >
-          <div
+      <ScanPayProvider>
+        <div className="h-dvh overflow-hidden bg-[var(--ds-background-100)]">
+          <AppTopbar />
+          <AppSidebar />
+          <main
             className={cn(
+              "h-[calc(100dvh-2.75rem)] translate-y-11 transition-[margin-left] duration-200 md:ml-[var(--app-sidebar-offset)]",
               isFullBleedWorkspace
-                ? "flex h-full w-full max-w-none flex-col"
-                : "mx-auto w-full min-w-0 max-w-[var(--ds-page-width)]",
+                ? "overflow-hidden p-0 pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-0"
+                : "app-scrollbar overflow-x-hidden overflow-y-auto overscroll-contain scroll-pt-3 px-3 pt-5 pb-[calc(6.25rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 sm:pb-6 md:pb-10",
             )}
           >
-            <NetworkStatusBanner />
-            <div className={cn(isFullBleedWorkspace && "min-h-0 flex-1")}>
-              {children}
+            <div
+              className={cn(
+                isFullBleedWorkspace
+                  ? "flex h-full w-full max-w-none flex-col"
+                  : "mx-auto w-full min-w-0 max-w-[var(--ds-page-width)]",
+              )}
+            >
+              <NetworkStatusBanner />
+              <div className={cn(isFullBleedWorkspace && "min-h-0 flex-1")}>
+                {children}
+              </div>
             </div>
-          </div>
-        </main>
-        <MobileNav />
-        <CommandPalette />
-      </div>
+          </main>
+          <MobileNav />
+          <CommandPalette />
+        </div>
+      </ScanPayProvider>
     </TransactionModalProvider>
   );
 }
