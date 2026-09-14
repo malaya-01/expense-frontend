@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -29,9 +30,11 @@ import { getErrorMessage } from "@/lib/api/client";
 import { formatCurrency, todayISO } from "@/lib/format";
 import { suggestCategoryId } from "@/lib/payments/suggest-category";
 import { canUseNativeQrScan, scanUpiQrNative } from "@/lib/payments/qr-scan";
+import { isScanCanceledError } from "@/lib/payments/qr-decode";
 import {
   buildUpiPayUri,
   formatInr,
+  isPersonalUpiPayee,
   parseUpiQr,
   UpiQrError,
   type ParsedUpiQr,
@@ -42,7 +45,10 @@ import { useToast } from "@/components/ui/toast";
 import type { Category, FinancialContainer, LedgerTransaction } from "@/types";
 
 type ScanPayContextValue = {
-  startScanPay: (container: FinancialContainer) => void;
+  startScanPay: (
+    container: FinancialContainer,
+    options?: { source?: "camera" | "upload" },
+  ) => void;
 };
 
 const ScanPayContext = createContext<ScanPayContextValue | null>(null);
@@ -65,7 +71,7 @@ function readDraft(): Draft | null {
     const raw = sessionStorage.getItem(DRAFT_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Draft & { launchedAt?: number };
-    if (!parsed?.container?.id || !parsed.amount) return null;
+    if (!parsed?.container?.id) return null;
     if (parsed.launchedAt && Date.now() - parsed.launchedAt > DRAFT_TTL_MS) {
       sessionStorage.removeItem(DRAFT_KEY);
       return null;
@@ -126,21 +132,53 @@ export function ScanPayProvider({ children }: { children: ReactNode }) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState("");
+  const [p2pOpen, setP2pOpen] = useState(false);
   const [activeContainer, setActiveContainer] = useState<FinancialContainer | null>(
     null,
   );
+  const awaitingReturnRef = useRef(false);
+  const leftAppRef = useRef(false);
 
   const reset = useCallback(() => {
+    awaitingReturnRef.current = false;
+    leftAppRef.current = false;
     setScanning(false);
     setBusy(false);
     setAmountOpen(false);
     setAmountInput("");
     setConfirmOpen(false);
     setCategoryOpen(false);
+    setP2pOpen(false);
     setDraft(null);
     setCategoryId("");
     setActiveContainer(null);
     clearDraft();
+  }, []);
+
+  useEffect(() => {
+    let removed = false;
+    let handle: { remove: () => Promise<void> } | undefined;
+    void import("@capacitor/app").then(({ App }) => {
+      if (removed) return;
+      return App.addListener("appStateChange", ({ isActive }) => {
+        if (!awaitingReturnRef.current) return;
+        if (!isActive) {
+          leftAppRef.current = true;
+          return;
+        }
+        if (!leftAppRef.current) return;
+        awaitingReturnRef.current = false;
+        leftAppRef.current = false;
+        setBusy(false);
+        setConfirmOpen(true);
+      }).then((listener) => {
+        handle = listener;
+      });
+    });
+    return () => {
+      removed = true;
+      void handle?.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -193,7 +231,8 @@ export function ScanPayProvider({ children }: { children: ReactNode }) {
         payment_method: "UPI",
         upi_vpa: next.parsed.vpa,
         upi_txn_id: result.txnId || undefined,
-        payment_status: result.status,
+        payment_status:
+          result.status === "LAUNCHED" ? "SUCCESS" : result.status,
         paid_at: paidAt.toISOString(),
         category_id: suggested || undefined,
       };
@@ -239,18 +278,35 @@ export function ScanPayProvider({ children }: { children: ReactNode }) {
       setScanning(false);
       setBusy(true);
       writeDraft(next);
+      const p2p = isPersonalUpiPayee(next.parsed);
       const uri = buildUpiPayUri({
         vpa: next.parsed.vpa,
         payeeName: next.parsed.payeeName,
-        amount: next.amount,
         note: next.parsed.note,
-        reference: `OPAL${Date.now().toString(36).toUpperCase()}`,
+        raw: next.parsed.raw,
       });
       try {
-        const result = await UpiIntent.pay({ uri });
+        const result = await UpiIntent.pay({
+          uri,
+          vpa: next.parsed.vpa,
+          p2p,
+        });
         const status = (result?.status || "UNKNOWN") as UpiPayStatus;
-        if (status === "SUCCESS") {
-          await recordExpense(next, { ...result, status });
+        const paid = { ...next, result: { ...result, status } };
+        setDraft(paid);
+        writeDraft(paid);
+
+        // Generic deep link: Android resolves immediately after opening GPay.
+        // Do not treat that as success/failure — wait until the user returns.
+        if (status === "LAUNCHED" || status === "UNKNOWN" || status === "SUBMITTED") {
+          awaitingReturnRef.current = true;
+          leftAppRef.current = false;
+          notify(
+            p2p
+              ? "UPI ID copied. Pay in Google Pay, then return to Opal."
+              : "Pay in Google Pay, then return to Opal to save the expense.",
+            "info",
+          );
           return;
         }
         if (status === "FAILURE") {
@@ -263,7 +319,16 @@ export function ScanPayProvider({ children }: { children: ReactNode }) {
           reset();
           return;
         }
-        setDraft({ ...next, result: { ...result, status } });
+        if (status === "SUCCESS" && next.amount > 0) {
+          await recordExpense(next, { ...result, status });
+          return;
+        }
+        if (status === "SUCCESS") {
+          setAmountInput("");
+          setAmountOpen(true);
+          notify("Payment sent. Enter the amount you paid in Google Pay.", "success");
+          return;
+        }
         setConfirmOpen(true);
       } catch (err) {
         notify(getErrorMessage(err, "Could not open a UPI app."), "error");
@@ -283,14 +348,13 @@ export function ScanPayProvider({ children }: { children: ReactNode }) {
         amount: parsed.amount || 0,
       };
       setDraft(next);
-      if (parsed.amount && parsed.amount > 0) {
-        await launchPay(next);
+      if (isPersonalUpiPayee(parsed)) {
+        setBusy(false);
+        setScanning(false);
+        setP2pOpen(true);
         return;
       }
-      setBusy(false);
-      setScanning(false);
-      setAmountInput("");
-      setAmountOpen(true);
+      await launchPay(next);
     },
     [launchPay],
   );
@@ -333,15 +397,20 @@ export function ScanPayProvider({ children }: { children: ReactNode }) {
         setBusy(true);
         void scanUpiQrNative()
           .then((raw) => consumeRaw(container, raw))
-          .catch(() => {
+          .catch((err) => {
             setBusy(false);
-            setScanning(true);
+            if (isScanCanceledError(err)) {
+              reset();
+              return;
+            }
+            notify(getErrorMessage(err, "Could not scan QR."), "error");
+            reset();
           });
         return;
       }
       setScanning(true);
     },
-    [consumeRaw, notify],
+    [consumeRaw, notify, reset],
   );
 
   const saveCategory = useCallback(async () => {
@@ -377,12 +446,57 @@ export function ScanPayProvider({ children }: { children: ReactNode }) {
         }}
       />
       <Modal
+        open={p2pOpen}
+        onClose={reset}
+        title="Pay in Google Pay"
+        className="max-w-md"
+        footer={
+          <>
+            <Button variant="ghost" onClick={reset} disabled={busy}>
+              Cancel
+            </Button>
+            <Button
+              loading={busy}
+              onClick={() => {
+                if (!draft) return;
+                setP2pOpen(false);
+                void launchPay(draft);
+              }}
+            >
+              Open Google Pay
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3 text-sm text-[var(--ds-gray-800)]">
+          <p>
+            Google Pay blocks UPI payments that start from another app, even ₹1.
+            The transfer has to begin inside Google Pay itself.
+          </p>
+          <div className="rounded-[12px] bg-[var(--ds-gray-100)] px-3 py-3">
+            <p className="text-xs text-[var(--ds-gray-700)]">UPI ID (copied)</p>
+            <p className="break-all text-sm font-semibold text-[var(--ds-gray-1000)]">
+              {draft?.parsed.vpa}
+            </p>
+            {draft?.parsed.payeeName ? (
+              <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
+                {draft.parsed.payeeName}
+              </p>
+            ) : null}
+          </div>
+          <p>
+            Tap Open Google Pay → New payment → paste the UPI ID → pay. Then
+            return to Opal to save the expense.
+          </p>
+        </div>
+      </Modal>
+      <Modal
         open={amountOpen}
         onClose={() => {
           setAmountOpen(false);
           reset();
         }}
-        title="Enter amount"
+        title="How much did you pay?"
         className="max-w-md"
         footer={
           <>
@@ -394,13 +508,20 @@ export function ScanPayProvider({ children }: { children: ReactNode }) {
               onClick={() => {
                 const amount = Number(amountInput);
                 if (!draft || !Number.isFinite(amount) || amount <= 0) {
-                  notify("Enter a valid amount.", "error");
+                  notify("Enter the amount you paid in Google Pay.", "error");
                   return;
                 }
-                void launchPay({ ...draft, amount });
+                const result = {
+                  ...(draft.result || {}),
+                  status: "SUCCESS" as const,
+                };
+                void recordExpense({ ...draft, amount }, result).catch((err) => {
+                  notify(getErrorMessage(err, "Could not record the expense."), "error");
+                  reset();
+                });
               }}
             >
-              Pay with UPI
+              Record expense
             </Button>
           </>
         }
@@ -415,6 +536,10 @@ export function ScanPayProvider({ children }: { children: ReactNode }) {
             <p className="text-sm font-semibold text-[var(--ds-gray-1000)]">{payee}</p>
             <p className="mt-1 text-xs text-[var(--ds-gray-700)]">{draft?.parsed.vpa}</p>
           </div>
+          <p className="text-sm text-[var(--ds-gray-800)]">
+            Amount is entered in Google Pay so your bank treats this as a normal
+            UPI transfer. Type that same amount here to save it in Opal.
+          </p>
           <div>
             <Label htmlFor="upi-amount">Amount (INR)</Label>
             <Input
@@ -432,28 +557,35 @@ export function ScanPayProvider({ children }: { children: ReactNode }) {
       </Modal>
       <ConfirmDialog
         open={confirmOpen}
-        title="Did the UPI payment succeed?"
-        description={`The UPI app did not return a clear status for ${formatInr(draft?.amount || 0)} to ${payee}. Record it only if money actually left your account.`}
-        confirmLabel="Yes, record expense"
+        title="Did you complete the payment?"
+        description={`Opal opened Google Pay for ${payee}. Record the expense only if the money actually left your account.`}
+        confirmLabel="Yes, I paid"
         onClose={() => {
           setConfirmOpen(false);
           reset();
         }}
         onConfirm={async () => {
           if (!draft) return;
-          setBusy(true);
-          try {
-            await recordExpense(draft, {
-              ...(draft.result || {}),
-              status: "SUCCESS",
-            });
-          } catch (err) {
-            notify(getErrorMessage(err, "Could not record the expense."), "error");
-            reset();
-          } finally {
-            setBusy(false);
-            setConfirmOpen(false);
+          setConfirmOpen(false);
+          const paid = {
+            ...draft,
+            result: { ...(draft.result || {}), status: "SUCCESS" as const },
+          };
+          setDraft(paid);
+          if (paid.amount > 0) {
+            setBusy(true);
+            try {
+              await recordExpense(paid, paid.result!);
+            } catch (err) {
+              notify(getErrorMessage(err, "Could not record the expense."), "error");
+              reset();
+            } finally {
+              setBusy(false);
+            }
+            return;
           }
+          setAmountInput("");
+          setAmountOpen(true);
         }}
       />
       <Modal

@@ -3,7 +3,8 @@ export type UpiPayStatus =
   | "FAILURE"
   | "SUBMITTED"
   | "CANCELLED"
-  | "UNKNOWN";
+  | "UNKNOWN"
+  | "LAUNCHED";
 
 export type UpiPayResult = {
   status: UpiPayStatus;
@@ -15,5 +16,5 @@ export type UpiPayResult = {
 };
 
 export type UpiIntentPlugin = {
-  pay(options: { uri: string }): Promise<UpiPayResult>;
+  pay(options: { uri: string; vpa?: string; p2p?: boolean }): Promise<UpiPayResult>;
 };

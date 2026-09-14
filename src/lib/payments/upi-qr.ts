@@ -80,29 +80,65 @@ export function parseUpiQr(rawInput: string): ParsedUpiQr {
     vpa,
     payeeName: firstParam(params, ["pn", "payeeName", "name"]),
     amount: parseAmount(firstParam(params, ["am", "amount"])),
-    note: firstParam(params, ["tn", "note", "tr"]),
+    note: firstParam(params, ["tn", "note"]),
     currency: (firstParam(params, ["cu", "currency"]) || "INR").toUpperCase(),
     merchantCode: firstParam(params, ["mc"]) || null,
     transactionRef: firstParam(params, ["tr", "tid"]) || null,
   };
 }
 
+function keepVpa(vpa: string): string {
+  const trimmed = vpa.trim();
+  const at = trimmed.indexOf("@");
+  if (at <= 0) return encodeURIComponent(trimmed);
+  return `${encodeURIComponent(trimmed.slice(0, at))}@${encodeURIComponent(trimmed.slice(at + 1))}`;
+}
+
+function pair(key: string, value: string): string {
+  if (key.toLowerCase() === "pa") return `pa=${keepVpa(value)}`;
+  return `${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+}
+
+function stripParams(query: string, keys: string[]): string {
+  const drop = new Set(keys.map((key) => key.toLowerCase()));
+  return query
+    .split("&")
+    .filter((part) => {
+      const key = decodeURIComponent((part.split("=")[0] || "").trim()).toLowerCase();
+      return key && !drop.has(key);
+    })
+    .join("&");
+}
+
+/**
+ * Open GPay the same way a native QR scan does: forward the scanned payload.
+ * Never inject `am` from Opal — UPI apps treat third-party intents with a
+ * prefilled amount as merchant payments and banks reject even ₹1.
+ * Personal QRs (no merchant code) also have `am` / `mode` stripped.
+ */
 export function buildUpiPayUri(input: {
   vpa: string;
   payeeName?: string;
-  amount: number;
   note?: string;
-  reference?: string;
+  raw?: string;
 }): string {
-  const params = new URLSearchParams();
-  params.set("pa", input.vpa.trim());
-  params.set("pn", (input.payeeName || "Payee").trim().slice(0, 80));
-  params.set("am", input.amount.toFixed(2));
-  params.set("cu", "INR");
-  if (input.note?.trim()) params.set("tn", input.note.trim().slice(0, 80));
-  if (input.reference?.trim()) params.set("tr", input.reference.trim().slice(0, 35));
-  params.set("mode", "04");
-  return `upi://pay?${params.toString()}`;
+  const raw = String(input.raw || "").trim();
+  const queryIndex = raw.indexOf("?");
+  if (queryIndex >= 0 && /^(upi|tez|phonepe):/i.test(raw)) {
+    let query = raw.slice(queryIndex + 1).replace(/#Intent.*$/i, "");
+    if (!/(^|&)mc=/i.test(query)) {
+      query = stripParams(query, ["am", "mode"]);
+    }
+    return `upi://pay?${query}`;
+  }
+
+  const parts = [pair("pa", input.vpa.trim())];
+  const name = (input.payeeName || "").trim();
+  if (name) parts.push(pair("pn", name.slice(0, 80)));
+  parts.push(pair("cu", "INR"));
+  const note = (input.note || "").trim();
+  if (note) parts.push(pair("tn", note.slice(0, 80)));
+  return `upi://pay?${parts.join("&")}`;
 }
 
 export function formatInr(amount: number): string {
@@ -111,4 +147,12 @@ export function formatInr(amount: number): string {
     currency: "INR",
     maximumFractionDigits: 2,
   }).format(amount);
+}
+
+/** Google Pay @ok* IDs and any QR without a merchant code are P2P, not shop intent. */
+export function isPersonalUpiPayee(parsed: ParsedUpiQr): boolean {
+  if (parsed.merchantCode) return false;
+  const handle = (parsed.vpa.split("@")[1] || "").toLowerCase();
+  if (handle.startsWith("ok")) return true;
+  return !parsed.amount;
 }

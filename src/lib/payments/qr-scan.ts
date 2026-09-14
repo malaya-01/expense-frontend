@@ -24,7 +24,11 @@ export async function scanUpiQrNative(): Promise<string> {
     formats: [BarcodeFormat.QrCode],
   });
   const value = barcodes.find((row) => row.rawValue)?.rawValue?.trim();
-  if (!value) throw new Error("No QR code found. Try again.");
+  if (!value) {
+    const canceled = new Error("scan canceled.");
+    canceled.name = "ScanCanceled";
+    throw canceled;
+  }
   return value;
 }
 
