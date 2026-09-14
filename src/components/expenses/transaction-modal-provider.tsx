@@ -12,6 +12,7 @@ import {
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { TransactionForm } from "@/components/expenses/transaction-form";
+import { VisionSourceBadge } from "@/components/receipts/vision-source-badge";
 import { useAuth } from "@/lib/auth-context";
 import type { CreateTransactionInput, LedgerTransaction } from "@/types";
 
@@ -21,6 +22,8 @@ export type TransactionDraft = {
   previewUrl?: string;
   previewName?: string;
   fromReceipt?: boolean;
+  visionProvider?: string | null;
+  visionModel?: string | null;
   receiptMatch?: {
     container_name?: string | null;
     bank_name?: string | null;
@@ -157,6 +160,10 @@ export function TransactionModalProvider({
             />
           </div>
         ) : null}
+        <VisionSourceBadge
+          provider={draft?.visionProvider}
+          model={draft?.visionModel}
+        />
         {draft?.notice ? (
           <p className="mb-3 text-sm text-[var(--ds-gray-700)]">{draft.notice}</p>
         ) : null}

@@ -27,6 +27,7 @@ import {
   timeFromPaidAt,
 } from "@/lib/receipts/defaults-from-parse";
 import { matchExpenseSource } from "@/lib/receipts/match-container";
+import { VisionSourceBadge } from "@/components/receipts/vision-source-badge";
 import {
   readLastSourceContainerId,
   writeLastSourceContainerId,
@@ -123,6 +124,10 @@ export function TransactionForm({
       ),
   );
   const [receiptNotice, setReceiptNotice] = useState("");
+  const [visionSource, setVisionSource] = useState<{
+    provider: string | null;
+    model: string | null;
+  } | null>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -335,7 +340,8 @@ export function TransactionForm({
   async function onReceiptSelected(file?: File) {
     if (!file) return;
     setError("");
-    setReceiptNotice("Reading receipt…");
+    setVisionSource(null);
+    setReceiptNotice("Asking Groq vision, then Gemini if needed…");
     onBusyChange?.(true);
     try {
       const payload = await fileToReceiptPayload(file);
@@ -359,6 +365,10 @@ export function TransactionForm({
       }));
       if (nextTime) setTime(nextTime);
       setShowReceiptFields(true);
+      setVisionSource({
+        provider: parsed.used_provider,
+        model: parsed.used_model,
+      });
       setReceiptNotice(
         parsed.warning ||
           "Receipt fields filled. Review before saving — the image is not stored.",
@@ -403,6 +413,13 @@ export function TransactionForm({
               Optional. Scan a GPay/PhonePe screenshot to fill this form.
             </p>
           )}
+          {visionSource ? (
+            <VisionSourceBadge
+              className="mb-0 mt-2"
+              provider={visionSource.provider}
+              model={visionSource.model}
+            />
+          ) : null}
         </div>
       ) : null}
       <div>

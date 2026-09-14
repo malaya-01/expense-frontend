@@ -72,7 +72,7 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
       try {
         const payload = await fileToReceiptPayload(file);
         previewUrl = payload.preview_url;
-        setBusyLabel("Reading with free AI…");
+        setBusyLabel("Asking Groq vision, then Gemini if needed…");
         let parsed: ReceiptParseResult | null = null;
         let notice =
           "Review the fields before saving. The receipt image is not stored.";
@@ -82,11 +82,6 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
             mime_type: payload.mime_type,
             data_base64: payload.data_base64,
           });
-          if (parsed.used_model?.includes("gemini")) {
-            notice = "Extracted with Gemini. Review before saving — the image is not stored.";
-          } else if (parsed.ok) {
-            notice = "Extracted with free AI. Review before saving — the image is not stored.";
-          }
           if (parsed.warning) notice = parsed.warning;
         } catch (err) {
           notice = getErrorMessage(
@@ -126,6 +121,8 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
           defaults: defaultsFromReceiptParse(parsed, accounts, forced),
           receiptMatch: parsed?.extracted,
           fromReceipt: true,
+          visionProvider: parsed?.used_provider,
+          visionModel: parsed?.used_model,
           notice,
           previewUrl,
           previewName: payload.name,
@@ -264,8 +261,8 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
           <p>{busyLabel}</p>
         </div>
         <p className="mt-2 text-xs text-[var(--ds-gray-700)]">
-          Free vision first, then Gemini if needed. Nothing is saved until you
-          confirm the form.
+          Groq first, then Gemini if Groq cannot read it. The model used appears
+          on the review form. Nothing is saved until you confirm.
         </p>
       </Modal>
     </ReceiptCaptureContext.Provider>
