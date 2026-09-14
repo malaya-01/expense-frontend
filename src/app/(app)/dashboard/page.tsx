@@ -176,7 +176,7 @@ export default function DashboardPage() {
               Reports
             </Button>
             {canCreateTx ? (
-              <Button onClick={openTransactionModal}>New transaction</Button>
+              <Button onClick={() => openTransactionModal()}>New transaction</Button>
             ) : null}
           </div>
         }
@@ -324,7 +324,7 @@ export default function DashboardPage() {
                 title="No transactions yet"
                 description="Record expense, income, or transfers to move money between containers."
                 actionLabel={canCreateTx ? "Add transaction" : undefined}
-                onAction={canCreateTx ? openTransactionModal : undefined}
+                onAction={canCreateTx ? () => openTransactionModal() : undefined}
                 className="py-10"
               />
             ) : (

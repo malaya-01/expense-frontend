@@ -6,7 +6,7 @@ import {
   Landmark,
   MoreHorizontal,
   PiggyBank,
-  QrCode,
+  ScanLine,
   Users,
   Wallet,
 } from "lucide-react";
@@ -53,12 +53,12 @@ export function AccountCard({
   container,
   onEdit,
   onDelete,
-  onScanPay,
+  onScanReceipt,
 }: {
   container: FinancialContainer;
   onEdit?: () => void;
   onDelete?: () => void;
-  onScanPay?: () => void;
+  onScanReceipt?: () => void;
 }) {
   const meta = getContainerMeta(container.type);
   const liability = isLiabilityType(container.type);
@@ -70,8 +70,8 @@ export function AccountCard({
     .join(" · ");
 
   const menuItems = [
-    onScanPay
-      ? { id: "scan-pay", label: "Scan & Pay", onSelect: onScanPay }
+    onScanReceipt
+      ? { id: "scan-receipt", label: "Scan receipt", onSelect: onScanReceipt }
       : null,
     onEdit ? { id: "edit", label: "Edit", onSelect: onEdit } : null,
     onDelete
@@ -138,19 +138,19 @@ export function AccountCard({
           {formatCurrency(container.balance, container.currency)}
         </p>
 
-        {onScanPay ? (
+        {onScanReceipt ? (
           <button
             type="button"
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              onScanPay();
+              onScanReceipt();
             }}
-            title="Scan & Pay"
-            aria-label={`Scan & Pay from ${container.name}`}
+            title="Scan receipt"
+            aria-label={`Scan receipt for ${container.name}`}
             className="inline-flex size-8 shrink-0 items-center justify-center rounded-[8px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] ds-focus"
           >
-            <QrCode size={16} />
+            <ScanLine size={16} />
           </button>
         ) : null}
 

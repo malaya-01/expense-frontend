@@ -403,7 +403,7 @@ function QuickActions() {
         {canCreateTx ? (
           <button
             type="button"
-            onClick={openTransactionModal}
+            onClick={() => openTransactionModal()}
             className="flex items-center gap-2 rounded-[12px] bg-[var(--ds-background-elevated)] p-3 text-left transition-colors hover:bg-[var(--ds-gray-100)] ds-focus"
           >
             <PlusCircle size={15} className="text-[var(--ds-focus-color)]" />

@@ -10,6 +10,7 @@ import type {
   AiMemory,
   AiAttachment,
   AiDocument,
+  ReceiptParseResult,
 } from "@/types";
 
 export async function getAiSettings(): Promise<AiSettings> {
@@ -413,4 +414,13 @@ export async function bulkDecideAiProposals(payload: {
 }> {
   const res = await api.post("/ai/proposals/bulk", payload);
   return unwrap(res);
+}
+
+export async function parseReceipt(payload: {
+  name: string;
+  mime_type: string;
+  data_base64: string;
+}): Promise<ReceiptParseResult> {
+  const res = await api.post("/ai/receipts/parse", payload);
+  return unwrap<ReceiptParseResult>(res);
 }

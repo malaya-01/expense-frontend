@@ -15,6 +15,7 @@ import {
   CirclePlus,
   Command,
   Moon,
+  ReceiptText,
   Search,
   Settings,
   Target,
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 import { PRIMARY_NAV, SECONDARY_NAV } from "./app-sidebar";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
+import { useReceiptCapture } from "@/components/receipts/receipt-capture-provider";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -100,6 +102,7 @@ export function CommandPalette() {
   const router = useRouter();
   const { openTransactionModal, openEditTransactionModal } =
     useTransactionModal();
+  const { startReceiptCapture } = useReceiptCapture();
   const dispatch = useAppDispatch();
   const { user } = useAuth();
   const open = useAppSelector((state) => state.ui.commandPaletteOpen);
@@ -290,6 +293,14 @@ export function CommandPalette() {
         icon: CirclePlus,
         run: openTransactionModal,
       });
+      commands.push({
+        id: "scan-receipt",
+        title: "Scan receipt",
+        subtitle: "Extract a bill or UPI screenshot into the create form",
+        keywords: "scan receipt ocr gpay phonepe bill invoice photo",
+        icon: ReceiptText,
+        run: () => startReceiptCapture(),
+      });
     }
     if (canCreateSpace) {
       commands.push({
@@ -343,6 +354,7 @@ export function CommandPalette() {
     canCreateTx,
     canSpaces,
     openTransactionModal,
+    startReceiptCapture,
     recordItems,
     router,
     user,

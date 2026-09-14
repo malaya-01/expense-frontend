@@ -152,6 +152,30 @@ export type CreateTransactionInput = {
   paid_at?: string;
 };
 
+export type ReceiptExtractedFields = {
+  merchant: string | null;
+  description: string | null;
+  amount: number | null;
+  currency: string | null;
+  date: string | null;
+  payment_method: string | null;
+  upi_vpa: string | null;
+  upi_txn_id: string | null;
+  notes: string | null;
+  category_name: string | null;
+};
+
+export type ReceiptParseResult = {
+  ok: boolean;
+  stored: false;
+  warning?: string;
+  used_provider: string | null;
+  used_model: string | null;
+  category_id: string | null;
+  category_name: string | null;
+  extracted: ReceiptExtractedFields;
+};
+
 export type CreateCategoryInput = {
   name: string;
   description?: string;

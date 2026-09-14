@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Search, ScanLine, SlidersHorizontal, X } from "lucide-react";
 import { EmptyState } from "@/components/ui/page-header";
 import { ModuleHeader } from "@/components/ui/module-header";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
   TRANSACTION_CREATED_EVENT,
   useTransactionModal,
 } from "@/components/expenses/transaction-modal-provider";
+import { useReceiptCapture } from "@/components/receipts/receipt-capture-provider";
 import {
   deleteTransaction,
   listTransactions,
@@ -29,6 +30,7 @@ import { useModulePermissions } from "@/components/permissions/permission-gate";
 export default function ExpensesPage() {
   const { openTransactionModal, openEditTransactionModal } =
     useTransactionModal();
+  const { startReceiptCapture } = useReceiptCapture();
   const { user } = useAuth();
   const perms = useModulePermissions("expenses");
   const { showToast } = useToast();
@@ -134,9 +136,16 @@ export default function ExpensesPage() {
         description={`${filtered.length} shown · ${formatCurrency(inflow, baseCurrency)} in · ${formatCurrency(outflow, baseCurrency)} out · ${baseCurrency}`}
         actions={
           perms.create ? (
-            <Button onClick={openTransactionModal} className="shrink-0">
-              New transaction
-            </Button>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => startReceiptCapture()}
+              >
+                <ScanLine size={14} />
+                Scan receipt
+              </Button>
+              <Button onClick={() => openTransactionModal()}>New transaction</Button>
+            </div>
           ) : null
         }
       />
@@ -269,7 +278,7 @@ export default function ExpensesPage() {
               hasFilters
                 ? clearFilters
                 : perms.create
-                  ? openTransactionModal
+                  ? () => openTransactionModal()
                   : undefined
             }
           />

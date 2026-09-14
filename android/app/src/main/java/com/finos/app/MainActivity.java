@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(UpiIntentPlugin.class);
+        registerPlugin(ShareReceiptPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

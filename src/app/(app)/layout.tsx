@@ -6,7 +6,7 @@ import { AppSidebar, MobileNav } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { TransactionModalProvider } from "@/components/expenses/transaction-modal-provider";
-import { ScanPayProvider } from "@/components/payments/scan-pay-provider";
+import { ReceiptCaptureProvider } from "@/components/receipts/receipt-capture-provider";
 import { useAuth } from "@/lib/auth-context";
 import { getAccessToken } from "@/lib/api/client";
 import { fetchMyPermissions } from "@/lib/api/permissions";
@@ -69,7 +69,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <TransactionModalProvider>
-      <ScanPayProvider>
+      <ReceiptCaptureProvider>
         <div className="h-dvh overflow-hidden bg-[var(--ds-background-100)]">
           <AppTopbar />
           <AppSidebar />
@@ -97,7 +97,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <MobileNav />
           <CommandPalette />
         </div>
-      </ScanPayProvider>
+      </ReceiptCaptureProvider>
     </TransactionModalProvider>
   );
 }

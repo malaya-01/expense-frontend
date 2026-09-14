@@ -18,6 +18,10 @@ import { getErrorMessage } from "@/lib/api/client";
 import { getContainerMeta } from "@/lib/accounts/types-meta";
 import { useToast } from "@/components/ui/toast";
 import { convertAmount, getRate } from "@/lib/currency/currency.data";
+import {
+  readLastSourceContainerId,
+  writeLastSourceContainerId,
+} from "@/lib/receipts/last-container";
 import type {
   Category,
   CreateTransactionInput,
@@ -29,6 +33,7 @@ import type {
 type TransactionFormProps = {
   userId: string;
   initial?: LedgerTransaction | null;
+  defaults?: Partial<CreateTransactionInput>;
   mode?: "create" | "edit";
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -43,6 +48,7 @@ function containerLabel(c: FinancialContainer) {
 
 export function TransactionForm({
   initial,
+  defaults,
   mode = "create",
   onSuccess,
   onCancel,
@@ -56,19 +62,28 @@ export function TransactionForm({
   const [containers, setContainers] = useState<FinancialContainer[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState<CreateTransactionInput>({
-    type: initial?.type ?? "expense",
-    amount: initial?.amount ?? 0,
-    description: initial?.description ?? "",
-    date: requireDateOnly(initial?.date, todayISO()),
-    category_id: initial?.category_id ?? "",
-    source_container_id: initial?.source_container_id ?? "",
-    destination_container_id: initial?.destination_container_id ?? "",
-    merchant: initial?.merchant ?? "",
-    currency: initial?.currency ?? "",
-    exchange_rate: initial?.exchange_rate ?? undefined,
-    notes: initial?.notes ?? "",
-  });
+  const [form, setForm] = useState<CreateTransactionInput>(() => ({
+    type: initial?.type ?? defaults?.type ?? "expense",
+    amount: initial?.amount ?? defaults?.amount ?? 0,
+    description: initial?.description ?? defaults?.description ?? "",
+    date: requireDateOnly(initial?.date ?? defaults?.date, todayISO()),
+    category_id: initial?.category_id ?? defaults?.category_id ?? "",
+    source_container_id:
+      initial?.source_container_id ??
+      defaults?.source_container_id ??
+      readLastSourceContainerId(),
+    destination_container_id:
+      initial?.destination_container_id ??
+      defaults?.destination_container_id ??
+      "",
+    merchant: initial?.merchant ?? defaults?.merchant ?? "",
+    currency: initial?.currency ?? defaults?.currency ?? "",
+    exchange_rate: initial?.exchange_rate ?? defaults?.exchange_rate ?? undefined,
+    notes: initial?.notes ?? defaults?.notes ?? "",
+    payment_method: initial?.payment_method ?? defaults?.payment_method ?? "",
+    upi_vpa: initial?.upi_vpa ?? defaults?.upi_vpa ?? "",
+    upi_txn_id: initial?.upi_txn_id ?? defaults?.upi_txn_id ?? "",
+  }));
 
   useEffect(() => {
     listCategories()
@@ -225,12 +240,18 @@ export function TransactionForm({
         source_name: source?.name,
         destination_name: destination?.name,
         category_name: category?.name,
+        payment_method: form.payment_method || undefined,
+        upi_vpa: form.upi_vpa || undefined,
+        upi_txn_id: form.upi_txn_id || undefined,
       };
 
       if (mode === "edit" && initial) {
         await updateTransaction(initial.id, payload);
       } else {
         await createTransaction(payload);
+      }
+      if (form.type === "expense" && form.source_container_id) {
+        writeLastSourceContainerId(form.source_container_id);
       }
       showToast({
         title: mode === "edit" ? "Transaction updated" : "Transaction recorded",
@@ -464,6 +485,29 @@ export function TransactionForm({
           />
         </div>
       </div>
+
+      {form.payment_method || form.upi_txn_id ? (
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-5">
+          <div>
+            <Label htmlFor="payment_method">Payment method</Label>
+            <Input
+              id="payment_method"
+              value={form.payment_method || ""}
+              onChange={(e) => update("payment_method", e.target.value)}
+              placeholder="UPI, card, cash…"
+            />
+          </div>
+          <div>
+            <Label htmlFor="upi_txn_id">UPI / reference ID</Label>
+            <Input
+              id="upi_txn_id"
+              value={form.upi_txn_id || ""}
+              onChange={(e) => update("upi_txn_id", e.target.value)}
+              placeholder="Optional"
+            />
+          </div>
+        </div>
+      ) : null}
 
       <div>
         <Label htmlFor="notes">Notes</Label>

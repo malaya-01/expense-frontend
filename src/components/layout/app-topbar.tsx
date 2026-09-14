@@ -132,7 +132,7 @@ export function AppTopbar() {
         {showTransactionAction ? (
           <button
             type="button"
-            onClick={openTransactionModal}
+            onClick={() => openTransactionModal()}
             className="hidden h-7 items-center gap-1 rounded-[6px] bg-[var(--ds-focus-color)] px-2.5 text-[11px] font-medium text-white hover:brightness-95 sm:flex ds-focus"
           >
             <Plus size={13} />

@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -12,10 +13,17 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { TransactionForm } from "@/components/expenses/transaction-form";
 import { useAuth } from "@/lib/auth-context";
-import type { LedgerTransaction } from "@/types";
+import type { CreateTransactionInput, LedgerTransaction } from "@/types";
+
+export type TransactionDraft = {
+  defaults?: Partial<CreateTransactionInput>;
+  notice?: string;
+  previewUrl?: string;
+  previewName?: string;
+};
 
 type TransactionModalContextValue = {
-  openTransactionModal: () => void;
+  openTransactionModal: (draft?: TransactionDraft) => void;
   openEditTransactionModal: (transaction: LedgerTransaction) => void;
   closeTransactionModal: () => void;
 };
@@ -35,25 +43,48 @@ export function TransactionModalProvider({
   const [formKey, setFormKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<LedgerTransaction | null>(null);
+  const [draft, setDraft] = useState<TransactionDraft | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
 
-  const openTransactionModal = useCallback(() => {
-    setFormKey((key) => key + 1);
-    setBusy(false);
-    setEditing(null);
-    setOpen(true);
+  const releasePreview = useCallback(() => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
   }, []);
 
-  const openEditTransactionModal = useCallback(
-    (transaction: LedgerTransaction) => {
+  const openTransactionModal = useCallback(
+    (next?: TransactionDraft) => {
+      if (previewUrlRef.current && previewUrlRef.current !== next?.previewUrl) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+      previewUrlRef.current = next?.previewUrl || null;
       setFormKey((key) => key + 1);
       setBusy(false);
-      setEditing(transaction);
+      setEditing(null);
+      setDraft(next || null);
       setOpen(true);
     },
     [],
   );
 
-  const closeTransactionModal = useCallback(() => setOpen(false), []);
+  const openEditTransactionModal = useCallback(
+    (transaction: LedgerTransaction) => {
+      releasePreview();
+      setFormKey((key) => key + 1);
+      setBusy(false);
+      setEditing(transaction);
+      setDraft(null);
+      setOpen(true);
+    },
+    [releasePreview],
+  );
+
+  const closeTransactionModal = useCallback(() => {
+    setOpen(false);
+    releasePreview();
+    setDraft(null);
+  }, [releasePreview]);
 
   const value = useMemo(
     () => ({
@@ -70,8 +101,10 @@ export function TransactionModalProvider({
 
   const handleCreated = useCallback(() => {
     setOpen(false);
+    releasePreview();
+    setDraft(null);
     window.dispatchEvent(new Event(TRANSACTION_CREATED_EVENT));
-  }, []);
+  }, [releasePreview]);
 
   return (
     <TransactionModalContext.Provider value={value}>
@@ -79,7 +112,13 @@ export function TransactionModalProvider({
       <Modal
         open={open}
         onClose={closeTransactionModal}
-        title={editing ? "Edit transaction" : "New transaction"}
+        title={
+          editing
+            ? "Edit transaction"
+            : draft?.defaults
+              ? "Review receipt"
+              : "New transaction"
+        }
         className="max-w-3xl"
         footer={
           <>
@@ -100,11 +139,26 @@ export function TransactionModalProvider({
           </>
         }
       >
+        {draft?.previewUrl && !/\.pdf$/i.test(draft.previewName || "") ? (
+          <div className="mb-4 overflow-hidden rounded-[10px] bg-[var(--ds-background-100)]">
+            {/* Local preview only — never uploaded for storage. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={draft.previewUrl}
+              alt={draft.previewName || "Receipt preview"}
+              className="max-h-40 w-full object-contain"
+            />
+          </div>
+        ) : null}
+        {draft?.notice ? (
+          <p className="mb-3 text-sm text-[var(--ds-gray-700)]">{draft.notice}</p>
+        ) : null}
         {user ? (
           <TransactionForm
             key={formKey}
             userId={user.id}
             initial={editing}
+            defaults={draft?.defaults}
             mode={editing ? "edit" : "create"}
             onSuccess={handleCreated}
             onCancel={closeTransactionModal}

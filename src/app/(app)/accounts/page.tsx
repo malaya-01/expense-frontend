@@ -24,7 +24,7 @@ import { AccountFormModal } from "@/components/accounts/account-form-modal";
 import { AccountKpiCard } from "@/components/accounts/account-kpi-card";
 import { AccountsSidebar } from "@/components/accounts/accounts-sidebar";
 import { TRANSACTION_CREATED_EVENT } from "@/components/expenses/transaction-modal-provider";
-import { useScanPay } from "@/components/payments/scan-pay-provider";
+import { useReceiptCapture } from "@/components/receipts/receipt-capture-provider";
 import { summarizeTwin } from "@/lib/accounts/metrics";
 import {
   allocationSlices,
@@ -45,7 +45,7 @@ import {
   CONTAINER_TYPES,
   GROUP_LABELS,
   getContainerMeta,
-  isUpiPayableType,
+  isExpenseSourceType,
 } from "@/lib/accounts/types-meta";
 import { useAuth } from "@/lib/auth-context";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
@@ -80,7 +80,7 @@ export default function AccountsPage() {
   const perms = useModulePermissions("accounts");
   const { user } = useAuth();
   const { showToast } = useToast();
-  const { startScanPay } = useScanPay();
+  const { startReceiptCapture } = useReceiptCapture();
   const [containers, setContainers] = useState<FinancialContainer[]>([]);
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -431,10 +431,12 @@ export default function AccountsPage() {
                         <AccountCard
                           key={container.id}
                           container={container}
-                          onScanPay={
-                            isUpiPayableType(container.type) &&
-                            (container.currency || "").toUpperCase() === "INR"
-                              ? () => startScanPay(container)
+                          onScanReceipt={
+                            isExpenseSourceType(container.type)
+                              ? () =>
+                                  startReceiptCapture({
+                                    source_container_id: container.id,
+                                  })
                               : undefined
                           }
                           onEdit={
