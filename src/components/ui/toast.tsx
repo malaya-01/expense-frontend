@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Check,
   CircleAlert,
@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { formatLockRemaining } from "@/lib/format";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { getAppStore } from "@/lib/store/store-ref";
 import {
@@ -82,7 +83,12 @@ export function ToastViewport() {
               <p className="text-[13px] font-semibold leading-5 tracking-[-0.01em] text-[var(--ds-gray-1000)]">
                 {item.title}
               </p>
-              {item.description ? (
+              {item.lockedUntil ? (
+                <p className="mt-0.5 text-xs leading-[1.55] text-[var(--ds-gray-700)]">
+                  Account temporarily locked.{" "}
+                  <LockRemaining until={item.lockedUntil} />
+                </p>
+              ) : item.description ? (
                 <p className="mt-0.5 text-xs leading-[1.55] text-[var(--ds-gray-700)]">
                   {item.description}
                 </p>
@@ -159,3 +165,12 @@ export const toast = {
   info: (title: string, description?: string) =>
     dispatchToast({ title, description, tone: "info" }),
 };
+
+function LockRemaining({ until }: { until: string }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((n) => n + 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  return <>{formatLockRemaining(until)}</>;
+}

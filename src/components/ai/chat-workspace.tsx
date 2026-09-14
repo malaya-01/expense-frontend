@@ -266,7 +266,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
 
   return (
     <section
-      className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--ds-background-100)]"
+      className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-transparent"
       aria-label="Conversation"
     >
       <div

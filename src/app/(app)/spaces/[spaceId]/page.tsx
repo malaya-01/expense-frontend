@@ -29,11 +29,13 @@ import { Modal } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SummaryKpiCard } from "@/components/ui/summary-kpi-card";
 import { Alert, Badge, Progress } from "@/components/ui/feedback";
+import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/cn";
 import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { APP_NAME } from "@/lib/brand";
 import { useToast } from "@/components/ui/toast";
+import { usePagination } from "@/hooks/use-pagination";
 import { listAccounts } from "@/lib/api/accounts";
 import {
   contributeSpaceGoal,
@@ -707,6 +709,8 @@ function ExpensesPanel({
       .finally(() => setLoading(false));
   }, [data.space.id, data.metrics.total_spent]);
 
+  const pager = usePagination(expenses, { pageSize: 10 });
+
   return (
     <Panel
       title="Shared expenses"
@@ -722,8 +726,9 @@ function ExpensesPanel({
           Loading expenses…
         </p>
       ) : expenses.length ? (
+        <>
         <ul className="space-y-2">
-          {expenses.map((expense) => (
+          {pager.items.map((expense) => (
             <li
               key={expense.id}
               className="rounded-[12px] bg-[var(--ds-background-100)] px-3 py-3 sm:px-4"
@@ -746,6 +751,15 @@ function ExpensesPanel({
             </li>
           ))}
         </ul>
+        <Pagination
+          page={pager.page}
+          pageCount={pager.pageCount}
+          total={pager.total}
+          from={pager.from}
+          to={pager.to}
+          onPageChange={pager.setPage}
+        />
+        </>
       ) : (
         <p className="py-8 text-center text-sm text-[var(--ds-gray-700)]">
           No expenses yet. Split a shared cost to start tracking balances.

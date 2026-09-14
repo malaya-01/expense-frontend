@@ -33,7 +33,7 @@ export default function DocumentationLayout({
 
   if (nativeRedirect) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-[var(--ds-background-100)] px-6 text-center">
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-transparent px-6 text-center">
         <BrandLogo size={28} plated />
         <p className="text-sm font-medium text-[var(--ds-gray-1000)]">
           Opening documentation in your browser…
@@ -55,8 +55,8 @@ export default function DocumentationLayout({
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-[var(--ds-background-100)]">
-      <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] px-3 sm:px-4">
+    <div className="flex h-dvh flex-col overflow-hidden bg-transparent">
+      <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-background-100)] px-3 sm:px-4">
         <Link
           href={DOCUMENTATION_BASE}
           className="flex min-w-0 items-center gap-2 rounded-[7px] px-1 py-1 text-[13px] font-medium text-[var(--ds-gray-1000)] ds-focus"

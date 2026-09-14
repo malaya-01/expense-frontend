@@ -31,6 +31,8 @@ import {
   suggestCategoryIconHeuristic,
   type CategoryIconId,
 } from "@/lib/categories/icons";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import type { Category, CreateCategoryInput } from "@/types";
 
 const COLORS = [
@@ -108,6 +110,10 @@ export default function CategoriesPage() {
     });
   }, [categories, filter, search]);
 
+  const pager = usePagination(visible, {
+    resetKey: `${search}|${filter}`,
+  });
+
   function openCreate() {
     setEditing(null);
     setForm(emptyForm);
@@ -181,20 +187,15 @@ export default function CategoriesPage() {
         description="Track spending envelopes with budgets, progress, and color coding."
         actions={
           <>
-            <label className="flex h-9 min-w-[180px] flex-1 items-center gap-2 rounded-[10px] bg-[var(--ds-background-elevated)] px-3 shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:flex-none">
-              <Search
-                size={14}
-                className="text-[var(--ds-gray-700)]"
-                aria-hidden
-              />
-              <input
+            <div className="min-w-[180px] flex-1 sm:flex-none sm:w-52">
+              <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search categories…"
-                className="w-full bg-transparent text-xs text-[var(--ds-gray-1000)] outline-none placeholder:text-[var(--ds-gray-700)]"
                 aria-label="Search categories"
+                startAdornment={<Search size={14} aria-hidden />}
               />
-            </label>
+            </div>
             <div className="w-[148px] shrink-0">
               <Select
                 value={filter}
@@ -246,8 +247,9 @@ export default function CategoriesPage() {
           </CardBody>
         </Card>
       ) : (
+        <>
         <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
-          {visible.map((category) => (
+          {pager.items.map((category) => (
             <CategoryCard
               key={category.id}
               category={category}
@@ -259,6 +261,15 @@ export default function CategoriesPage() {
             />
           ))}
         </div>
+        <Pagination
+          page={pager.page}
+          pageCount={pager.pageCount}
+          total={pager.total}
+          from={pager.from}
+          to={pager.to}
+          onPageChange={pager.setPage}
+        />
+        </>
       )}
 
       {!loading && categories.length > 0 ? (

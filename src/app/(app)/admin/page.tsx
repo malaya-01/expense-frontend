@@ -7,7 +7,9 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Pagination } from "@/components/ui/pagination";
 import { useAuth } from "@/lib/auth-context";
+import { usePagination } from "@/hooks/use-pagination";
 import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
@@ -104,6 +106,11 @@ export default function AdminPage() {
     if (!canManageUsers) return;
     void loadUsers();
   }, [canManageUsers, loadUsers]);
+
+  const pager = usePagination(users, {
+    pageSize: 12,
+    resetKey: q,
+  });
 
   const loadDetail = useCallback(
     async (userId: string) => {
@@ -267,17 +274,13 @@ export default function AdminPage() {
                 void loadUsers(q);
               }}
             >
-              <div className="relative min-w-0 flex-1">
-                <Search
-                  size={14}
-                  className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--ds-gray-700)]"
-                />
+              <div className="min-w-0 flex-1">
                 <Input
                   id="admin-user-search"
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Search email or name"
-                  className="pl-8"
+                  startAdornment={<Search size={14} aria-hidden />}
                 />
               </div>
               <Button type="submit" size="sm" variant="secondary">
@@ -291,7 +294,8 @@ export default function AdminPage() {
             ) : users.length === 0 ? (
               <p className="text-xs text-[var(--ds-gray-700)]">No users found.</p>
             ) : (
-              users.map((u) => (
+              <>
+              {pager.items.map((u) => (
                 <button
                   key={u.id}
                   type="button"
@@ -311,7 +315,17 @@ export default function AdminPage() {
                     {u.is_admin ? " · super-admin" : ""}
                   </span>
                 </button>
-              ))
+              ))}
+              <Pagination
+                page={pager.page}
+                pageCount={pager.pageCount}
+                total={pager.total}
+                from={pager.from}
+                to={pager.to}
+                onPageChange={pager.setPage}
+                className="mt-3"
+              />
+              </>
             )}
           </CardBody>
         </Card>

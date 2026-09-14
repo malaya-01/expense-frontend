@@ -17,6 +17,13 @@ function preset(
 }
 
 export const PRESET_THEMES: ThemeDefinition[] = [
+  preset("midnight", "Nocturne", "Violet–blue mesh on deep navy", {
+    background100: "#0c0d12",
+    backgroundElevated: "#161821",
+    gray1000: "#f3f4f8",
+    gray900: "#b0b4c4",
+    focusColor: "#8b7cf7",
+  }),
   preset("vercel-light", "Vercel Light", "Default achromatic canvas", {
     background100: "#fafafa",
     backgroundElevated: "#ffffff",
@@ -30,13 +37,6 @@ export const PRESET_THEMES: ThemeDefinition[] = [
     gray1000: "#ededed",
     gray900: "#a1a1a1",
     focusColor: "#3291ff",
-  }),
-  preset("midnight", "Midnight", "Deep blue night mode", {
-    background100: "#0b1220",
-    backgroundElevated: "#111a2e",
-    gray1000: "#e8eefc",
-    gray900: "#9aa8c7",
-    focusColor: "#5b8def",
   }),
   preset("ocean", "Ocean", "Cool teal waters", {
     background100: "#f0f9fb",

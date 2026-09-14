@@ -382,3 +382,14 @@ export function getErrorMessage(error: unknown, fallback = "Something went wrong
   if (error instanceof Error) return error.message;
   return fallback;
 }
+
+export function getLockUntil(error: unknown): string | null {
+  if (!axios.isAxiosError(error)) return null;
+  const data = error.response?.data as
+    | { data?: { lockedUntil?: string } }
+    | undefined;
+  const until = data?.data?.lockedUntil;
+  if (!until) return null;
+  const parsed = new Date(until);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}

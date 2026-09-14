@@ -101,3 +101,19 @@ export function initials(name?: string | null, email?: string): string {
   }
   return (email?.[0] ?? "U").toUpperCase();
 }
+
+export function formatLockRemaining(until: string | Date | number): string {
+  const end = new Date(until).getTime();
+  const totalSeconds = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+  if (totalSeconds <= 0) return "You can try signing in now.";
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const parts: string[] = [];
+  if (minutes > 0) {
+    parts.push(`${minutes} ${minutes === 1 ? "minute" : "minutes"}`);
+  }
+  if (seconds > 0 || minutes === 0) {
+    parts.push(`${seconds} ${seconds === 1 ? "second" : "seconds"}`);
+  }
+  return `Try again in ${parts.join(" ")}.`;
+}

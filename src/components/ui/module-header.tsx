@@ -38,31 +38,23 @@ export function ModuleHeader({
       </div>
       <div className="grid grid-cols-[1fr_auto] gap-2 sm:flex sm:flex-row sm:items-center">
         {onSearchChange ? (
-          <div className="relative min-w-0 sm:w-56 sm:flex-none">
-            <Search
-              size={14}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ds-gray-700)]"
-            />
+          <div className="min-w-0 sm:w-56 sm:flex-none">
             <Input
               value={search || ""}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder={searchPlaceholder}
-              className="pl-8"
               aria-label={searchPlaceholder}
+              startAdornment={<Search size={14} aria-hidden />}
             />
           </div>
         ) : null}
         {onFilterChange && filterOptions?.length ? (
-          <div className="relative min-w-[7.5rem] sm:w-44">
-            <Filter
-              size={14}
-              className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-[var(--ds-gray-700)]"
-            />
+          <div className="min-w-[8.5rem] sm:w-44">
             <Select
               value={filter || filterOptions[0]?.value}
               onChange={(e) => onFilterChange(e.target.value)}
-              className="pl-8"
               aria-label={filterLabel}
+              startAdornment={<Filter size={14} aria-hidden />}
             >
               {filterOptions.map((option) => (
                 <option key={option.value} value={option.value}>

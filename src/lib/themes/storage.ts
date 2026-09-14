@@ -4,7 +4,14 @@ import { DEFAULT_THEME_ID } from "./presets";
 
 export function readActiveThemeId(): string {
   if (typeof window === "undefined") return DEFAULT_THEME_ID;
-  return localStorage.getItem(THEME_STORAGE_KEY) || DEFAULT_THEME_ID;
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  if (!stored || stored === "preset:vercel-light") {
+    if (stored === "preset:vercel-light") {
+      localStorage.setItem(THEME_STORAGE_KEY, DEFAULT_THEME_ID);
+    }
+    return DEFAULT_THEME_ID;
+  }
+  return stored;
 }
 
 export function writeActiveThemeId(id: string) {

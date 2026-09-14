@@ -15,11 +15,13 @@ const TYPE_TONE = {
 
 export function TransactionTable({
   transactions,
+  onOpen,
   onEdit,
   onDelete,
   baseCurrency = "USD",
 }: {
   transactions: LedgerTransaction[];
+  onOpen?: (transaction: LedgerTransaction) => void;
   onEdit?: (transaction: LedgerTransaction) => void;
   onDelete?: (id: string) => void;
   baseCurrency?: string;
@@ -65,10 +67,18 @@ export function TransactionTable({
           return (
             <article
               key={tx.id}
-              className="min-w-0 overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] px-3 py-2.5 ds-border"
+              className={
+                onOpen
+                  ? "min-w-0 cursor-pointer overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] px-3 py-2.5 ds-border"
+                  : "min-w-0 overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] px-3 py-2.5 ds-border"
+              }
             >
               <div className="flex min-w-0 items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => onOpen?.(tx)}
+                  className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-[8px] text-left ds-focus"
+                >
                   <StatusDot
                     tone={TYPE_TONE[tx.type]}
                     className="shrink-0"
@@ -85,8 +95,11 @@ export function TransactionTable({
                       {tx.category_name ? ` · ${tx.category_name}` : ""}
                     </p>
                   </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
+                </button>
+                <div
+                  className="flex shrink-0 items-center gap-1"
+                  onClick={(event) => event.stopPropagation()}
+                >
                   <div className="text-right">
                     <p className="text-[13px] font-semibold tabular-nums">
                       {sign}
@@ -144,7 +157,20 @@ export function TransactionTable({
             return (
               <tr
                 key={tx.id}
-                className="border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_6%,transparent)] last:border-b-0 hover:bg-[color-mix(in_srgb,var(--ds-focus-color)_4%,transparent)]"
+                onClick={() => onOpen?.(tx)}
+                onKeyDown={(event) => {
+                  if (!onOpen) return;
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onOpen(tx);
+                  }
+                }}
+                tabIndex={onOpen ? 0 : undefined}
+                className={
+                  onOpen
+                    ? "cursor-pointer border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_6%,transparent)] last:border-b-0 hover:bg-[color-mix(in_srgb,var(--ds-focus-color)_4%,transparent)]"
+                    : "border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_6%,transparent)] last:border-b-0 hover:bg-[color-mix(in_srgb,var(--ds-focus-color)_4%,transparent)]"
+                }
               >
                 <td className="px-5 py-3.5">
                   <div className="flex items-center gap-2.5">
@@ -180,7 +206,10 @@ export function TransactionTable({
                     </div>
                   ) : null}
                 </td>
-                <td className="px-5 py-3.5 text-right">
+                <td
+                  className="px-5 py-3.5 text-right"
+                  onClick={(event) => event.stopPropagation()}
+                >
                   <div className="inline-flex justify-end">
                     {menuItems(tx).length ? (
                       <ActionMenu

@@ -70,7 +70,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <TransactionModalProvider>
       <ReceiptCaptureProvider>
-        <div className="h-dvh overflow-hidden bg-[var(--ds-background-100)]">
+        <div className="h-dvh overflow-hidden bg-transparent">
           <AppTopbar />
           <AppSidebar />
           <main
@@ -97,7 +97,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <MobileNav />
           <CommandPalette />
         </div>
-      </ReceiptCaptureProvider>
-    </TransactionModalProvider>
+        </ReceiptCaptureProvider>
+      </TransactionModalProvider>
   );
 }

@@ -16,20 +16,17 @@ export function VisionSourceBadge({
   const source = describeVisionSource(provider, model);
   if (!source) return null;
   return (
-    <p
-      className={cn(
-        "flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--ds-gray-700)]",
-        className || "mb-3",
-      )}
-    >
-      <Sparkles size={13} className="shrink-0 text-[var(--ds-gray-900)]" />
-      <span>Vision</span>
-      <span className="rounded-[6px] bg-[var(--ds-gray-100)] px-1.5 py-0.5 font-medium text-[var(--ds-gray-1000)]">
+    <div className={cn("mb-3 flex flex-wrap items-center gap-1.5", className)}>
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--ds-focus-color)_12%,transparent)] px-2.5 py-1 text-[11px] font-medium text-[var(--ds-focus-color)]">
+        <Sparkles size={12} />
+        Vision
+      </span>
+      <span className="rounded-full bg-[var(--ds-gray-100)] px-2.5 py-1 text-[11px] font-medium text-[var(--ds-gray-1000)]">
         {source.provider}
       </span>
-      <span className="font-mono text-[11px] text-[var(--ds-gray-900)]">
+      <span className="rounded-full bg-[var(--ds-background-100)] px-2.5 py-1 font-mono text-[11px] text-[var(--ds-gray-700)]">
         {source.model}
       </span>
-    </p>
+    </div>
   );
 }

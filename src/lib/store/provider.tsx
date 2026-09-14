@@ -60,15 +60,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   if (!storeRef.current) {
     storeRef.current = makeStore();
     setAppStore(storeRef.current);
-    if (typeof window !== "undefined") {
-      bootstrapAppState(storeRef.current.dispatch);
-    }
   }
 
   useEffect(() => {
     const store = storeRef.current;
     if (!store) return;
     let cancelled = false;
+    // After hydration only — reading localStorage during render mismatches SSR.
+    bootstrapAppState(store.dispatch);
 
     void (async () => {
       await markNativeAppChrome();

@@ -51,11 +51,11 @@ export function CategoryIconPickerPanel({
         Choose an icon for this category
       </p>
 
-      <div className="relative">
+      <label className="flex h-9 items-center gap-2 rounded-[8px] bg-[var(--ds-background-100)] px-2.5">
         <Search
           size={14}
           aria-hidden
-          className="pointer-events-none absolute left-2.5 top-1/2 z-[1] -translate-y-1/2 text-[var(--ds-gray-700)]"
+          className="shrink-0 text-[var(--ds-gray-700)]"
         />
         <input
           ref={searchRef}
@@ -63,7 +63,6 @@ export function CategoryIconPickerPanel({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
-            // Keep modal Escape/Tab handlers from fighting the field.
             event.stopPropagation();
           }}
           placeholder="Search icons…"
@@ -71,13 +70,9 @@ export function CategoryIconPickerPanel({
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
-          className={cn(
-            "h-9 w-full rounded-[8px] bg-[var(--ds-background-100)] py-2 pl-8 pr-2.5 text-xs text-[var(--ds-gray-1000)]",
-            "outline-none placeholder:text-[var(--ds-gray-700)]",
-            "focus:outline focus:outline-2 focus:outline-[var(--ds-focus-input)]",
-          )}
+          className="min-w-0 flex-1 bg-transparent text-xs text-[var(--ds-gray-1000)] outline-none placeholder:text-[var(--ds-gray-700)]"
         />
-      </div>
+      </label>
 
       <div className="grid max-h-48 grid-cols-6 gap-1 overflow-y-auto sm:grid-cols-7">
         {icons.map((id) => {

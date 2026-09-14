@@ -110,7 +110,7 @@ export function AiAdvisorWorkspace() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[var(--ds-background-100)]">
+    <div className="flex h-full min-h-0 flex-col bg-transparent">
       <div className="flex h-10 items-center gap-3 px-3 md:hidden">
         <button
           type="button"

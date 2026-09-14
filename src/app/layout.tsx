@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { StoreProvider } from "@/lib/store/provider";
+import { GlobalLoaderProvider } from "@/components/brand/global-loader";
 import { ToastViewport } from "@/components/ui/toast";
 import { ExitConfirmHost } from "@/components/native/exit-confirm-host";
 import { ThemeFavicon } from "@/components/brand/theme-favicon";
@@ -33,6 +34,8 @@ export default function RootLayout({
     <html
       lang="en"
       data-scroll-behavior="smooth"
+      data-theme="preset:midnight"
+      data-theme-scheme="dark"
       className="h-full antialiased"
       suppressHydrationWarning
     >
@@ -47,21 +50,23 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
-        <Script
-          id="theme-bootstrap"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{ __html: getThemeBootstrapScript() }}
-        />
       </head>
       <body
         className="min-h-full font-sans text-[var(--ds-gray-1000)]"
         suppressHydrationWarning
       >
+        <Script
+          id="theme-bootstrap"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: getThemeBootstrapScript() }}
+        />
         <StoreProvider>
-          <ThemeFavicon />
-          {children}
-          <ToastViewport />
-          <ExitConfirmHost />
+          <GlobalLoaderProvider>
+            <ThemeFavicon />
+            {children}
+            <ToastViewport />
+            <ExitConfirmHost />
+          </GlobalLoaderProvider>
         </StoreProvider>
       </body>
     </html>

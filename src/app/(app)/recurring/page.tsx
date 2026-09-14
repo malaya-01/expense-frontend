@@ -20,9 +20,11 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, CardGridSkeleton } from "@/components/ui/feedback";
+import { Pagination } from "@/components/ui/pagination";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
+import { usePagination } from "@/hooks/use-pagination";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { listAccounts } from "@/lib/api/accounts";
 import { listCategories } from "@/lib/api/categories";
@@ -139,6 +141,10 @@ export default function RecurringPage() {
       return matchesStatus && matchesSearch;
     });
   }, [schedules, search, statusFilter]);
+
+  const pager = usePagination(visible, {
+    resetKey: `${search}|${statusFilter}`,
+  });
 
   async function create(event: FormEvent) {
     event.preventDefault();
@@ -295,8 +301,9 @@ export default function RecurringPage() {
           </p>
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
-          {visible.map((schedule) => (
+          {pager.items.map((schedule) => (
             <RecurringCard
               key={schedule.id}
               schedule={schedule}
@@ -316,6 +323,15 @@ export default function RecurringPage() {
             />
           ))}
         </div>
+        <Pagination
+          page={pager.page}
+          pageCount={pager.pageCount}
+          total={pager.total}
+          from={pager.from}
+          to={pager.to}
+          onPageChange={pager.setPage}
+        />
+        </>
       )}
 
       <Modal

@@ -15,11 +15,13 @@ import { Modal } from "@/components/ui/modal";
 import { ModuleHeader } from "@/components/ui/module-header";
 import { SummaryKpiCard } from "@/components/ui/summary-kpi-card";
 import { CardGridSkeleton } from "@/components/ui/feedback";
+import { Pagination } from "@/components/ui/pagination";
 import { SpaceCard } from "@/components/spaces/space-card";
 import { createSpace, listSpaces, type CollaborativeSpace } from "@/lib/api/spaces";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
+import { usePagination } from "@/hooks/use-pagination";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 
 export default function SpacesIndexPage() {
@@ -83,6 +85,10 @@ export default function SpacesIndexPage() {
       );
     });
   }, [spaces, search, filter]);
+
+  const pager = usePagination(visible, {
+    resetKey: `${search}|${filter}`,
+  });
 
   async function onCreate(e?: FormEvent) {
     e?.preventDefault();
@@ -194,11 +200,21 @@ export default function SpacesIndexPage() {
           </p>
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
-          {visible.map((space) => (
+          {pager.items.map((space) => (
             <SpaceCard key={space.id} space={space} />
           ))}
         </div>
+        <Pagination
+          page={pager.page}
+          pageCount={pager.pageCount}
+          total={pager.total}
+          from={pager.from}
+          to={pager.to}
+          onPageChange={pager.setPage}
+        />
+        </>
       )}
 
       <Modal

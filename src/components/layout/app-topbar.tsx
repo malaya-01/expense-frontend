@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeftRight,
@@ -59,6 +59,7 @@ export function AppTopbar() {
   const { user } = useAuth();
   const pathname = usePathname();
   const dispatch = useAppDispatch();
+  const [mounted, setMounted] = useState(false);
   const sidebarPinned = useAppSelector((state) => state.ui.sidebarPinned);
   const page = useMemo(
     () =>
@@ -69,8 +70,12 @@ export function AppTopbar() {
       },
     [pathname],
   );
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const PageIcon = page.icon;
   const showTransactionAction =
+    mounted &&
     (pathname === "/dashboard" || pathname === "/expenses") &&
     canCrud(user, "expenses", "create");
 

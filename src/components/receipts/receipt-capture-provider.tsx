@@ -10,9 +10,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Camera, ImageUp, ReceiptText } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Camera, ImageUp, Sparkles } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
+import { useGlobalLoader } from "@/components/brand/global-loader";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { parseReceipt } from "@/lib/api/ai";
 import { listAccounts } from "@/lib/api/accounts";
@@ -55,10 +55,10 @@ function base64ToFile(payload: SharedReceiptPayload): File | null {
 
 export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
   const { openTransactionModal } = useTransactionModal();
+  const { show: showGlobalLoader } = useGlobalLoader();
   const { showToast } = useToast();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [busyLabel, setBusyLabel] = useState("Reading receipt…");
   const sourceRef = useRef<string>("");
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -67,12 +67,11 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
   const ingestFile = useCallback(
     async (file: File, sourceContainerId?: string) => {
       setBusy(true);
-      setBusyLabel("Preparing receipt…");
+      showGlobalLoader("Reading receipt");
       let previewUrl = "";
       try {
         const payload = await fileToReceiptPayload(file);
         previewUrl = payload.preview_url;
-        setBusyLabel("Asking Groq vision, then Gemini if needed…");
         let parsed: ReceiptParseResult | null = null;
         let notice =
           "Review the fields before saving. The receipt image is not stored.";
@@ -136,10 +135,11 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
         });
       } finally {
         setBusy(false);
+        showGlobalLoader(null);
         setPickerOpen(false);
       }
     },
-    [openTransactionModal, showToast],
+    [openTransactionModal, showGlobalLoader, showToast],
   );
 
   const startReceiptCapture = useCallback((options?: ReceiptCaptureOptions) => {
@@ -225,45 +225,51 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
         open={pickerOpen && !busy}
         onClose={() => setPickerOpen(false)}
         title="Scan receipt"
-        className="max-w-md"
+        className="max-w-lg"
       >
-        <p className="text-sm text-[var(--ds-gray-700)]">
-          Pay in GPay, PhonePe, or anywhere else, then share or photograph the
-          receipt. Opal fills the form — you review and save. Images are not
-          stored until you set up cloud storage.
-        </p>
-        <div className="mt-4 grid gap-2">
-          <Button
+        <div className="overflow-hidden rounded-[18px] bg-[var(--ds-background-100)] p-4 sm:p-5">
+          <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--ds-gray-700)]">
+            <Sparkles size={13} className="text-[var(--ds-focus-color)]" />
+            Capture
+          </div>
+          <p className="mt-2 text-sm leading-6 text-[var(--ds-gray-900)]">
+            Pay in GPay, PhonePe, or anywhere else, then photograph the receipt.
+            Opal reads it with vision — you review and save. The image is not
+            stored.
+          </p>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <button
             type="button"
             onClick={() => cameraInputRef.current?.click()}
+            className="group rounded-[18px] bg-[var(--ds-background-100)] p-4 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--ds-focus-color)_8%,var(--ds-background-100))] ds-focus"
           >
-            <Camera size={15} />
-            Take photo
-          </Button>
-          <Button
+            <span className="flex size-11 items-center justify-center rounded-[14px] bg-[color-mix(in_srgb,var(--ds-focus-color)_14%,transparent)] text-[var(--ds-focus-color)]">
+              <Camera size={20} strokeWidth={1.7} />
+            </span>
+            <span className="mt-3 block text-[14px] font-semibold text-[var(--ds-gray-1000)]">
+              Take photo
+            </span>
+            <span className="mt-1 block text-[12px] leading-5 text-[var(--ds-gray-700)]">
+              Use the camera for a live bill or UPI screen.
+            </span>
+          </button>
+          <button
             type="button"
-            variant="secondary"
             onClick={() => galleryInputRef.current?.click()}
+            className="rounded-[18px] bg-[var(--ds-background-100)] p-4 text-left transition-colors hover:bg-[var(--ds-gray-100)] ds-focus"
           >
-            <ImageUp size={15} />
-            Choose from gallery
-          </Button>
+            <span className="flex size-11 items-center justify-center rounded-[14px] bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)]">
+              <ImageUp size={20} strokeWidth={1.7} />
+            </span>
+            <span className="mt-3 block text-[14px] font-semibold text-[var(--ds-gray-1000)]">
+              Choose from gallery
+            </span>
+            <span className="mt-1 block text-[12px] leading-5 text-[var(--ds-gray-700)]">
+              Screenshots, PDFs, and saved payment receipts.
+            </span>
+          </button>
         </div>
-      </Modal>
-      <Modal
-        open={busy}
-        onClose={() => undefined}
-        title="Reading receipt"
-        className="max-w-sm"
-      >
-        <div className="flex items-center gap-3 text-sm text-[var(--ds-gray-900)]">
-          <ReceiptText size={18} className="shrink-0 animate-pulse" />
-          <p>{busyLabel}</p>
-        </div>
-        <p className="mt-2 text-xs text-[var(--ds-gray-700)]">
-          Groq first, then Gemini if Groq cannot read it. The model used appears
-          on the review form. Nothing is saved until you confirm.
-        </p>
       </Modal>
     </ReceiptCaptureContext.Provider>
   );

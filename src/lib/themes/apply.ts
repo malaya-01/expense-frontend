@@ -45,6 +45,7 @@ export function applyThemeTokens(tokens: ThemeTokens, root: HTMLElement = docume
   const ring = tokens.background200;
   const linkColor = tokens.linkColor || tokens.focusColor;
   const linkHover = tokens.linkHover || linkColor;
+  const scheme = luminance(tokens.background100) < 0.45 ? "dark" : "light";
 
   root.style.setProperty("--ds-background-100", tokens.background100);
   root.style.setProperty("--ds-background-200", tokens.background200);
@@ -85,6 +86,10 @@ export function applyThemeTokens(tokens: ThemeTokens, root: HTMLElement = docume
     "--ds-selection-bg",
     selectionColor(tokens.focusColor, tokens.selectionAlpha),
   );
+  root.style.removeProperty("--ds-mesh-a");
+  root.style.removeProperty("--ds-mesh-b");
+  root.style.removeProperty("--ds-mesh-spot");
+  root.style.setProperty("--ds-mesh-strength", scheme === "dark" ? "0.48" : "0.16");
 }
 
 export function themeScheme(tokens: ThemeTokens): "dark" | "light" {

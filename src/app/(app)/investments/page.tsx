@@ -28,6 +28,8 @@ import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
 import { CardGridSkeleton } from "@/components/ui/feedback";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { ASSET_TYPES, assetTypeLabel } from "@/lib/investments/meta";
 import type {
   CreateInvestmentInput,
@@ -116,6 +118,10 @@ export default function InvestmentsPage() {
       );
     });
   }, [holdings, search, assetFilter]);
+
+  const pager = usePagination(visible, {
+    resetKey: `${search}|${assetFilter}`,
+  });
 
   function openCreate() {
     setEditing(null);
@@ -264,8 +270,9 @@ export default function InvestmentsPage() {
           </p>
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
-          {visible.map((h) => (
+          {pager.items.map((h) => (
             <HoldingCard
               key={h.id}
               holding={h}
@@ -281,6 +288,15 @@ export default function InvestmentsPage() {
             />
           ))}
         </div>
+        <Pagination
+          page={pager.page}
+          pageCount={pager.pageCount}
+          total={pager.total}
+          from={pager.from}
+          to={pager.to}
+          onPageChange={pager.setPage}
+        />
+        </>
       )}
 
       <HoldingFormModal

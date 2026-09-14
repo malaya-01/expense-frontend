@@ -31,6 +31,8 @@ import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
 import { CardGridSkeleton } from "@/components/ui/feedback";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import type {
   CreateGoalInput,
   FinancialContainer,
@@ -104,6 +106,10 @@ export default function GoalsPage() {
       );
     });
   }, [goals, search, statusFilter]);
+
+  const pager = usePagination(visible, {
+    resetKey: `${search}|${statusFilter}`,
+  });
 
   function openCreate() {
     setEditing(null);
@@ -250,8 +256,9 @@ export default function GoalsPage() {
           </p>
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
-          {visible.map((g) => (
+          {pager.items.map((g) => (
             <GoalCard
               key={g.id}
               goal={g}
@@ -270,6 +277,15 @@ export default function GoalsPage() {
             />
           ))}
         </div>
+        <Pagination
+          page={pager.page}
+          pageCount={pager.pageCount}
+          total={pager.total}
+          from={pager.from}
+          to={pager.to}
+          onPageChange={pager.setPage}
+        />
+        </>
       )}
 
       <GoalFormModal

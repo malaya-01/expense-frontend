@@ -48,6 +48,8 @@ import {
   isExpenseSourceType,
 } from "@/lib/accounts/types-meta";
 import { useAuth } from "@/lib/auth-context";
+import { usePagination } from "@/hooks/use-pagination";
+import { Pagination } from "@/components/ui/pagination";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
@@ -156,9 +158,14 @@ export default function AccountsPage() {
     });
   }, [containers, search, groupFilter]);
 
+  const pager = usePagination(filtered, {
+    pageSize: 10,
+    resetKey: `${search}|${groupFilter}`,
+  });
+
   const grouped = useMemo(() => {
     const map = new Map<string, FinancialContainer[]>();
-    for (const c of filtered) {
+    for (const c of pager.items) {
       const group = getContainerMeta(c.type).group;
       const list = map.get(group) || [];
       list.push(c);
@@ -174,7 +181,7 @@ export default function AccountsPage() {
         total: groupSectionTotal(map.get(group) || [], baseCurrency),
       }))
       .filter((g) => g.items.length > 0);
-  }, [filtered, baseCurrency]);
+  }, [pager.items, baseCurrency]);
 
   const liquidCount = containers.filter((c) =>
     ["cash", "wallet", "bank"].includes(c.type),
@@ -243,29 +250,21 @@ export default function AccountsPage() {
           </p>
         </div>
         <div className="grid grid-cols-[1fr_auto] gap-2 sm:flex sm:flex-row sm:items-center">
-          <div className="relative min-w-0 sm:w-56 sm:flex-none">
-            <Search
-              size={14}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ds-gray-700)]"
-            />
+          <div className="min-w-0 sm:w-56 sm:flex-none">
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search accounts..."
-              className="pl-8"
               aria-label="Search accounts"
+              startAdornment={<Search size={14} aria-hidden />}
             />
           </div>
-          <div className="relative min-w-[7.5rem] sm:w-44">
-            <Filter
-              size={14}
-              className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-[var(--ds-gray-700)]"
-            />
+          <div className="min-w-[8.5rem] sm:w-44">
             <Select
               value={groupFilter}
               onChange={(e) => setGroupFilter(e.target.value as GroupFilter)}
-              className="pl-8"
               aria-label="Filter accounts"
+              startAdornment={<Filter size={14} aria-hidden />}
             >
               <option value="all">All accounts</option>
               <option value="liquid">Cash & banks</option>
@@ -479,6 +478,14 @@ export default function AccountsPage() {
                 />
               </button>
               ) : null}
+              <Pagination
+                page={pager.page}
+                pageCount={pager.pageCount}
+                total={pager.total}
+                from={pager.from}
+                to={pager.to}
+                onPageChange={pager.setPage}
+              />
             </div>
           )}
         </div>

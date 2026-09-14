@@ -4,26 +4,26 @@
   --font-app-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-geist-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Core surfaces */
-  --ds-background-100: #fafafa;
-  --ds-background-200: #f2f2f2;
-  --ds-background-elevated: #ffffff;
-  --ds-gray-100: #ebebeb;
+  /* Core surfaces — Nocturne (receipt navy) */
+  --ds-background-100: #0c0d12;
+  --ds-background-200: #161821;
+  --ds-background-elevated: #161821;
+  --ds-gray-100: #1e2030;
   --ds-gray-200: color-mix(in srgb, var(--ds-gray-1000) 10%, var(--ds-background-elevated));
 
   /* Text */
-  --ds-gray-1000: #171717;
-  --ds-gray-900: #4d4d4d;
-  --ds-gray-700: #8f8f8f;
+  --ds-gray-1000: #f3f4f8;
+  --ds-gray-900: #b0b4c4;
+  --ds-gray-700: #8b90a4;
 
   /* Interactive */
-  --ds-focus-color: #0072f5;
-  --ds-link-color: #0072f5;
-  --ds-link-hover: #005fcc;
-  --ds-focus-input: #005fcc;
+  --ds-focus-color: #8b7cf7;
+  --ds-link-color: #a78bfa;
+  --ds-link-hover: #c4b5fd;
+  --ds-focus-input: #7c3aed;
 
-  --brand-logo-plated: url("/brand/themes/vercel-light.png?v=4");
-  --brand-logo-mark: url("/brand/logo-mark-on-light.png?v=4");
+  --brand-logo-plated: url("/brand/themes/midnight.png?v=4");
+  --brand-logo-mark: url("/brand/logo-mark-on-dark.png?v=4");
 
   /* Opal financial meaning colors */
   --opal-success: #16a34a;
@@ -57,22 +57,22 @@
   --ds-status-purple-light: #a78bfa;
 
   /* Shadows — border technique */
-  --ds-shadow-border-base: 0 0 0 1px rgba(0, 0, 0, 0.08);
-  --ds-shadow-border: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--ds-background-200);
-  --ds-shadow-border-small: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 2px 2px rgba(0, 0, 0, 0.04);
-  --ds-shadow-border-medium: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 2px 2px rgba(0, 0, 0, 0.04),
-    0 8px 8px -8px rgba(0, 0, 0, 0.04);
-  --ds-shadow-menu: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 1px 1px rgba(0, 0, 0, 0.02),
-    0 4px 8px -4px rgba(0, 0, 0, 0.04), 0 16px 24px -8px rgba(0, 0, 0, 0.06);
-  --ds-shadow-modal: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 1px 1px rgba(0, 0, 0, 0.02),
-    0 8px 16px -4px rgba(0, 0, 0, 0.04), 0 24px 32px -8px rgba(0, 0, 0, 0.06);
-  --ds-focus-ring-inner: #ffffff;
-  --ds-primary-hover: #000000;
-  --ds-primary-foreground: #ffffff;
-  --ds-danger-hover: #fff5f5;
-  --ds-selection-bg: rgba(0, 114, 245, 0.15);
+  --ds-shadow-border-base: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  --ds-shadow-border: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--ds-background-200);
+  --ds-shadow-border-small: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 2px 2px rgba(0, 0, 0, 0.18);
+  --ds-shadow-border-medium: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 2px 2px rgba(0, 0, 0, 0.18),
+    0 8px 8px -8px rgba(0, 0, 0, 0.18);
+  --ds-shadow-menu: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 1px 1px rgba(0, 0, 0, 0.12),
+    0 4px 8px -4px rgba(0, 0, 0, 0.2), 0 16px 24px -8px rgba(0, 0, 0, 0.28);
+  --ds-shadow-modal: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 1px 1px rgba(0, 0, 0, 0.12),
+    0 8px 16px -4px rgba(0, 0, 0, 0.2), 0 24px 32px -8px rgba(0, 0, 0, 0.28);
+  --ds-focus-ring-inner: #161821;
+  --ds-primary-hover: #d7d9e4;
+  --ds-primary-foreground: #0c0d12;
+  --ds-danger-hover: rgba(229, 72, 77, 0.12);
+  --ds-selection-bg: rgba(139, 124, 247, 0.28);
   --ds-focus-ring: 0 0 0 2px var(--ds-focus-ring-inner), 0 0 0 4px var(--ds-focus-color);
-  --header-border-bottom: 0 1px 0 0 rgba(0, 0, 0, 0.1);
+  --header-border-bottom: 0 1px 0 0 rgba(0, 0, 0, 0.25);
 
   /* Layout */
   --geist-page-width: 1200px;
@@ -81,6 +81,12 @@
   --header-height: 64px;
   --sidebar-width: 260px;
   --app-sidebar-offset: 260px;
+
+  /* Global mesh — matches receipt scan / GPay nocturne */
+  --ds-mesh-a: var(--ds-focus-color);
+  --ds-mesh-b: var(--ds-link-color);
+  --ds-mesh-spot: var(--ds-link-hover);
+  --ds-mesh-strength: 0.48;
 
   /* Radius */
   --geist-radius: 6px;
@@ -185,12 +191,49 @@ textarea:disabled {
 html {
   height: 100%;
   scroll-behavior: smooth;
+  background-color: var(--ds-background-100);
+}
+
+html[data-theme-scheme="dark"] {
+  --ds-mesh-strength: 0.46;
 }
 
 body {
   min-height: 100%;
   margin: 0;
-  background: var(--ds-background-100);
+  background-color: var(--ds-background-100);
+  background-image:
+    radial-gradient(
+      120% 80% at 8% -18%,
+      color-mix(in srgb, var(--ds-mesh-a) calc(var(--ds-mesh-strength) * 100%), transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      90% 70% at 100% -10%,
+      color-mix(in srgb, var(--ds-mesh-b) calc(var(--ds-mesh-strength) * 80%), transparent),
+      transparent 52%
+    ),
+    radial-gradient(
+      70% 55% at 92% 108%,
+      color-mix(in srgb, var(--ds-mesh-a) calc(var(--ds-mesh-strength) * 55%), transparent),
+      transparent 58%
+    ),
+    linear-gradient(
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px
+    );
+  background-size:
+    auto,
+    auto,
+    auto,
+    28px 28px,
+    28px 28px;
+  background-attachment: fixed;
   color: var(--ds-gray-1000);
   font-family: var(--font-app-sans), ui-sans-serif, system-ui, sans-serif;
   font-size: 15px;
@@ -199,6 +242,68 @@ body {
   letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
+}
+
+html[data-theme-scheme="light"] body {
+  background-image:
+    radial-gradient(
+      120% 80% at 8% -18%,
+      color-mix(in srgb, var(--ds-mesh-a) 16%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      90% 70% at 100% -10%,
+      color-mix(in srgb, var(--ds-mesh-b) 13%, transparent),
+      transparent 52%
+    ),
+    radial-gradient(
+      70% 55% at 92% 108%,
+      color-mix(in srgb, var(--ds-mesh-a) 10%, transparent),
+      transparent 58%
+    ),
+    linear-gradient(
+      color-mix(in srgb, var(--ds-mesh-a) 6%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--ds-mesh-b) 6%, transparent) 1px,
+      transparent 1px
+    );
+  background-size:
+    auto,
+    auto,
+    auto,
+    28px 28px,
+    28px 28px;
+  background-attachment: fixed;
+}
+
+.modal-wide {
+  width: 100%;
+  max-width: none;
+  height: 94dvh;
+}
+
+@media (min-width: 640px) {
+  .modal-wide {
+    width: min(1280px, calc(100vw - 3rem));
+    max-width: min(1280px, calc(100vw - 3rem));
+    height: min(90dvh, 880px);
+  }
+}
+
+.receipt-lightbox-backdrop {
+  border: 0;
+  background: color-mix(in srgb, #0c0d12 78%, transparent);
+}
+
+.receipt-lightbox-glass {
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, white 10%, transparent);
+  background: #111218;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
 }
 
 .font-heading {
@@ -745,6 +850,214 @@ html.native-app input[type="date"],
 html.native-app input.date-input {
   font-size: 13px;
   min-height: 2.5rem;
+}
+
+.receipt-read-backdrop {
+  background: color-mix(in srgb, var(--ds-background-100) 42%, transparent);
+}
+
+html[data-theme-scheme="light"] .receipt-read-backdrop {
+  background: color-mix(in srgb, black 42%, transparent);
+}
+
+html[data-theme-scheme="dark"] .receipt-read-backdrop {
+  background: color-mix(in srgb, black 58%, transparent);
+}
+
+.receipt-stage {
+  background:
+    radial-gradient(
+      120% 80% at 50% 0%,
+      color-mix(in srgb, var(--ds-mesh-a) 28%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      80% 60% at 100% 100%,
+      color-mix(in srgb, var(--ds-mesh-b) 22%, transparent),
+      transparent 50%
+    ),
+    var(--ds-background-100);
+}
+
+.receipt-stage-grid {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--ds-gray-1000) 8%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--ds-gray-1000) 8%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 22px 22px;
+}
+
+.receipt-read-card {
+  background:
+    radial-gradient(
+      120% 80% at 18% -8%,
+      color-mix(in srgb, var(--ds-focus-color) 46%, transparent),
+      transparent 48%
+    ),
+    radial-gradient(
+      90% 70% at 108% 112%,
+      color-mix(in srgb, var(--ds-link-color) 32%, transparent),
+      transparent 50%
+    ),
+    var(--ds-background-elevated);
+  box-shadow: var(--ds-shadow-modal);
+}
+
+.receipt-read-orb {
+  position: absolute;
+  inset: -40% -20% auto;
+  height: 180px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--ds-focus-color) 32%, transparent),
+    transparent 68%
+  );
+  filter: blur(8px);
+}
+
+.receipt-scan-frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  border-radius: 28px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ds-gray-1000) 8%, transparent),
+    color-mix(in srgb, var(--ds-gray-1000) 2%, transparent)
+  );
+  overflow: hidden;
+}
+
+.receipt-scan-corner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid color-mix(in srgb, var(--ds-gray-1000) 82%, transparent);
+}
+
+.receipt-scan-corner-tl {
+  top: 12px;
+  left: 12px;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 4px 0 0 0;
+}
+
+.receipt-scan-corner-tr {
+  top: 12px;
+  right: 12px;
+  border-left: 0;
+  border-bottom: 0;
+  border-radius: 0 4px 0 0;
+}
+
+.receipt-scan-corner-bl {
+  bottom: 12px;
+  left: 12px;
+  border-right: 0;
+  border-top: 0;
+  border-radius: 0 0 0 4px;
+}
+
+.receipt-scan-corner-br {
+  bottom: 12px;
+  right: 12px;
+  border-left: 0;
+  border-top: 0;
+  border-radius: 0 0 4px 0;
+}
+
+.receipt-scan-beam {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--ds-focus-color),
+    var(--ds-link-color),
+    transparent
+  );
+  box-shadow: 0 0 16px color-mix(in srgb, var(--ds-focus-color) 70%, transparent);
+  animation: receipt-scan-beam 1.6s ease-in-out infinite;
+}
+
+@keyframes receipt-scan-beam {
+  0% {
+    top: 18px;
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    top: 90px;
+    opacity: 0.2;
+  }
+}
+
+.opal-quiet-pulse {
+  animation: opal-quiet-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes opal-quiet-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.opal-page-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  background: var(--ds-background-100);
+}
+
+.opal-page-loader-edge {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 2px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--ds-focus-color) 14%, transparent);
+}
+
+.opal-page-loader-halo {
+  position: absolute;
+  top: -18px;
+  width: 108px;
+  height: 108px;
+  border-radius: 32px;
+  background: color-mix(in srgb, var(--ds-focus-color) 22%, transparent);
+  filter: blur(22px);
+  animation: opal-loader-halo 2.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes opal-loader-halo {
+  0%,
+  100% {
+    opacity: 0.28;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

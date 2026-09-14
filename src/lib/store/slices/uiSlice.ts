@@ -14,6 +14,8 @@ export type ToastInput = {
   description?: string;
   tone?: ToastTone;
   duration?: number;
+  /** Live lockout countdown in the toast body. */
+  lockedUntil?: string;
 };
 
 export type ToastItem = ToastInput & { id: string };

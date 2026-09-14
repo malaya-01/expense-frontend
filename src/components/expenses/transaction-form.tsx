@@ -16,6 +16,7 @@ import {
 } from "@/lib/api/transactions";
 import { formatCurrency, requireDateOnly, todayISO } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
+import { cn } from "@/lib/cn";
 import { getContainerMeta } from "@/lib/accounts/types-meta";
 import { useToast } from "@/components/ui/toast";
 import { convertAmount, getRate } from "@/lib/currency/currency.data";
@@ -28,6 +29,8 @@ import {
 } from "@/lib/receipts/defaults-from-parse";
 import { matchExpenseSource } from "@/lib/receipts/match-container";
 import { VisionSourceBadge } from "@/components/receipts/vision-source-badge";
+import { ReceiptPreviewStage } from "@/components/receipts/receipt-preview-stage";
+import { useGlobalLoader } from "@/components/brand/global-loader";
 import {
   readLastSourceContainerId,
   writeLastSourceContainerId,
@@ -58,7 +61,47 @@ type TransactionFormProps = {
   formId?: string;
   hideActions?: boolean;
   onBusyChange?: (busy: boolean) => void;
+  onReceiptReading?: (label: string | null) => void;
+  reading?: boolean;
+  className?: string;
+  onReceiptAttached?: (payload: {
+    defaults: Partial<CreateTransactionInput>;
+    previewUrl: string;
+    previewName: string;
+    notice?: string;
+    visionProvider?: string | null;
+    visionModel?: string | null;
+    receiptMatch?: {
+      container_name?: string | null;
+      bank_name?: string | null;
+      account_last4?: string | null;
+      account_label?: string | null;
+    };
+  }) => void;
 };
+
+function emptyTransaction(defaults?: Partial<CreateTransactionInput>): CreateTransactionInput {
+  return {
+    type: defaults?.type ?? "expense",
+    amount: defaults?.amount ?? 0,
+    description: defaults?.description ?? "",
+    date: requireDateOnly(defaults?.date, todayISO()),
+    category_id: defaults?.category_id ?? "",
+    source_container_id:
+      defaults?.source_container_id ?? readLastSourceContainerId(),
+    destination_container_id: defaults?.destination_container_id ?? "",
+    merchant: defaults?.merchant ?? "",
+    currency: defaults?.currency ?? "",
+    exchange_rate: defaults?.exchange_rate ?? undefined,
+    notes: defaults?.notes ?? "",
+    payment_method: defaults?.payment_method ?? "",
+    upi_vpa: defaults?.upi_vpa ?? "",
+    upi_txn_id: defaults?.upi_txn_id ?? "",
+    paid_at: defaults?.paid_at ?? "",
+    platform: defaults?.platform ?? "",
+    platform_txn_id: defaults?.platform_txn_id ?? "",
+  };
+}
 
 function containerLabel(c: FinancialContainer) {
   return `${c.name} · ${c.currency} · ${getContainerMeta(c.type).label}`;
@@ -76,38 +119,42 @@ export function TransactionForm({
   formId = "transaction-form",
   hideActions = false,
   onBusyChange,
+  onReceiptReading,
+  reading = false,
+  className,
+  onReceiptAttached,
 }: TransactionFormProps) {
   const router = useRouter();
   const { showToast } = useToast();
+  const { show: showGlobalLoader } = useGlobalLoader();
   const [categories, setCategories] = useState<Category[]>([]);
   const [containers, setContainers] = useState<FinancialContainer[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState<CreateTransactionInput>(() => ({
-    type: initial?.type ?? defaults?.type ?? "expense",
-    amount: initial?.amount ?? defaults?.amount ?? 0,
-    description: initial?.description ?? defaults?.description ?? "",
-    date: requireDateOnly(initial?.date ?? defaults?.date, todayISO()),
-    category_id: initial?.category_id ?? defaults?.category_id ?? "",
-    source_container_id:
-      initial?.source_container_id ??
-      defaults?.source_container_id ??
-      readLastSourceContainerId(),
-    destination_container_id:
-      initial?.destination_container_id ??
-      defaults?.destination_container_id ??
-      "",
-    merchant: initial?.merchant ?? defaults?.merchant ?? "",
-    currency: initial?.currency ?? defaults?.currency ?? "",
-    exchange_rate: initial?.exchange_rate ?? defaults?.exchange_rate ?? undefined,
-    notes: initial?.notes ?? defaults?.notes ?? "",
-    payment_method: initial?.payment_method ?? defaults?.payment_method ?? "",
-    upi_vpa: initial?.upi_vpa ?? defaults?.upi_vpa ?? "",
-    upi_txn_id: initial?.upi_txn_id ?? defaults?.upi_txn_id ?? "",
-    paid_at: initial?.paid_at ?? defaults?.paid_at ?? "",
-    platform: initial?.platform ?? defaults?.platform ?? "",
-    platform_txn_id: initial?.platform_txn_id ?? defaults?.platform_txn_id ?? "",
-  }));
+  const [form, setForm] = useState<CreateTransactionInput>(() =>
+    emptyTransaction({
+      ...defaults,
+      type: initial?.type ?? defaults?.type,
+      amount: initial?.amount ?? defaults?.amount,
+      description: initial?.description ?? defaults?.description,
+      date: initial?.date ?? defaults?.date,
+      category_id: initial?.category_id ?? defaults?.category_id,
+      source_container_id:
+        initial?.source_container_id ?? defaults?.source_container_id,
+      destination_container_id:
+        initial?.destination_container_id ?? defaults?.destination_container_id,
+      merchant: initial?.merchant ?? defaults?.merchant,
+      currency: initial?.currency ?? defaults?.currency,
+      exchange_rate: initial?.exchange_rate ?? defaults?.exchange_rate,
+      notes: initial?.notes ?? defaults?.notes,
+      payment_method: initial?.payment_method ?? defaults?.payment_method,
+      upi_vpa: initial?.upi_vpa ?? defaults?.upi_vpa,
+      upi_txn_id: initial?.upi_txn_id ?? defaults?.upi_txn_id,
+      paid_at: initial?.paid_at ?? defaults?.paid_at,
+      platform: initial?.platform ?? defaults?.platform,
+      platform_txn_id: initial?.platform_txn_id ?? defaults?.platform_txn_id,
+    }),
+  );
   const [time, setTime] = useState(
     () =>
       timeFromPaidAt(initial?.paid_at || defaults?.paid_at) || "",
@@ -124,11 +171,22 @@ export function TransactionForm({
       ),
   );
   const [receiptNotice, setReceiptNotice] = useState("");
+  const [localReading, setLocalReading] = useState<string | null>(null);
   const [visionSource, setVisionSource] = useState<{
     provider: string | null;
     model: string | null;
   } | null>(null);
+  const [localPreview, setLocalPreview] = useState<{
+    url: string;
+    name: string;
+  } | null>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => {
+      if (localPreview?.url) URL.revokeObjectURL(localPreview.url);
+    };
+  }, [localPreview]);
 
   useEffect(() => {
     listCategories()
@@ -337,26 +395,67 @@ export function TransactionForm({
     }
   }
 
+  function reportReading(label: string | null) {
+    setLocalReading(label);
+    onReceiptReading?.(label);
+    showGlobalLoader(label);
+  }
+
   async function onReceiptSelected(file?: File) {
     if (!file) return;
     setError("");
     setVisionSource(null);
-    setReceiptNotice("Asking Groq vision, then Gemini if needed…");
-    onBusyChange?.(true);
+    setReceiptNotice("");
+    reportReading("Reading receipt");
+    let previewUrl = "";
     try {
       const payload = await fileToReceiptPayload(file);
-      const parsed = await parseReceipt({
-        name: payload.name,
-        mime_type: payload.mime_type,
-        data_base64: payload.data_base64,
-      });
+      previewUrl = payload.preview_url;
+      let parsed: Awaited<ReturnType<typeof parseReceipt>> | null = null;
+      let notice =
+        "Receipt fields filled. Review before saving — the image is not stored.";
+      try {
+        parsed = await parseReceipt({
+          name: payload.name,
+          mime_type: payload.mime_type,
+          data_base64: payload.data_base64,
+        });
+        if (parsed.warning) notice = parsed.warning;
+      } catch (err) {
+        notice = getErrorMessage(
+          err,
+          "Could not read this receipt. Fill the form yourself — the image is not stored.",
+        );
+      }
       const next = defaultsFromReceiptParse(
         parsed,
         containers,
         form.source_container_id,
       );
       const nextTime =
-        parsed.extracted?.time || timeFromPaidAt(parsed.extracted?.paid_at);
+        parsed?.extracted?.time || timeFromPaidAt(parsed?.extracted?.paid_at);
+      const merged: Partial<CreateTransactionInput> = {
+        ...form,
+        ...next,
+        source_container_id:
+          next.source_container_id || form.source_container_id,
+        paid_at:
+          localPaidAt(next.date || form.date, nextTime) || form.paid_at,
+      };
+      if (onReceiptAttached) {
+        onReceiptAttached({
+          defaults: merged,
+          previewUrl,
+          previewName: payload.name,
+          notice,
+          visionProvider: parsed?.used_provider,
+          visionModel: parsed?.used_model,
+          receiptMatch: parsed?.extracted,
+        });
+        return;
+      }
+      if (localPreview?.url) URL.revokeObjectURL(localPreview.url);
+      setLocalPreview({ url: previewUrl, name: payload.name });
       setForm((prev) => ({
         ...prev,
         ...next,
@@ -366,25 +465,45 @@ export function TransactionForm({
       if (nextTime) setTime(nextTime);
       setShowReceiptFields(true);
       setVisionSource({
-        provider: parsed.used_provider,
-        model: parsed.used_model,
+        provider: parsed?.used_provider ?? null,
+        model: parsed?.used_model ?? null,
       });
-      setReceiptNotice(
-        parsed.warning ||
-          "Receipt fields filled. Review before saving — the image is not stored.",
-      );
+      setReceiptNotice(notice);
     } catch (err) {
+      if (previewUrl && !onReceiptAttached) {
+        URL.revokeObjectURL(previewUrl);
+      }
       setReceiptNotice("");
       setError(
         getErrorMessage(err, "Could not read this receipt. Fill the form yourself."),
       );
     } finally {
-      onBusyChange?.(false);
+      reportReading(null);
     }
   }
 
   return (
-    <form id={formId} onSubmit={onSubmit} className="w-full space-y-3.5 sm:space-y-5">
+    <form
+      id={formId}
+      onSubmit={onSubmit}
+      className={cn("w-full", className ?? "space-y-3.5 sm:space-y-5")}
+    >
+      {localPreview && !/\.pdf$/i.test(localPreview.name) ? (
+        <ReceiptPreviewStage
+          src={localPreview.url}
+          alt={localPreview.name}
+          onRemove={() => {
+            if (localPreview.url) URL.revokeObjectURL(localPreview.url);
+            setLocalPreview(null);
+            setForm(emptyTransaction());
+            setTime("");
+            setShowReceiptFields(false);
+            setVisionSource(null);
+            setReceiptNotice("");
+            setError("");
+          }}
+        />
+      ) : null}
       {allowReceiptUpload && mode === "create" ? (
         <div>
           <input
@@ -398,21 +517,30 @@ export function TransactionForm({
               void onReceiptSelected(file);
             }}
           />
-          <Button
+          <button
             type="button"
-            variant="secondary"
             onClick={() => receiptInputRef.current?.click()}
+            disabled={Boolean(reading || localReading)}
+            className="flex w-full items-center gap-3 rounded-[12px] border border-dashed border-[color:color-mix(in_srgb,var(--ds-gray-1000)_16%,transparent)] bg-[var(--ds-background-100)] px-3.5 py-3 text-left transition-colors hover:border-[color:color-mix(in_srgb,var(--ds-focus-color)_45%,transparent)] hover:bg-[color-mix(in_srgb,var(--ds-focus-color)_6%,var(--ds-background-100))] ds-focus disabled:pointer-events-none disabled:opacity-60"
           >
-            <ImageUp size={15} />
-            Upload receipt
-          </Button>
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-[var(--ds-background-elevated)] ds-border">
+              <ImageUp size={16} className="text-[var(--ds-focus-color)]" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[13px] font-medium text-[var(--ds-gray-1000)]">
+                Upload receipt
+              </span>
+              <span className="mt-0.5 block text-[12px] leading-4 text-[var(--ds-gray-700)]">
+                Optional GPay or PhonePe screenshot. Nothing is stored until
+                you record.
+              </span>
+            </span>
+          </button>
           {receiptNotice ? (
-            <p className="mt-2 text-xs text-[var(--ds-gray-700)]">{receiptNotice}</p>
-          ) : (
-            <p className="mt-2 text-xs text-[var(--ds-gray-700)]">
-              Optional. Scan a GPay/PhonePe screenshot to fill this form.
+            <p className="mt-2 text-[12px] leading-4 text-[var(--ds-gray-700)]">
+              {receiptNotice}
             </p>
-          )}
+          ) : null}
           {visionSource ? (
             <VisionSourceBadge
               className="mb-0 mt-2"

@@ -10,9 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardBody } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { loginUser } from "@/lib/api/auth";
-import { getErrorMessage, getAccessToken } from "@/lib/api/client";
+import { getErrorMessage, getAccessToken, getLockUntil } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
+import { useGlobalLoader } from "@/components/brand/global-loader";
 import { userIdFromToken } from "@/lib/jwt";
 
 function SignInForm() {
@@ -20,6 +21,7 @@ function SignInForm() {
   const searchParams = useSearchParams();
   const { setSession } = useAuth();
   const { showToast } = useToast();
+  const { show: showPageLoader } = useGlobalLoader();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,6 +46,7 @@ function SignInForm() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
+    showPageLoader("Signing in");
     try {
       const tokens = await loginUser({ email, password });
       const id = tokens.user?.id || userIdFromToken(tokens.accessToken);
@@ -80,13 +83,17 @@ function SignInForm() {
         router.replace(`/check-email?email=${encodeURIComponent(email)}`);
         return;
       }
+      const lockedUntil = getLockUntil(err);
       showToast({
         title: "Sign in failed",
         description: message,
         tone: "error",
+        duration: lockedUntil ? 12_000 : undefined,
+        lockedUntil: lockedUntil ?? undefined,
       });
     } finally {
       setLoading(false);
+      showPageLoader(null);
     }
   }
 
@@ -137,7 +144,7 @@ function SignInForm() {
               />
             </div>
 
-            <Button type="submit" className="w-full" loading={loading}>
+            <Button type="submit" className="w-full" disabled={loading}>
               Continue
             </Button>
           </form>

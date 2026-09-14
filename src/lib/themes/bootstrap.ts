@@ -12,7 +12,12 @@ export function getThemeBootstrapScript(): string {
 
   return `(function(){try{
     var PRESETS=${JSON.stringify(presetPayload)};
-    var activeId=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})||${JSON.stringify(PRESET_THEMES[0].id)};
+    var stored=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});
+    var activeId=stored||${JSON.stringify(PRESET_THEMES[0].id)};
+    if(activeId==="preset:vercel-light"){
+      activeId=${JSON.stringify(PRESET_THEMES[0].id)};
+      try{localStorage.setItem(${JSON.stringify(THEME_STORAGE_KEY)},activeId);}catch(e){}
+    }
     var custom=JSON.parse(localStorage.getItem(${JSON.stringify(CUSTOM_THEMES_KEY)})||"[]");
   var theme=PRESETS.find(function(t){return t.id===activeId;});
   if(!theme&&Array.isArray(custom)){theme=custom.find(function(t){return t.id===activeId;});}
@@ -52,6 +57,10 @@ export function getThemeBootstrapScript(): string {
   var isDark=lum(tokens.background100)<0.45;
   var slug=(theme.id||"").indexOf("preset:")===0?theme.id.slice(7):"";
   root.dataset.themeScheme=isDark?"dark":"light";
+  root.style.removeProperty("--ds-mesh-a");
+  root.style.removeProperty("--ds-mesh-b");
+  root.style.removeProperty("--ds-mesh-spot");
+  root.style.setProperty("--ds-mesh-strength",isDark?"0.48":"0.16");
   root.style.setProperty("--brand-logo-plated",'url("'+(slug?"/brand/themes/"+slug+".png?v=4":(isDark?"/brand/logo-dark.png?v=4":"/brand/logo-light.png?v=4"))+'")');
   root.style.setProperty("--brand-logo-mark",'url("'+(isDark?"/brand/logo-mark-on-dark.png?v=4":"/brand/logo-mark-on-light.png?v=4")+'")');
   }catch(e){}})();`;
@@ -65,8 +74,12 @@ export function readStoredThemeSnapshot(): {
     return { activeThemeId: PRESET_THEMES[0].id, customThemes: [] };
   }
   try {
-    const activeThemeId =
+    let activeThemeId =
       localStorage.getItem(THEME_STORAGE_KEY) || PRESET_THEMES[0].id;
+    if (activeThemeId === "preset:vercel-light") {
+      activeThemeId = PRESET_THEMES[0].id;
+      localStorage.setItem(THEME_STORAGE_KEY, activeThemeId);
+    }
     const customThemes = JSON.parse(
       localStorage.getItem(CUSTOM_THEMES_KEY) || "[]",
     ) as ThemeDefinition[];

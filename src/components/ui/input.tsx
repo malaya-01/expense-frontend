@@ -3,6 +3,7 @@ import type { InputHTMLAttributes, ReactNode } from "react";
 
 type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   error?: string;
+  startAdornment?: ReactNode;
   endAdornment?: ReactNode;
 };
 
@@ -10,20 +11,27 @@ export function Input({
   className,
   error,
   id,
+  startAdornment,
   endAdornment,
   ...props
 }: InputProps) {
   return (
     <div className="w-full">
       <div className="relative">
+        {startAdornment ? (
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-[1] flex w-10 items-center justify-center text-[var(--ds-gray-700)]">
+            {startAdornment}
+          </div>
+        ) : null}
         <input
           id={id}
           suppressHydrationWarning
           className={cn(
-            "h-10 w-full rounded-[9px] bg-[var(--ds-background-elevated)] px-3 text-[13px] text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-700)] sm:h-11 sm:px-3.5",
+            "h-10 w-full rounded-[9px] bg-[var(--ds-background-elevated)] text-[13px] text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-700)] sm:h-11",
             "ds-border outline-none",
             "transition-[box-shadow,background-color] focus:bg-[var(--ds-background-elevated)] focus:shadow-none focus:outline focus:outline-2 focus:outline-[var(--ds-focus-input)]",
-            Boolean(endAdornment) && "pr-11",
+            startAdornment ? "pl-10" : "pl-3 sm:pl-3.5",
+            endAdornment ? "pr-11" : "pr-3 sm:pr-3.5",
             error && "outline outline-1 outline-[var(--ds-status-red)]",
             className,
           )}

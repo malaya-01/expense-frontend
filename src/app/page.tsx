@@ -16,7 +16,7 @@ export default function HomePage() {
   }, [ready, isAuthenticated, router]);
 
   return (
-    <div className="min-h-dvh bg-[var(--ds-background-100)]">
+    <div className="min-h-dvh bg-transparent">
       <div className="h-0.5 w-full overflow-hidden bg-[color-mix(in_srgb,var(--ds-focus-color)_14%,transparent)]">
         <span className="api-loader-bar block h-full w-1/3 rounded-full bg-[var(--ds-focus-color)]" />
       </div>

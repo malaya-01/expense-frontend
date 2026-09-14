@@ -155,7 +155,7 @@ export function GuideShell({
   }, [activeSlug]);
 
   return (
-    <div className="flex h-full min-h-0 bg-[var(--ds-background-100)]">
+    <div className="flex h-full min-h-0 bg-transparent">
       <aside
         className={cn(
           "hidden h-full shrink-0 flex-col border-r border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-background-100)] transition-[width] duration-200 lg:flex",

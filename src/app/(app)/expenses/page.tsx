@@ -11,7 +11,9 @@ import { Card, CardBody } from "@/components/ui/card";
 import { Alert, Badge, Skeleton } from "@/components/ui/feedback";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Pagination } from "@/components/ui/pagination";
 import { TransactionTable } from "@/components/expenses/expense-table";
+import { TransactionDetailModal } from "@/components/expenses/transaction-detail-modal";
 import {
   TRANSACTION_CREATED_EVENT,
   useTransactionModal,
@@ -26,6 +28,7 @@ import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import type { LedgerTransaction } from "@/types";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
+import { usePagination } from "@/hooks/use-pagination";
 
 export default function ExpensesPage() {
   const { openTransactionModal, openEditTransactionModal } =
@@ -44,6 +47,7 @@ export default function ExpensesPage() {
   const [currencyFilter, setCurrencyFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [selected, setSelected] = useState<LedgerTransaction | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -102,6 +106,11 @@ export default function ExpensesPage() {
     dateFrom,
     dateTo,
   ]);
+
+  const pager = usePagination(filtered, {
+    pageSize: 10,
+    resetKey: `${query}|${typeFilter}|${currencyFilter}|${dateFrom}|${dateTo}`,
+  });
 
   const baseCurrency = user?.currency || "USD";
   const outflow = filtered
@@ -169,17 +178,13 @@ export default function ExpensesPage() {
             ) : null}
           </div>
           <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-[minmax(240px,1.5fr)_160px_130px_150px_150px]">
-            <div className="relative col-span-2 xl:col-span-1">
-              <Search
-                size={15}
-                className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[var(--ds-gray-700)]"
-              />
+            <div className="col-span-2 xl:col-span-1">
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Merchant, category, account, notes…"
                 aria-label="Search transactions"
-                className="pl-9"
+                startAdornment={<Search size={15} aria-hidden />}
               />
             </div>
             <Select
@@ -284,13 +289,38 @@ export default function ExpensesPage() {
           />
         </div>
       ) : (
+        <>
         <TransactionTable
-          transactions={filtered}
+          transactions={pager.items}
           baseCurrency={baseCurrency}
+          onOpen={setSelected}
           onEdit={perms.update ? openEditTransactionModal : undefined}
           onDelete={perms.delete ? setDeleteId : undefined}
         />
+        <Pagination
+          page={pager.page}
+          pageCount={pager.pageCount}
+          total={pager.total}
+          from={pager.from}
+          to={pager.to}
+          onPageChange={pager.setPage}
+        />
+        </>
       )}
+      <TransactionDetailModal
+        transaction={selected}
+        baseCurrency={baseCurrency}
+        onClose={() => setSelected(null)}
+        onEdit={perms.update ? openEditTransactionModal : undefined}
+        onDelete={
+          perms.delete
+            ? (id) => {
+                setSelected(null);
+                setDeleteId(id);
+              }
+            : undefined
+        }
+      />
       <ConfirmDialog
         open={Boolean(deleteId)}
         title="Delete transaction?"

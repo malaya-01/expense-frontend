@@ -28,6 +28,8 @@ import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
 import { CardGridSkeleton } from "@/components/ui/feedback";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import type { Budget, Category, CreateBudgetInput } from "@/types";
 
 type StatusFilter = "all" | "on_track" | "warning" | "over";
@@ -98,6 +100,10 @@ export default function BudgetsPage() {
       );
     });
   }, [budgets, search, statusFilter]);
+
+  const pager = usePagination(visible, {
+    resetKey: `${search}|${statusFilter}`,
+  });
 
   function openCreate() {
     setEditing(null);
@@ -224,8 +230,9 @@ export default function BudgetsPage() {
           </p>
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
-          {visible.map((b) => (
+          {pager.items.map((b) => (
             <BudgetCard
               key={b.id}
               budget={b}
@@ -241,6 +248,15 @@ export default function BudgetsPage() {
             />
           ))}
         </div>
+        <Pagination
+          page={pager.page}
+          pageCount={pager.pageCount}
+          total={pager.total}
+          from={pager.from}
+          to={pager.to}
+          onPageChange={pager.setPage}
+        />
+        </>
       )}
 
       <BudgetFormModal

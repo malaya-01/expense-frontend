@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -14,6 +21,10 @@ export function Modal({
   children,
   footer,
   className,
+  bodyClassName,
+  flushBody = false,
+  wide = false,
+  style,
 }: {
   open: boolean;
   onClose: () => void;
@@ -21,6 +32,10 @@ export function Modal({
   children: ReactNode;
   footer?: ReactNode;
   className?: string;
+  bodyClassName?: string;
+  flushBody?: boolean;
+  wide?: boolean;
+  style?: CSSProperties;
 }) {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -58,9 +73,7 @@ export function Modal({
     });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (
-          (e.target as HTMLElement | null)?.closest?.("[data-nested-overlay]")
-        ) {
+        if (document.querySelector("[data-nested-overlay]")) {
           return;
         }
         onCloseRef.current();
@@ -111,13 +124,18 @@ export function Modal({
         aria-modal
         aria-labelledby={titleId}
         className={cn(
-          "relative z-10 flex max-h-[94dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-[20px] bg-[var(--ds-background-elevated)] ds-border-modal ds-strong-border sm:max-h-[min(90dvh,900px)] sm:w-[calc(100%-2.5rem)] sm:rounded-[18px]",
+          "relative z-10 flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[20px] bg-[var(--ds-background-elevated)] ds-border-modal ds-strong-border sm:rounded-[24px]",
+          wide
+            ? "modal-wide"
+            : "sm:max-h-[min(92dvh,920px)] sm:w-[calc(100%-2.5rem)]",
+          !wide && !/\bmax-w-/.test(className ?? "") && "max-w-xl",
           visible ? "ds-sheet-enter" : "ds-sheet-exit",
           className,
         )}
+        style={style}
       >
         <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-[var(--ds-gray-200)] sm:hidden" aria-hidden />
-        <div className="flex shrink-0 items-center justify-between border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] px-4 py-3 sm:px-7 sm:py-5">
+        <div className="flex shrink-0 items-center justify-between border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_10%,transparent)] px-5 py-3.5 sm:px-8 sm:py-5">
           <h2
             id={titleId}
             className="text-[15px] font-semibold text-[var(--ds-gray-1000)] sm:text-base"
@@ -136,12 +154,18 @@ export function Modal({
         </div>
         <div
           data-modal-body
-          className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-6 sm:px-7 sm:py-6"
+          className={cn(
+            "app-scrollbar min-h-0 flex-1",
+            flushBody
+              ? "overflow-hidden p-0"
+              : "overflow-y-auto px-5 py-5 pb-6 sm:px-8 sm:py-7",
+            bodyClassName,
+          )}
         >
           {children}
         </div>
         {footer ? (
-          <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] bg-[var(--ds-background-elevated)] px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:gap-2.5 sm:px-7 sm:py-5 sm:pb-5">
+          <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[color:color-mix(in_srgb,var(--ds-gray-1000)_10%,transparent)] bg-[var(--ds-background-elevated)] px-5 py-3.5 pb-[max(0.85rem,env(safe-area-inset-bottom))] sm:gap-2.5 sm:px-8 sm:py-5 sm:pb-5">
             {footer}
           </div>
         ) : null}
