@@ -100,6 +100,8 @@ const TRANSACTION_KEYS = [
   "upi_txn_id",
   "payment_status",
   "paid_at",
+  "platform",
+  "platform_txn_id",
 ] as const;
 
 function sanitizeOutboxPayload(

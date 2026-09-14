@@ -86,6 +86,8 @@ export type LedgerTransaction = {
   upi_txn_id?: string | null;
   payment_status?: string | null;
   paid_at?: string | null;
+  platform?: string | null;
+  platform_txn_id?: string | null;
   source_name?: string | null;
   source_currency?: string | null;
   destination_name?: string | null;
@@ -150,6 +152,8 @@ export type CreateTransactionInput = {
   upi_txn_id?: string;
   payment_status?: string;
   paid_at?: string;
+  platform?: string;
+  platform_txn_id?: string;
 };
 
 export type ReceiptExtractedFields = {
@@ -158,11 +162,20 @@ export type ReceiptExtractedFields = {
   amount: number | null;
   currency: string | null;
   date: string | null;
+  time: string | null;
+  paid_at: string | null;
   payment_method: string | null;
+  payment_status: string | null;
   upi_vpa: string | null;
   upi_txn_id: string | null;
+  platform: string | null;
+  platform_txn_id: string | null;
   notes: string | null;
   category_name: string | null;
+  container_name: string | null;
+  bank_name: string | null;
+  account_last4: string | null;
+  account_label: string | null;
 };
 
 export type ReceiptParseResult = {
@@ -173,6 +186,7 @@ export type ReceiptParseResult = {
   used_model: string | null;
   category_id: string | null;
   category_name: string | null;
+  source_container_id: string | null;
   extracted: ReceiptExtractedFields;
 };
 

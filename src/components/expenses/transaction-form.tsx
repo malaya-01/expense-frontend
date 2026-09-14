@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ImageUp } from "lucide-react";
 import { listCategories } from "@/lib/api/categories";
 import { listAccounts } from "@/lib/api/accounts";
 import {
@@ -18,6 +19,14 @@ import { getErrorMessage } from "@/lib/api/client";
 import { getContainerMeta } from "@/lib/accounts/types-meta";
 import { useToast } from "@/components/ui/toast";
 import { convertAmount, getRate } from "@/lib/currency/currency.data";
+import { parseReceipt } from "@/lib/api/ai";
+import { fileToReceiptPayload } from "@/lib/receipts/compress-image";
+import {
+  defaultsFromReceiptParse,
+  localPaidAt,
+  timeFromPaidAt,
+} from "@/lib/receipts/defaults-from-parse";
+import { matchExpenseSource } from "@/lib/receipts/match-container";
 import {
   readLastSourceContainerId,
   writeLastSourceContainerId,
@@ -34,6 +43,14 @@ type TransactionFormProps = {
   userId: string;
   initial?: LedgerTransaction | null;
   defaults?: Partial<CreateTransactionInput>;
+  fromReceipt?: boolean;
+  receiptMatch?: {
+    container_name?: string | null;
+    bank_name?: string | null;
+    account_last4?: string | null;
+    account_label?: string | null;
+  };
+  allowReceiptUpload?: boolean;
   mode?: "create" | "edit";
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -49,6 +66,9 @@ function containerLabel(c: FinancialContainer) {
 export function TransactionForm({
   initial,
   defaults,
+  fromReceipt = false,
+  receiptMatch,
+  allowReceiptUpload = true,
   mode = "create",
   onSuccess,
   onCancel,
@@ -83,7 +103,27 @@ export function TransactionForm({
     payment_method: initial?.payment_method ?? defaults?.payment_method ?? "",
     upi_vpa: initial?.upi_vpa ?? defaults?.upi_vpa ?? "",
     upi_txn_id: initial?.upi_txn_id ?? defaults?.upi_txn_id ?? "",
+    paid_at: initial?.paid_at ?? defaults?.paid_at ?? "",
+    platform: initial?.platform ?? defaults?.platform ?? "",
+    platform_txn_id: initial?.platform_txn_id ?? defaults?.platform_txn_id ?? "",
   }));
+  const [time, setTime] = useState(
+    () =>
+      timeFromPaidAt(initial?.paid_at || defaults?.paid_at) || "",
+  );
+  const [showReceiptFields, setShowReceiptFields] = useState(
+    () =>
+      fromReceipt ||
+      Boolean(
+        initial?.upi_txn_id ||
+          initial?.platform_txn_id ||
+          defaults?.upi_txn_id ||
+          defaults?.platform_txn_id ||
+          defaults?.payment_method,
+      ),
+  );
+  const [receiptNotice, setReceiptNotice] = useState("");
+  const receiptInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     listCategories()
@@ -93,6 +133,17 @@ export function TransactionForm({
       .then(setContainers)
       .catch(() => setContainers([]));
   }, []);
+
+  useEffect(() => {
+    if (!containers.length) return;
+    const matched = matchExpenseSource(containers, receiptMatch);
+    if (!matched) return;
+    setForm((prev) => {
+      if (!fromReceipt && prev.source_container_id) return prev;
+      if (prev.source_container_id === matched.id) return prev;
+      return { ...prev, source_container_id: matched.id };
+    });
+  }, [containers, fromReceipt, receiptMatch]);
 
   const source = containers.find((c) => c.id === form.source_container_id);
   const destination = containers.find(
@@ -243,6 +294,9 @@ export function TransactionForm({
         payment_method: form.payment_method || undefined,
         upi_vpa: form.upi_vpa || undefined,
         upi_txn_id: form.upi_txn_id || undefined,
+        paid_at: form.paid_at || localPaidAt(form.date, time),
+        platform: form.platform || undefined,
+        platform_txn_id: form.platform_txn_id || undefined,
       };
 
       if (mode === "edit" && initial) {
@@ -278,8 +332,79 @@ export function TransactionForm({
     }
   }
 
+  async function onReceiptSelected(file?: File) {
+    if (!file) return;
+    setError("");
+    setReceiptNotice("Reading receipt…");
+    onBusyChange?.(true);
+    try {
+      const payload = await fileToReceiptPayload(file);
+      const parsed = await parseReceipt({
+        name: payload.name,
+        mime_type: payload.mime_type,
+        data_base64: payload.data_base64,
+      });
+      const next = defaultsFromReceiptParse(
+        parsed,
+        containers,
+        form.source_container_id,
+      );
+      const nextTime =
+        parsed.extracted?.time || timeFromPaidAt(parsed.extracted?.paid_at);
+      setForm((prev) => ({
+        ...prev,
+        ...next,
+        source_container_id:
+          next.source_container_id || prev.source_container_id,
+      }));
+      if (nextTime) setTime(nextTime);
+      setShowReceiptFields(true);
+      setReceiptNotice(
+        parsed.warning ||
+          "Receipt fields filled. Review before saving — the image is not stored.",
+      );
+    } catch (err) {
+      setReceiptNotice("");
+      setError(
+        getErrorMessage(err, "Could not read this receipt. Fill the form yourself."),
+      );
+    } finally {
+      onBusyChange?.(false);
+    }
+  }
+
   return (
     <form id={formId} onSubmit={onSubmit} className="w-full space-y-3.5 sm:space-y-5">
+      {allowReceiptUpload && mode === "create" ? (
+        <div>
+          <input
+            ref={receiptInputRef}
+            type="file"
+            accept="image/*,application/pdf"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              void onReceiptSelected(file);
+            }}
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => receiptInputRef.current?.click()}
+          >
+            <ImageUp size={15} />
+            Upload receipt
+          </Button>
+          {receiptNotice ? (
+            <p className="mt-2 text-xs text-[var(--ds-gray-700)]">{receiptNotice}</p>
+          ) : (
+            <p className="mt-2 text-xs text-[var(--ds-gray-700)]">
+              Optional. Scan a GPay/PhonePe screenshot to fill this form.
+            </p>
+          )}
+        </div>
+      ) : null}
       <div>
         <Label htmlFor="type">Type</Label>
         <Select
@@ -409,9 +534,34 @@ export function TransactionForm({
             type="date"
             required
             value={form.date}
-            onChange={(e) => update("date", e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              setForm((prev) => ({
+                ...prev,
+                date: next,
+                paid_at: localPaidAt(next, time) || prev.paid_at,
+              }));
+            }}
           />
         </div>
+        {showReceiptFields ? (
+          <div>
+            <Label htmlFor="paid_time">Time</Label>
+            <Input
+              id="paid_time"
+              type="time"
+              value={time}
+              onChange={(e) => {
+                const next = e.target.value;
+                setTime(next);
+                setForm((prev) => ({
+                  ...prev,
+                  paid_at: localPaidAt(prev.date, next),
+                }));
+              }}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div>
@@ -486,7 +636,7 @@ export function TransactionForm({
         </div>
       </div>
 
-      {form.payment_method || form.upi_txn_id ? (
+      {showReceiptFields ? (
         <div className="grid gap-3 sm:grid-cols-2 sm:gap-5">
           <div>
             <Label htmlFor="payment_method">Payment method</Label>
@@ -498,12 +648,30 @@ export function TransactionForm({
             />
           </div>
           <div>
-            <Label htmlFor="upi_txn_id">UPI / reference ID</Label>
+            <Label htmlFor="platform">App / platform</Label>
+            <Input
+              id="platform"
+              value={form.platform || ""}
+              onChange={(e) => update("platform", e.target.value)}
+              placeholder="Google Pay, PhonePe…"
+            />
+          </div>
+          <div>
+            <Label htmlFor="upi_txn_id">UPI transaction ID</Label>
             <Input
               id="upi_txn_id"
               value={form.upi_txn_id || ""}
               onChange={(e) => update("upi_txn_id", e.target.value)}
               placeholder="Optional"
+            />
+          </div>
+          <div>
+            <Label htmlFor="platform_txn_id">Google / platform ID</Label>
+            <Input
+              id="platform_txn_id"
+              value={form.platform_txn_id || ""}
+              onChange={(e) => update("platform_txn_id", e.target.value)}
+              placeholder="Google transaction ID"
             />
           </div>
         </div>

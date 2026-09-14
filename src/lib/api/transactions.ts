@@ -32,6 +32,8 @@ function apiPayload(
     upi_txn_id: payload.upi_txn_id || undefined,
     payment_status: payload.payment_status || undefined,
     paid_at: payload.paid_at || undefined,
+    platform: payload.platform || undefined,
+    platform_txn_id: payload.platform_txn_id || undefined,
   };
 }
 

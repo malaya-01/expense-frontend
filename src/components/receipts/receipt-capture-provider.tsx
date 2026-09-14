@@ -15,15 +15,16 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { parseReceipt } from "@/lib/api/ai";
+import { listAccounts } from "@/lib/api/accounts";
 import { listTransactions } from "@/lib/api/transactions";
 import { getErrorMessage } from "@/lib/api/client";
-import { todayISO } from "@/lib/format";
 import { fileToReceiptPayload } from "@/lib/receipts/compress-image";
+import { defaultsFromReceiptParse } from "@/lib/receipts/defaults-from-parse";
 import { readLastSourceContainerId } from "@/lib/receipts/last-container";
 import { ShareReceipt } from "@/plugins/share-receipt";
 import type { SharedReceiptPayload } from "@/plugins/share-receipt-definitions";
 import { useToast } from "@/components/ui/toast";
-import type { CreateTransactionInput, ReceiptParseResult } from "@/types";
+import type { ReceiptParseResult } from "@/types";
 
 type ReceiptCaptureOptions = {
   source_container_id?: string;
@@ -50,31 +51,6 @@ function base64ToFile(payload: SharedReceiptPayload): File | null {
   } catch {
     return null;
   }
-}
-
-function defaultsFromParse(
-  result: ReceiptParseResult | null,
-  sourceContainerId?: string,
-): Partial<CreateTransactionInput> {
-  const extracted = result?.extracted;
-  const merchant = extracted?.merchant?.trim() || "";
-  const description =
-    extracted?.description?.trim() || merchant || "";
-  return {
-    type: "expense",
-    amount: extracted?.amount || 0,
-    description,
-    date: extracted?.date || todayISO(),
-    category_id: result?.category_id || "",
-    source_container_id:
-      sourceContainerId || readLastSourceContainerId() || "",
-    merchant,
-    currency: extracted?.currency || undefined,
-    notes: extracted?.notes || "",
-    payment_method: extracted?.payment_method || undefined,
-    upi_vpa: extracted?.upi_vpa || undefined,
-    upi_txn_id: extracted?.upi_txn_id || undefined,
-  };
 }
 
 export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
@@ -119,24 +95,37 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
           );
         }
 
-        if (parsed?.extracted?.upi_txn_id) {
+        const dupId =
+          parsed?.extracted?.upi_txn_id || parsed?.extracted?.platform_txn_id;
+        if (dupId) {
           try {
             const rows = await listTransactions();
             const dup = rows.some(
               (row) =>
-                row.upi_txn_id &&
-                row.upi_txn_id === parsed?.extracted.upi_txn_id,
+                (row.upi_txn_id && row.upi_txn_id === parsed?.extracted.upi_txn_id) ||
+                (row.platform_txn_id &&
+                  row.platform_txn_id === parsed?.extracted.platform_txn_id),
             );
             if (dup) {
-              notice = `${notice} This UPI reference already exists in your ledger.`;
+              notice = `${notice} This payment reference already exists in your ledger.`;
             }
           } catch {
             /* ignore duplicate lookup failures */
           }
         }
 
+        let accounts: Awaited<ReturnType<typeof listAccounts>> = [];
+        try {
+          accounts = await listAccounts();
+        } catch {
+          accounts = [];
+        }
+        const forced = sourceContainerId || parsed?.source_container_id || undefined;
+
         openTransactionModal({
-          defaults: defaultsFromParse(parsed, sourceContainerId),
+          defaults: defaultsFromReceiptParse(parsed, accounts, forced),
+          receiptMatch: parsed?.extracted,
+          fromReceipt: true,
           notice,
           previewUrl,
           previewName: payload.name,

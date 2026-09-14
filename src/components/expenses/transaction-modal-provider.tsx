@@ -20,6 +20,13 @@ export type TransactionDraft = {
   notice?: string;
   previewUrl?: string;
   previewName?: string;
+  fromReceipt?: boolean;
+  receiptMatch?: {
+    container_name?: string | null;
+    bank_name?: string | null;
+    account_last4?: string | null;
+    account_label?: string | null;
+  };
 };
 
 type TransactionModalContextValue = {
@@ -159,6 +166,9 @@ export function TransactionModalProvider({
             userId={user.id}
             initial={editing}
             defaults={draft?.defaults}
+            fromReceipt={Boolean(draft?.fromReceipt)}
+            receiptMatch={draft?.receiptMatch}
+            allowReceiptUpload={!editing && !draft?.fromReceipt}
             mode={editing ? "edit" : "create"}
             onSuccess={handleCreated}
             onCancel={closeTransactionModal}
