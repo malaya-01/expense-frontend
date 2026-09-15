@@ -30,6 +30,10 @@ export type TransactionDraft = {
     bank_name?: string | null;
     account_last4?: string | null;
     account_label?: string | null;
+    destination_container_name?: string | null;
+    destination_bank_name?: string | null;
+    destination_account_last4?: string | null;
+    destination_account_label?: string | null;
   };
 };
 
@@ -231,6 +235,12 @@ export function TransactionModalProvider({
             {draft?.notice ? (
               <p className="mb-3 text-sm leading-6 text-[var(--ds-gray-700)]">
                 {draft.notice}
+              </p>
+            ) : null}
+            {draft?.previewName && /\.pdf$/i.test(draft.previewName) ? (
+              <p className="mb-3 rounded-[14px] bg-[var(--ds-background-100)] px-3 py-2 text-[12px] text-[var(--ds-gray-800)]">
+                PDF attached: {draft.previewName} (preview not shown — fields
+                were filled from the document).
               </p>
             ) : null}
             {user ? (

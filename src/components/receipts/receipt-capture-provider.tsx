@@ -19,7 +19,10 @@ import { listAccounts } from "@/lib/api/accounts";
 import { listTransactions } from "@/lib/api/transactions";
 import { getErrorMessage } from "@/lib/api/client";
 import { fileToReceiptPayload } from "@/lib/receipts/compress-image";
-import { defaultsFromReceiptParse } from "@/lib/receipts/defaults-from-parse";
+import {
+  defaultsFromReceiptParse,
+  isBlockedReceiptParse,
+} from "@/lib/receipts/defaults-from-parse";
 import { readLastSourceContainerId } from "@/lib/receipts/last-container";
 import { ShareReceipt } from "@/plugins/share-receipt";
 import type { SharedReceiptPayload } from "@/plugins/share-receipt-definitions";
@@ -74,7 +77,7 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
         previewUrl = payload.preview_url;
         let parsed: ReceiptParseResult | null = null;
         let notice =
-          "Review the fields before saving. The receipt image is not stored.";
+          "Review the fields before saving. The receipt file is not stored.";
         try {
           parsed = await parseReceipt({
             name: payload.name,
@@ -85,8 +88,23 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
         } catch (err) {
           notice = getErrorMessage(
             err,
-            "Could not read this receipt. Fill the form yourself — the image was not saved.",
+            "Could not read this receipt. Fill the form yourself — the file was not saved.",
           );
+        }
+
+        if (isBlockedReceiptParse(parsed)) {
+          if (previewUrl) URL.revokeObjectURL(previewUrl);
+          showToast({
+            title:
+              parsed.blocked_reason === "pending_payment"
+                ? "Payment still pending"
+                : "Failed payment ignored",
+            description:
+              parsed.warning ||
+              "This receipt was not turned into a transaction.",
+            tone: "error",
+          });
+          return;
         }
 
         const dupId =
@@ -130,7 +148,7 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
         if (previewUrl) URL.revokeObjectURL(previewUrl);
         showToast({
           title: "Could not open this receipt",
-          description: getErrorMessage(err, "Try another photo or screenshot."),
+          description: getErrorMessage(err, "Try another photo, PDF, or screenshot."),
           tone: "error",
         });
       } finally {
@@ -233,9 +251,9 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
             Capture
           </div>
           <p className="mt-2 text-sm leading-6 text-[var(--ds-gray-900)]">
-            Pay in GPay, PhonePe, or anywhere else, then photograph the receipt.
-            Opal reads it with vision — you review and save. The image is not
-            stored.
+            Pay in GPay, PhonePe, or anywhere else, then photograph the receipt
+            or pick a screenshot/PDF. Opal reads it with vision — you review and
+            save. Failed payments are ignored. The file is not stored.
           </p>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">

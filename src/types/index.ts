@@ -166,6 +166,7 @@ export type ReceiptExtractedFields = {
   paid_at: string | null;
   payment_method: string | null;
   payment_status: string | null;
+  transaction_type: TransactionType | null;
   upi_vpa: string | null;
   upi_txn_id: string | null;
   platform: string | null;
@@ -176,17 +177,23 @@ export type ReceiptExtractedFields = {
   bank_name: string | null;
   account_last4: string | null;
   account_label: string | null;
+  destination_container_name: string | null;
+  destination_bank_name: string | null;
+  destination_account_last4: string | null;
+  destination_account_label: string | null;
 };
 
 export type ReceiptParseResult = {
   ok: boolean;
   stored: false;
   warning?: string;
+  blocked_reason?: "failed_payment" | "pending_payment";
   used_provider: string | null;
   used_model: string | null;
   category_id: string | null;
   category_name: string | null;
   source_container_id: string | null;
+  destination_container_id: string | null;
   extracted: ReceiptExtractedFields;
 };
 

@@ -72,8 +72,14 @@ public class ShareReceiptPlugin extends Plugin {
             if (mime == null || mime.trim().isEmpty()) {
                 mime = getContext().getContentResolver().getType(uri);
             }
-            if (mime == null) mime = "image/jpeg";
             String name = queryName(uri);
+            if (mime == null || mime.trim().isEmpty() || "application/octet-stream".equals(mime)) {
+                if (name != null && name.toLowerCase().endsWith(".pdf")) {
+                    mime = "application/pdf";
+                } else {
+                    mime = "image/jpeg";
+                }
+            }
             byte[] bytes = readBytes(uri);
             if (bytes == null || bytes.length == 0) return null;
             if (bytes.length > MAX_BYTES) return null;

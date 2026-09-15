@@ -24,6 +24,7 @@ import { parseReceipt } from "@/lib/api/ai";
 import { fileToReceiptPayload } from "@/lib/receipts/compress-image";
 import {
   defaultsFromReceiptParse,
+  isBlockedReceiptParse,
   localPaidAt,
   timeFromPaidAt,
 } from "@/lib/receipts/defaults-from-parse";
@@ -40,6 +41,7 @@ import type {
   CreateTransactionInput,
   FinancialContainer,
   LedgerTransaction,
+  ReceiptExtractedFields,
   TransactionType,
 } from "@/types";
 
@@ -48,12 +50,7 @@ type TransactionFormProps = {
   initial?: LedgerTransaction | null;
   defaults?: Partial<CreateTransactionInput>;
   fromReceipt?: boolean;
-  receiptMatch?: {
-    container_name?: string | null;
-    bank_name?: string | null;
-    account_last4?: string | null;
-    account_label?: string | null;
-  };
+  receiptMatch?: Partial<ReceiptExtractedFields> | null;
   allowReceiptUpload?: boolean;
   mode?: "create" | "edit";
   onSuccess?: () => void;
@@ -71,12 +68,7 @@ type TransactionFormProps = {
     notice?: string;
     visionProvider?: string | null;
     visionModel?: string | null;
-    receiptMatch?: {
-      container_name?: string | null;
-      bank_name?: string | null;
-      account_last4?: string | null;
-      account_label?: string | null;
-    };
+    receiptMatch?: Partial<ReceiptExtractedFields> | null;
   }) => void;
 };
 
@@ -88,7 +80,8 @@ function emptyTransaction(defaults?: Partial<CreateTransactionInput>): CreateTra
     date: requireDateOnly(defaults?.date, todayISO()),
     category_id: defaults?.category_id ?? "",
     source_container_id:
-      defaults?.source_container_id ?? readLastSourceContainerId(),
+      defaults?.source_container_id ??
+      (defaults?.type === "income" ? "" : readLastSourceContainerId()),
     destination_container_id: defaults?.destination_container_id ?? "",
     merchant: defaults?.merchant ?? "",
     currency: defaults?.currency ?? "",
@@ -97,6 +90,7 @@ function emptyTransaction(defaults?: Partial<CreateTransactionInput>): CreateTra
     payment_method: defaults?.payment_method ?? "",
     upi_vpa: defaults?.upi_vpa ?? "",
     upi_txn_id: defaults?.upi_txn_id ?? "",
+    payment_status: defaults?.payment_status ?? "",
     paid_at: defaults?.paid_at ?? "",
     platform: defaults?.platform ?? "",
     platform_txn_id: defaults?.platform_txn_id ?? "",
@@ -150,6 +144,7 @@ export function TransactionForm({
       payment_method: initial?.payment_method ?? defaults?.payment_method,
       upi_vpa: initial?.upi_vpa ?? defaults?.upi_vpa,
       upi_txn_id: initial?.upi_txn_id ?? defaults?.upi_txn_id,
+      payment_status: initial?.payment_status ?? defaults?.payment_status,
       paid_at: initial?.paid_at ?? defaults?.paid_at,
       platform: initial?.platform ?? defaults?.platform,
       platform_txn_id: initial?.platform_txn_id ?? defaults?.platform_txn_id,
@@ -198,13 +193,38 @@ export function TransactionForm({
   }, []);
 
   useEffect(() => {
-    if (!containers.length) return;
-    const matched = matchExpenseSource(containers, receiptMatch);
-    if (!matched) return;
+    if (!containers.length || !receiptMatch) return;
+    const sourceMatched = matchExpenseSource(containers, {
+      container_name: receiptMatch.container_name,
+      bank_name: receiptMatch.bank_name,
+      account_last4: receiptMatch.account_last4,
+      account_label: receiptMatch.account_label,
+    });
+    const destinationMatched = matchExpenseSource(containers, {
+      container_name: receiptMatch.destination_container_name,
+      bank_name: receiptMatch.destination_bank_name,
+      account_last4: receiptMatch.destination_account_last4,
+      account_label: receiptMatch.destination_account_label,
+    });
     setForm((prev) => {
-      if (!fromReceipt && prev.source_container_id) return prev;
-      if (prev.source_container_id === matched.id) return prev;
-      return { ...prev, source_container_id: matched.id };
+      let next = prev;
+      if (
+        sourceMatched &&
+        (fromReceipt || !prev.source_container_id) &&
+        prev.source_container_id !== sourceMatched.id &&
+        prev.type !== "income"
+      ) {
+        next = { ...next, source_container_id: sourceMatched.id };
+      }
+      if (
+        destinationMatched &&
+        (fromReceipt || !prev.destination_container_id) &&
+        prev.destination_container_id !== destinationMatched.id &&
+        prev.type !== "expense"
+      ) {
+        next = { ...next, destination_container_id: destinationMatched.id };
+      }
+      return next;
     });
   }, [containers, fromReceipt, receiptMatch]);
 
@@ -357,6 +377,7 @@ export function TransactionForm({
         payment_method: form.payment_method || undefined,
         upi_vpa: form.upi_vpa || undefined,
         upi_txn_id: form.upi_txn_id || undefined,
+        payment_status: form.payment_status || undefined,
         paid_at: form.paid_at || localPaidAt(form.date, time),
         platform: form.platform || undefined,
         platform_txn_id: form.platform_txn_id || undefined,
@@ -424,21 +445,39 @@ export function TransactionForm({
       } catch (err) {
         notice = getErrorMessage(
           err,
-          "Could not read this receipt. Fill the form yourself — the image is not stored.",
+          "Could not read this receipt. Fill the form yourself — the file is not stored.",
         );
       }
+
+      if (isBlockedReceiptParse(parsed)) {
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        showToast({
+          title:
+            parsed.blocked_reason === "pending_payment"
+              ? "Payment still pending"
+              : "Failed payment ignored",
+          description:
+            parsed.warning ||
+            "This receipt was not turned into a transaction.",
+          tone: "error",
+        });
+        return;
+      }
+
       const next = defaultsFromReceiptParse(
         parsed,
         containers,
         form.source_container_id,
       );
       const nextTime =
-        parsed?.extracted?.time || timeFromPaidAt(parsed?.extracted?.paid_at);
+        parsed?.extracted?.time || timeFromPaidAt(next.paid_at);
       const merged: Partial<CreateTransactionInput> = {
         ...form,
         ...next,
         source_container_id:
           next.source_container_id || form.source_container_id,
+        destination_container_id:
+          next.destination_container_id || form.destination_container_id,
         paid_at:
           localPaidAt(next.date || form.date, nextTime) || form.paid_at,
       };
@@ -461,6 +500,10 @@ export function TransactionForm({
         ...next,
         source_container_id:
           next.source_container_id || prev.source_container_id,
+        destination_container_id:
+          next.destination_container_id || prev.destination_container_id,
+        paid_at:
+          localPaidAt(next.date || prev.date, nextTime) || prev.paid_at,
       }));
       if (nextTime) setTime(nextTime);
       setShowReceiptFields(true);
