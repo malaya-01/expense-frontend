@@ -110,11 +110,15 @@ export function defaultsFromReceiptParse(
   };
 }
 
+export type BlockedReceiptParseResult = ReceiptParseResult & {
+  blocked_reason: "failed_payment" | "pending_payment";
+};
+
 export function isBlockedReceiptParse(
   result: ReceiptParseResult | null | undefined,
-): result is ReceiptParseResult {
-  return Boolean(
+): result is BlockedReceiptParseResult {
+  return (
     result?.blocked_reason === "failed_payment" ||
-      result?.blocked_reason === "pending_payment",
+    result?.blocked_reason === "pending_payment"
   );
 }

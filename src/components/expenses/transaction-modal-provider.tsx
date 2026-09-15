@@ -15,7 +15,11 @@ import { TransactionForm } from "@/components/expenses/transaction-form";
 import { VisionSourceBadge } from "@/components/receipts/vision-source-badge";
 import { ReceiptPreviewStage } from "@/components/receipts/receipt-preview-stage";
 import { useAuth } from "@/lib/auth-context";
-import type { CreateTransactionInput, LedgerTransaction } from "@/types";
+import type {
+  CreateTransactionInput,
+  LedgerTransaction,
+  ReceiptExtractedFields,
+} from "@/types";
 
 export type TransactionDraft = {
   defaults?: Partial<CreateTransactionInput>;
@@ -25,16 +29,7 @@ export type TransactionDraft = {
   fromReceipt?: boolean;
   visionProvider?: string | null;
   visionModel?: string | null;
-  receiptMatch?: {
-    container_name?: string | null;
-    bank_name?: string | null;
-    account_last4?: string | null;
-    account_label?: string | null;
-    destination_container_name?: string | null;
-    destination_bank_name?: string | null;
-    destination_account_last4?: string | null;
-    destination_account_label?: string | null;
-  };
+  receiptMatch?: Partial<ReceiptExtractedFields> | null;
 };
 
 type TransactionModalContextValue = {

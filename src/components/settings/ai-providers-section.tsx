@@ -261,9 +261,11 @@ export function AiProvidersSection() {
               {settings?.active_provider
                 ? `${PROVIDER_LABEL[settings.active_provider]} · ${settings.active_model || "default model"}`
                 : "None — use Opal Free to start"}
-              {settings?.omniroute_quota
-                ? ` · Free today ${settings.omniroute_quota.used}/${settings.omniroute_quota.limit}`
-                : ""}
+              {settings?.omniroute_quota?.unlimited
+                ? " · Free unlimited (admin)"
+                : settings?.omniroute_quota
+                  ? ` · Free today ${settings.omniroute_quota.used}/${settings.omniroute_quota.limit}`
+                  : ""}
             </p>
           </div>
           <Button size="sm" variant="secondary" onClick={() => setPromptOpen(true)}>
@@ -306,9 +308,11 @@ export function AiProvidersSection() {
                     </div>
                     <p className="truncate text-[11px] text-[var(--ds-gray-700)]">
                       {p.provider === "omniroute"
-                        ? p.daily_quota
-                          ? `Free · ${p.daily_quota.remaining}/${p.daily_quota.limit} left today · ${p.model || "auto"}`
-                          : `Free · no key · ${p.model || "auto"}`
+                        ? p.daily_quota?.unlimited
+                          ? `Free · unlimited (admin) · ${p.model || "auto"}`
+                          : p.daily_quota
+                            ? `Free · ${p.daily_quota.remaining}/${p.daily_quota.limit} left today · ${p.model || "auto"}`
+                            : `Free · no key · ${p.model || "auto"}`
                         : p.connected
                           ? `Ready · ${p.model || "model"}`
                           : p.provider === "openrouter"
@@ -780,8 +784,9 @@ function ProviderConfigureModal({
             </ol>
             {isOmniroute && existing?.daily_quota ? (
               <p className="mt-2 text-[var(--ds-gray-700)]">
-                Today: {existing.daily_quota.used}/{existing.daily_quota.limit}{" "}
-                successful requests used ({existing.daily_quota.remaining} left).
+                {existing.daily_quota.unlimited
+                  ? "Admin account — no daily free request limit on Opal Free (Groq/Gemini)."
+                  : `Today: ${existing.daily_quota.used}/${existing.daily_quota.limit} successful requests used (${existing.daily_quota.remaining} left).`}
               </p>
             ) : null}
             {isOpenRouter ? (

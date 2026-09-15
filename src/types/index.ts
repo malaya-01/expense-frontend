@@ -583,6 +583,8 @@ export type AiOmnirouteQuota = {
   used: number;
   remaining: number;
   usage_date: string;
+  /** Super-admin or staff admin — daily free cap does not apply. */
+  unlimited?: boolean;
 };
 
 export type AiSetupGuide = {
