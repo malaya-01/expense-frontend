@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
@@ -10,14 +10,19 @@ import { verifyEmail } from "@/lib/api/auth";
 import { getErrorMessage } from "@/lib/api/client";
 import { APP_NAME } from "@/lib/brand";
 
+/** Prevent Strict Mode double-mount from leaving the UI stuck on loading. */
+const verifiedTokens = new Set<string>();
+const inflightTokens = new Map<string, Promise<{ message: string; email?: string }>>();
+
 function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get("token") || "";
+  const rawToken = searchParams.get("token") || "";
+  // Email clients sometimes wrap/split long query values.
+  const token = rawToken.trim().replace(/\s+/g, "");
   const { showToast } = useToast();
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [message, setMessage] = useState("Verifying your email…");
-  const startedForToken = useRef<string | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -25,14 +30,28 @@ function VerifyEmailContent() {
       setMessage("Missing verification token.");
       return;
     }
-    // Prevent React Strict Mode / remount from consuming the link twice.
-    if (startedForToken.current === token) return;
-    startedForToken.current = token;
 
     let cancelled = false;
+
     async function run() {
       try {
-        const result = await verifyEmail(token);
+        if (verifiedTokens.has(token)) {
+          if (cancelled) return;
+          setStatus("ok");
+          setMessage("Email verified successfully. You can sign in now.");
+          return;
+        }
+
+        let pending = inflightTokens.get(token);
+        if (!pending) {
+          pending = verifyEmail(token).finally(() => {
+            inflightTokens.delete(token);
+          });
+          inflightTokens.set(token, pending);
+        }
+
+        const result = await pending;
+        verifiedTokens.add(token);
         if (cancelled) return;
         setStatus("ok");
         setMessage(result.message || "Email verified. You can sign in now.");
@@ -47,6 +66,7 @@ function VerifyEmailContent() {
         setMessage(getErrorMessage(err, "Verification failed"));
       }
     }
+
     run();
     return () => {
       cancelled = true;
