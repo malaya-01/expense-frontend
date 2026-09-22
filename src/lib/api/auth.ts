@@ -35,7 +35,11 @@ export async function resendVerification(email: string) {
 
 export async function generateOtp(email: string) {
   const res = await api.post("/auth/generate-otp", { email });
-  return unwrap<{ message: string }>(res);
+  return unwrap<{
+    message: string;
+    delivery?: "email" | "inline";
+    recovery_code?: string;
+  }>(res);
 }
 
 export async function resetPassword(payload: {

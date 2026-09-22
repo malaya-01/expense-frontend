@@ -359,6 +359,19 @@ export function unwrap<T>(response: AxiosResponse<ApiResponse<T>>): T {
   return body.data;
 }
 
+function friendlyDbPoolMessage(raw: string): string | null {
+  const text = raw.toLowerCase();
+  if (
+    text.includes("emaxconnsession") ||
+    text.includes("max clients reached") ||
+    text.includes("too many clients") ||
+    text.includes("remaining connection slots")
+  ) {
+    return "Database is at its connection limit. Wait a moment and refresh — if this keeps happening, ask your admin to lower PG_POOL_MAX or free idle Supabase sessions.";
+  }
+  return null;
+}
+
 export function getErrorMessage(error: unknown, fallback = "Something went wrong"): string {
   if (axios.isAxiosError(error)) {
     if (!error.response) {
@@ -374,12 +387,19 @@ export function getErrorMessage(error: unknown, fallback = "Something went wrong
     const data = error.response?.data as
       | { message?: string | string[] }
       | undefined;
+    const joined = Array.isArray(data?.message)
+      ? data.message.filter(Boolean).join(", ")
+      : data?.message || error.message || "";
+    const poolHint = friendlyDbPoolMessage(joined || error.message || "");
+    if (poolHint) return poolHint;
     if (Array.isArray(data?.message)) {
       return data.message.filter(Boolean).join(", ") || fallback;
     }
     return data?.message || error.message || fallback;
   }
-  if (error instanceof Error) return error.message;
+  if (error instanceof Error) {
+    return friendlyDbPoolMessage(error.message) || error.message;
+  }
   return fallback;
 }
 

@@ -229,14 +229,14 @@ export function AiProvidersSection() {
 
   return (
     <div className="space-y-4">
-      {!settings?.encryption_ready ? (
+      {!settings || settings.encryption_ready ? null : (
         <Card>
           <CardBody className="pt-5 text-sm text-[var(--ds-status-orange)]">
             Server is missing <code>AI_CREDENTIALS_ENCRYPTION_KEY</code>. Ask your
             admin to set it before saving provider keys.
           </CardBody>
         </Card>
-      ) : null}
+      )}
 
       {error ? (
         <p className="text-sm text-[var(--ds-status-red)]">{error}</p>

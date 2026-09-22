@@ -64,7 +64,7 @@ export default function ReportsPage() {
     const url = URL.createObjectURL(new Blob([content], { type }));
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `finos-report-${months}-months-${new Date().toISOString().slice(0, 10)}.${extension}`;
+    anchor.download = `opal-report-${months}-months-${new Date().toISOString().slice(0, 10)}.${extension}`;
     anchor.click();
     URL.revokeObjectURL(url);
     showToast({
