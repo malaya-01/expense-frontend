@@ -27,6 +27,10 @@ import {
   updateTheme,
 } from "./slices/themeSlice";
 import {
+  scheduleThemeSaveToBackend,
+  syncThemeFromBackend,
+} from "@/lib/themes/sync";
+import {
   DEFAULT_SIDEBAR_WIDTH,
   dismissToast,
   hydrateSidebar,
@@ -121,6 +125,15 @@ startAppListening({
   effect: (action, api) => {
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(action.payload));
     api.dispatch(resetSidebarTransient());
+    void syncThemeFromBackend(api.dispatch, api.getState);
+  },
+});
+
+startAppListening({
+  actionCreator: hydrateAuth,
+  effect: (action, api) => {
+    if (!action.payload.user || !action.payload.hasAccessToken) return;
+    void syncThemeFromBackend(api.dispatch, api.getState);
   },
 });
 
@@ -143,12 +156,16 @@ startAppListening({
     deleteTheme,
     duplicateTheme,
   ),
-  effect: (_action, api) => {
+  effect: (action, api) => {
     const state = api.getState();
     const active = selectActiveTheme(state);
     writeActiveThemeId(state.theme.activeThemeId);
     writeCustomThemes(state.theme.customThemes);
     applyTheme(active);
+    // Don't echo a backend hydrate back to PUT.
+    if (action.type !== hydrateTheme.type) {
+      scheduleThemeSaveToBackend(api.getState);
+    }
   },
 });
 

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ImageUp } from "lucide-react";
+import { ArrowLeftRight, ImageUp } from "lucide-react";
 import { listCategories } from "@/lib/api/categories";
 import { listAccounts } from "@/lib/api/accounts";
 import {
@@ -198,21 +198,43 @@ export function TransactionForm({
       container_name: receiptMatch.container_name,
       bank_name: receiptMatch.bank_name,
       account_last4: receiptMatch.account_last4,
-      account_label: receiptMatch.account_label,
+      account_label:
+        receiptMatch.account_label || receiptMatch.payment_method,
     });
-    const destinationMatched = matchExpenseSource(containers, {
-      container_name: receiptMatch.destination_container_name,
-      bank_name: receiptMatch.destination_bank_name,
-      account_last4: receiptMatch.destination_account_last4,
-      account_label: receiptMatch.destination_account_label,
-    });
+    const destinationMatched = matchExpenseSource(
+      containers,
+      {
+        container_name: receiptMatch.destination_container_name,
+        bank_name: receiptMatch.destination_bank_name,
+        account_last4: receiptMatch.destination_account_last4,
+        account_label: receiptMatch.destination_account_label,
+      },
+      { excludeIds: sourceMatched ? [sourceMatched.id] : [] },
+    );
     setForm((prev) => {
       let next = prev;
+      const asTransfer =
+        prev.type === "transfer" ||
+        receiptMatch.transaction_type === "transfer" ||
+        Boolean(
+          sourceMatched &&
+            destinationMatched &&
+            sourceMatched.id !== destinationMatched.id,
+        );
+      if (
+        asTransfer &&
+        prev.type !== "transfer" &&
+        sourceMatched &&
+        destinationMatched &&
+        sourceMatched.id !== destinationMatched.id
+      ) {
+        next = { ...next, type: "transfer" };
+      }
       if (
         sourceMatched &&
         (fromReceipt || !prev.source_container_id) &&
         prev.source_container_id !== sourceMatched.id &&
-        prev.type !== "income"
+        next.type !== "income"
       ) {
         next = { ...next, source_container_id: sourceMatched.id };
       }
@@ -220,7 +242,7 @@ export function TransactionForm({
         destinationMatched &&
         (fromReceipt || !prev.destination_container_id) &&
         prev.destination_container_id !== destinationMatched.id &&
-        prev.type !== "expense"
+        next.type !== "expense"
       ) {
         next = { ...next, destination_container_id: destinationMatched.id };
       }
@@ -606,7 +628,8 @@ export function TransactionForm({
         </Select>
         {form.type === "transfer" ? (
           <p className="mt-1.5 text-[11px] text-[var(--ds-gray-700)]">
-            Choose both containers below: money leaves From and arrives in To.
+            Money leaves From and arrives in To. Use the swap control if they
+            are reversed.
           </p>
         ) : null}
       </div>
@@ -616,13 +639,13 @@ export function TransactionForm({
         <div
           className={
             needsSource && needsDestination
-              ? "grid gap-3 rounded-[10px] bg-[var(--ds-background-100)] p-3 sm:grid-cols-2 sm:gap-5 sm:p-4"
+              ? "grid gap-2 rounded-[12px] bg-[var(--ds-background-100)] p-3 sm:grid-cols-[1fr_auto_1fr] sm:items-end sm:gap-2 sm:p-4"
               : undefined
           }
         >
           {needsSource ? (
-            <div>
-              <Label htmlFor="source">From (source container)</Label>
+            <div className="min-w-0">
+              <Label htmlFor="source">From</Label>
               <Select
                 id="source"
                 value={form.source_container_id || ""}
@@ -650,9 +673,44 @@ export function TransactionForm({
             </div>
           ) : null}
 
+          {needsSource && needsDestination ? (
+            <div className="flex items-center justify-center py-0.5 sm:pb-1">
+              <button
+                type="button"
+                aria-label="Swap From and To containers"
+                title="Swap From and To"
+                disabled={
+                  !form.source_container_id && !form.destination_container_id
+                }
+                onClick={() => {
+                  setForm((prev) => ({
+                    ...prev,
+                    source_container_id: prev.destination_container_id,
+                    destination_container_id: prev.source_container_id,
+                    exchange_rate: undefined,
+                  }));
+                }}
+                className={cn(
+                  "inline-flex size-9 shrink-0 items-center justify-center rounded-full",
+                  "border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)]",
+                  "bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)]",
+                  "shadow-[0_1px_2px_color-mix(in_srgb,var(--ds-gray-1000)_6%,transparent)]",
+                  "transition-colors hover:border-[color:color-mix(in_srgb,var(--ds-focus-color)_35%,transparent)]",
+                  "hover:bg-[color-mix(in_srgb,var(--ds-focus-color)_10%,var(--ds-background-elevated))]",
+                  "hover:text-[var(--ds-focus-color)] ds-focus",
+                  "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)]",
+                  "disabled:hover:bg-[var(--ds-background-elevated)] disabled:hover:text-[var(--ds-gray-900)]",
+                  "rotate-90 sm:rotate-0",
+                )}
+              >
+                <ArrowLeftRight size={16} strokeWidth={1.8} />
+              </button>
+            </div>
+          ) : null}
+
           {needsDestination ? (
-            <div>
-              <Label htmlFor="destination">To (destination container)</Label>
+            <div className="min-w-0">
+              <Label htmlFor="destination">To</Label>
               <Select
                 id="destination"
                 value={form.destination_container_id || ""}

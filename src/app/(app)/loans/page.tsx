@@ -32,6 +32,8 @@ import { LoanCard } from "@/components/loans/loan-card";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { usePagination } from "@/hooks/use-pagination";
+import { useTableSort } from "@/hooks/use-table-sort";
+import { SortableTh } from "@/components/ui/sortable-th";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { listAccounts } from "@/lib/api/accounts";
 import {
@@ -216,6 +218,47 @@ export default function LoansPage() {
       setScheduleLoading(false);
     }
   }
+
+  type ScheduleSortKey =
+    | "installment"
+    | "due"
+    | "payment"
+    | "principal"
+    | "interest"
+    | "balance";
+
+  const scheduleComparators = useMemo(
+    () =>
+      ({
+        installment: (a: LoanAmortizationRow, b: LoanAmortizationRow) =>
+          a.installment - b.installment,
+        due: (a: LoanAmortizationRow, b: LoanAmortizationRow) =>
+          a.due_date.localeCompare(b.due_date),
+        payment: (a: LoanAmortizationRow, b: LoanAmortizationRow) =>
+          Number(a.payment) - Number(b.payment),
+        principal: (a: LoanAmortizationRow, b: LoanAmortizationRow) =>
+          Number(a.principal) - Number(b.principal),
+        interest: (a: LoanAmortizationRow, b: LoanAmortizationRow) =>
+          Number(a.interest) - Number(b.interest),
+        balance: (a: LoanAmortizationRow, b: LoanAmortizationRow) =>
+          Number(a.outstanding_balance) - Number(b.outstanding_balance),
+      }) satisfies Record<
+        ScheduleSortKey,
+        (a: LoanAmortizationRow, b: LoanAmortizationRow) => number
+      >,
+    [],
+  );
+
+  const {
+    sorted: sortedSchedule,
+    sortKey: scheduleSortKey,
+    sortDir: scheduleSortDir,
+    toggle: toggleScheduleSort,
+  } = useTableSort(schedule, {
+    initialKey: "installment",
+    initialDir: "asc",
+    comparators: scheduleComparators,
+  });
 
   return (
     <div>
@@ -647,18 +690,58 @@ export default function LoansPage() {
         ) : (
           <div className="overflow-x-auto rounded-[10px] ds-border">
             <table className="w-full min-w-[680px] text-left text-xs">
-              <thead className="bg-[var(--ds-background-100)] text-[var(--ds-gray-700)]">
+              <thead className="bg-[var(--ds-background-100)] text-[11px] uppercase tracking-[0.08em] text-[var(--ds-gray-700)]">
                 <tr>
-                  <th className="px-4 py-3 font-medium">#</th>
-                  <th className="px-4 py-3 font-medium">Due</th>
-                  <th className="px-4 py-3 text-right font-medium">Payment</th>
-                  <th className="px-4 py-3 text-right font-medium">Principal</th>
-                  <th className="px-4 py-3 text-right font-medium">Interest</th>
-                  <th className="px-4 py-3 text-right font-medium">Balance</th>
+                  <SortableTh
+                    label="#"
+                    active={scheduleSortKey === "installment"}
+                    direction={scheduleSortDir}
+                    onSort={() => toggleScheduleSort("installment")}
+                    className="px-4 py-3"
+                  />
+                  <SortableTh
+                    label="Due"
+                    active={scheduleSortKey === "due"}
+                    direction={scheduleSortDir}
+                    onSort={() => toggleScheduleSort("due")}
+                    className="px-4 py-3"
+                  />
+                  <SortableTh
+                    label="Payment"
+                    active={scheduleSortKey === "payment"}
+                    direction={scheduleSortDir}
+                    onSort={() => toggleScheduleSort("payment")}
+                    align="right"
+                    className="px-4 py-3"
+                  />
+                  <SortableTh
+                    label="Principal"
+                    active={scheduleSortKey === "principal"}
+                    direction={scheduleSortDir}
+                    onSort={() => toggleScheduleSort("principal")}
+                    align="right"
+                    className="px-4 py-3"
+                  />
+                  <SortableTh
+                    label="Interest"
+                    active={scheduleSortKey === "interest"}
+                    direction={scheduleSortDir}
+                    onSort={() => toggleScheduleSort("interest")}
+                    align="right"
+                    className="px-4 py-3"
+                  />
+                  <SortableTh
+                    label="Balance"
+                    active={scheduleSortKey === "balance"}
+                    direction={scheduleSortDir}
+                    onSort={() => toggleScheduleSort("balance")}
+                    align="right"
+                    className="px-4 py-3"
+                  />
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--ds-gray-200)]">
-                {schedule.map((row) => (
+                {sortedSchedule.map((row) => (
                   <tr key={row.installment}>
                     <td className="px-4 py-3">{row.installment}</td>
                     <td className="px-4 py-3">{formatDate(row.due_date)}</td>

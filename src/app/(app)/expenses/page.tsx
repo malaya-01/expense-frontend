@@ -29,6 +29,31 @@ import { getErrorMessage } from "@/lib/api/client";
 import type { LedgerTransaction } from "@/types";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { usePagination } from "@/hooks/use-pagination";
+import { useTableSort } from "@/hooks/use-table-sort";
+import type { TransactionSortKey } from "@/components/expenses/expense-table";
+
+const TRANSACTION_COMPARATORS: Record<
+  TransactionSortKey,
+  (a: LedgerTransaction, b: LedgerTransaction) => number
+> = {
+  transaction: (a, b) =>
+    (a.description || "").localeCompare(b.description || "", undefined, {
+      sensitivity: "base",
+    }),
+  flow: (a, b) => {
+    const flowOf = (tx: LedgerTransaction) =>
+      tx.type === "transfer"
+        ? `${tx.source_name || ""}→${tx.destination_name || ""}`
+        : tx.type === "expense"
+          ? tx.source_name || ""
+          : tx.destination_name || "";
+    return flowOf(a).localeCompare(flowOf(b), undefined, {
+      sensitivity: "base",
+    });
+  },
+  date: (a, b) => a.date.localeCompare(b.date),
+  amount: (a, b) => Number(a.amount) - Number(b.amount),
+};
 
 export default function ExpensesPage() {
   const { openTransactionModal, openEditTransactionModal } =
@@ -75,29 +100,24 @@ export default function ExpensesPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = [...transactions].sort((a, b) =>
-      b.date.localeCompare(a.date),
-    );
-    return list.filter(
-      (e) => {
-        const matchesQuery =
-          !q ||
-          e.description.toLowerCase().includes(q) ||
-          e.merchant?.toLowerCase().includes(q) ||
-          e.notes?.toLowerCase().includes(q) ||
-          e.source_name?.toLowerCase().includes(q) ||
-          e.destination_name?.toLowerCase().includes(q) ||
-          e.type.includes(q);
-        return (
-          matchesQuery &&
-          (typeFilter === "all" || e.type === typeFilter) &&
-          (currencyFilter === "all" ||
-            (e.currency || "USD") === currencyFilter) &&
-          (!dateFrom || e.date >= dateFrom) &&
-          (!dateTo || e.date <= dateTo)
-        );
-      },
-    );
+    return transactions.filter((e) => {
+      const matchesQuery =
+        !q ||
+        e.description.toLowerCase().includes(q) ||
+        e.merchant?.toLowerCase().includes(q) ||
+        e.notes?.toLowerCase().includes(q) ||
+        e.source_name?.toLowerCase().includes(q) ||
+        e.destination_name?.toLowerCase().includes(q) ||
+        e.type.includes(q);
+      return (
+        matchesQuery &&
+        (typeFilter === "all" || e.type === typeFilter) &&
+        (currencyFilter === "all" ||
+          (e.currency || "USD") === currencyFilter) &&
+        (!dateFrom || e.date >= dateFrom) &&
+        (!dateTo || e.date <= dateTo)
+      );
+    });
   }, [
     transactions,
     query,
@@ -107,9 +127,20 @@ export default function ExpensesPage() {
     dateTo,
   ]);
 
-  const pager = usePagination(filtered, {
+  const {
+    sorted: sortedFiltered,
+    sortKey,
+    sortDir,
+    toggle: toggleSort,
+  } = useTableSort(filtered, {
+    initialKey: "date",
+    initialDir: "desc",
+    comparators: TRANSACTION_COMPARATORS,
+  });
+
+  const pager = usePagination(sortedFiltered, {
     pageSize: 10,
-    resetKey: `${query}|${typeFilter}|${currencyFilter}|${dateFrom}|${dateTo}`,
+    resetKey: `${query}|${typeFilter}|${currencyFilter}|${dateFrom}|${dateTo}|${sortKey}|${sortDir}`,
   });
 
   const baseCurrency = user?.currency || "USD";
@@ -177,9 +208,16 @@ export default function ExpensesPage() {
               </Button>
             ) : null}
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-[minmax(240px,1.5fr)_160px_130px_150px_150px]">
-            <div className="col-span-2 xl:col-span-1">
+          <div className="grid grid-cols-2 items-end gap-3 sm:gap-3 xl:grid-cols-[minmax(0,1.5fr)_minmax(8.5rem,0.7fr)_minmax(8.5rem,0.7fr)_minmax(9rem,0.85fr)_minmax(9rem,0.85fr)]">
+            <div className="col-span-2 min-w-0 xl:col-span-1">
+              <label
+                htmlFor="tx-search"
+                className="mb-1.5 block text-[11px] font-medium text-[var(--ds-gray-900)]"
+              >
+                Search
+              </label>
               <Input
+                id="tx-search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Merchant, category, account, notes…"
@@ -187,34 +225,52 @@ export default function ExpensesPage() {
                 startAdornment={<Search size={15} aria-hidden />}
               />
             </div>
-            <Select
-              value={typeFilter}
-              onChange={(event) => setTypeFilter(event.target.value)}
-              aria-label="Filter by transaction type"
-            >
-              <option value="all">All types</option>
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
-              <option value="transfer">Transfer</option>
-            </Select>
-            <Select
-              value={currencyFilter}
-              onChange={(event) => setCurrencyFilter(event.target.value)}
-              aria-label="Filter by currency"
-            >
-              <option value="all">All currencies</option>
-              {currencies.map((currency) => (
-                <option key={currency} value={currency}>
-                  {currency}
-                </option>
-              ))}
-            </Select>
+            <div className="min-w-0">
+              <label
+                htmlFor="tx-type"
+                className="mb-1.5 block text-[11px] font-medium text-[var(--ds-gray-900)]"
+              >
+                Type
+              </label>
+              <Select
+                id="tx-type"
+                value={typeFilter}
+                onChange={(event) => setTypeFilter(event.target.value)}
+                aria-label="Filter by transaction type"
+              >
+                <option value="all">All types</option>
+                <option value="expense">Expense</option>
+                <option value="income">Income</option>
+                <option value="transfer">Transfer</option>
+              </Select>
+            </div>
+            <div className="min-w-0">
+              <label
+                htmlFor="tx-currency"
+                className="mb-1.5 block text-[11px] font-medium text-[var(--ds-gray-900)]"
+              >
+                Currency
+              </label>
+              <Select
+                id="tx-currency"
+                value={currencyFilter}
+                onChange={(event) => setCurrencyFilter(event.target.value)}
+                aria-label="Filter by currency"
+              >
+                <option value="all">All currencies</option>
+                {currencies.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </Select>
+            </div>
             <div className="min-w-0">
               <label
                 htmlFor="tx-date-from"
-                className="mb-1 block text-[11px] font-medium text-[var(--ds-gray-900)]"
+                className="mb-1.5 block text-[11px] font-medium text-[var(--ds-gray-900)]"
               >
-                From date
+                From
               </label>
               <Input
                 id="tx-date-from"
@@ -228,9 +284,9 @@ export default function ExpensesPage() {
             <div className="min-w-0">
               <label
                 htmlFor="tx-date-to"
-                className="mb-1 block text-[11px] font-medium text-[var(--ds-gray-900)]"
+                className="mb-1.5 block text-[11px] font-medium text-[var(--ds-gray-900)]"
               >
-                To date
+                To
               </label>
               <Input
                 id="tx-date-to"
@@ -296,6 +352,9 @@ export default function ExpensesPage() {
           onOpen={setSelected}
           onEdit={perms.update ? openEditTransactionModal : undefined}
           onDelete={perms.delete ? setDeleteId : undefined}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSort={toggleSort}
         />
         <Pagination
           page={pager.page}

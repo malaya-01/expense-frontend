@@ -170,9 +170,9 @@ export function Select({
           setOpen((v) => !v);
         }}
         className={cn(
-          "flex h-10 w-full items-center justify-between gap-2 rounded-xl bg-[var(--ds-background-100)] text-left text-[13px] text-[var(--ds-gray-1000)] sm:h-11",
+          "flex h-10 w-full items-center justify-between gap-2 rounded-[9px] bg-[var(--ds-background-elevated)] text-left text-[13px] text-[var(--ds-gray-1000)] sm:h-11",
           startAdornment ? "pl-2.5 pr-3 sm:pr-3.5" : "px-3 sm:px-3.5",
-          "border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_10%,transparent)]",
+          "ds-border",
           "outline-none transition-colors hover:border-[color:color-mix(in_srgb,var(--ds-gray-1000)_18%,transparent)]",
           "focus-visible:border-[var(--ds-focus-input)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--ds-focus-input)]",
           disabled && "pointer-events-none opacity-45",

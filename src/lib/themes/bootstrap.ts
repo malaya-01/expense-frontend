@@ -14,10 +14,6 @@ export function getThemeBootstrapScript(): string {
     var PRESETS=${JSON.stringify(presetPayload)};
     var stored=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});
     var activeId=stored||${JSON.stringify(PRESET_THEMES[0].id)};
-    if(activeId==="preset:vercel-light"){
-      activeId=${JSON.stringify(PRESET_THEMES[0].id)};
-      try{localStorage.setItem(${JSON.stringify(THEME_STORAGE_KEY)},activeId);}catch(e){}
-    }
     var custom=JSON.parse(localStorage.getItem(${JSON.stringify(CUSTOM_THEMES_KEY)})||"[]");
   var theme=PRESETS.find(function(t){return t.id===activeId;});
   if(!theme&&Array.isArray(custom)){theme=custom.find(function(t){return t.id===activeId;});}
@@ -74,12 +70,8 @@ export function readStoredThemeSnapshot(): {
     return { activeThemeId: PRESET_THEMES[0].id, customThemes: [] };
   }
   try {
-    let activeThemeId =
+    const activeThemeId =
       localStorage.getItem(THEME_STORAGE_KEY) || PRESET_THEMES[0].id;
-    if (activeThemeId === "preset:vercel-light") {
-      activeThemeId = PRESET_THEMES[0].id;
-      localStorage.setItem(THEME_STORAGE_KEY, activeThemeId);
-    }
     const customThemes = JSON.parse(
       localStorage.getItem(CUSTOM_THEMES_KEY) || "[]",
     ) as ThemeDefinition[];

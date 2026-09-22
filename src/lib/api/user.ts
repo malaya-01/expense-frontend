@@ -117,3 +117,22 @@ export async function patchNotificationPreferences(
   const res = await api.patch("/user/notification-preferences", preferences);
   return unwrap<{ preferences: Record<string, unknown> }>(res);
 }
+
+export type ThemePreferencesPayload = {
+  active_theme_id: string | null;
+  custom_themes: unknown[];
+  has_preference?: boolean;
+};
+
+export async function getThemePreferences(): Promise<ThemePreferencesPayload> {
+  const res = await api.get("/user/theme-preferences");
+  return unwrap<ThemePreferencesPayload>(res);
+}
+
+export async function saveThemePreferences(payload: {
+  active_theme_id: string;
+  custom_themes: unknown[];
+}): Promise<ThemePreferencesPayload> {
+  const res = await api.put("/user/theme-preferences", payload);
+  return unwrap<ThemePreferencesPayload>(res);
+}

@@ -55,35 +55,79 @@ export function defaultsFromReceiptParse(
   forcedSourceId?: string,
 ): Partial<CreateTransactionInput> {
   const extracted = result?.extracted;
-  const type = resolveType(result);
+  let type = resolveType(result);
   const merchant = extracted?.merchant?.trim() || "";
-  const description = extracted?.description?.trim() || merchant || "";
+  let description = extracted?.description?.trim() || merchant || "";
   const date = extracted?.date || todayISO();
   const time = extracted?.time || timeFromPaidAt(extracted?.paid_at);
-  const sourceMatched =
+
+  const sourceHint = {
+    container_name: extracted?.container_name,
+    bank_name: extracted?.bank_name,
+    account_last4: extracted?.account_last4,
+    account_label: extracted?.account_label || extracted?.payment_method,
+  };
+  const destinationHint = {
+    container_name: extracted?.destination_container_name,
+    bank_name: extracted?.destination_bank_name,
+    account_last4: extracted?.destination_account_last4,
+    account_label: extracted?.destination_account_label,
+  };
+
+  let sourceMatched =
     forcedSourceId ||
     result?.source_container_id ||
-    matchExpenseSource(containers, {
-      container_name: extracted?.container_name,
-      bank_name: extracted?.bank_name,
-      account_last4: extracted?.account_last4,
-      account_label: extracted?.account_label,
-    })?.id ||
-    (type === "expense" || type === "transfer"
-      ? readLastSourceContainerId()
-      : "") ||
+    matchExpenseSource(containers, sourceHint)?.id ||
     "";
+
   let destinationMatched =
     result?.destination_container_id ||
-    matchExpenseSource(containers, {
-      container_name: extracted?.destination_container_name,
-      bank_name: extracted?.destination_bank_name,
-      account_last4: extracted?.destination_account_last4,
-      account_label: extracted?.destination_account_label,
+    matchExpenseSource(containers, destinationHint, {
+      excludeIds: sourceMatched ? [sourceMatched] : [],
     })?.id ||
     "";
+
+  // Two distinct own accounts on the receipt → treat as transfer.
+  if (
+    sourceMatched &&
+    destinationMatched &&
+    sourceMatched !== destinationMatched &&
+    type === "expense"
+  ) {
+    type = "transfer";
+  }
+
   if (type === "income" && !destinationMatched && sourceMatched) {
     destinationMatched = sourceMatched;
+    sourceMatched = "";
+  }
+
+  if (
+    (type === "expense" || type === "transfer") &&
+    !sourceMatched
+  ) {
+    sourceMatched = readLastSourceContainerId() || "";
+  }
+
+  if (
+    type === "transfer" &&
+    sourceMatched &&
+    destinationMatched &&
+    sourceMatched === destinationMatched
+  ) {
+    destinationMatched = "";
+  }
+
+  if (
+    type === "transfer" &&
+    (!description || /^self$/i.test(description))
+  ) {
+    const fromName = containers.find((c) => c.id === sourceMatched)?.name;
+    const toName = containers.find((c) => c.id === destinationMatched)?.name;
+    description =
+      fromName && toName
+        ? `Transfer · ${fromName} → ${toName}`
+        : "Account transfer";
   }
 
   return {
@@ -92,11 +136,10 @@ export function defaultsFromReceiptParse(
     description,
     date,
     category_id: result?.category_id || "",
-    source_container_id:
-      type === "income" ? "" : sourceMatched,
-    destination_container_id:
-      type === "expense" ? "" : destinationMatched,
-    merchant: type === "transfer" && /^self$/i.test(merchant) ? "" : merchant,
+    source_container_id: type === "income" ? "" : sourceMatched,
+    destination_container_id: type === "expense" ? "" : destinationMatched,
+    merchant:
+      type === "transfer" && /^self$/i.test(merchant) ? "" : merchant,
     currency: extracted?.currency || undefined,
     notes: extracted?.notes || "",
     payment_method: extracted?.payment_method || undefined,

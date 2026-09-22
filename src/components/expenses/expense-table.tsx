@@ -3,7 +3,9 @@
 import { MoreHorizontal } from "lucide-react";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { StatusDot } from "@/components/ui/status-dot";
+import { SortableTh } from "@/components/ui/sortable-th";
 import { formatCurrency, formatRelativeDate } from "@/lib/format";
+import type { SortDir } from "@/hooks/use-table-sort";
 import type { LedgerTransaction } from "@/types";
 import { SyncBadge } from "@/components/sync/sync-badge";
 
@@ -13,18 +15,30 @@ const TYPE_TONE = {
   transfer: "blue" as const,
 };
 
+export type TransactionSortKey =
+  | "transaction"
+  | "flow"
+  | "date"
+  | "amount";
+
 export function TransactionTable({
   transactions,
   onOpen,
   onEdit,
   onDelete,
   baseCurrency = "USD",
+  sortKey,
+  sortDir,
+  onSort,
 }: {
   transactions: LedgerTransaction[];
   onOpen?: (transaction: LedgerTransaction) => void;
   onEdit?: (transaction: LedgerTransaction) => void;
   onDelete?: (id: string) => void;
   baseCurrency?: string;
+  sortKey?: TransactionSortKey;
+  sortDir?: SortDir;
+  onSort?: (key: TransactionSortKey) => void;
 }) {
   function menuItems(tx: LedgerTransaction) {
     const items: {
@@ -46,6 +60,8 @@ export function TransactionTable({
     }
     return items;
   }
+
+  const sortable = Boolean(onSort && sortKey && sortDir);
 
   return (
     <>
@@ -133,10 +149,42 @@ export function TransactionTable({
       <table className="w-full min-w-[720px] border-collapse text-left">
         <thead>
           <tr className="border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-background-100)] text-[11px] uppercase tracking-[0.08em] text-[var(--ds-gray-700)]">
-            <th className="px-5 py-3 font-medium">Transaction</th>
-            <th className="px-5 py-3 font-medium">Flow</th>
-            <th className="px-5 py-3 font-medium">Date</th>
-            <th className="px-5 py-3 font-medium text-right">Amount</th>
+            {sortable ? (
+              <>
+                <SortableTh
+                  label="Transaction"
+                  active={sortKey === "transaction"}
+                  direction={sortDir!}
+                  onSort={() => onSort!("transaction")}
+                />
+                <SortableTh
+                  label="Flow"
+                  active={sortKey === "flow"}
+                  direction={sortDir!}
+                  onSort={() => onSort!("flow")}
+                />
+                <SortableTh
+                  label="Date"
+                  active={sortKey === "date"}
+                  direction={sortDir!}
+                  onSort={() => onSort!("date")}
+                />
+                <SortableTh
+                  label="Amount"
+                  active={sortKey === "amount"}
+                  direction={sortDir!}
+                  onSort={() => onSort!("amount")}
+                  align="right"
+                />
+              </>
+            ) : (
+              <>
+                <th className="px-5 py-3 font-medium">Transaction</th>
+                <th className="px-5 py-3 font-medium">Flow</th>
+                <th className="px-5 py-3 font-medium">Date</th>
+                <th className="px-5 py-3 font-medium text-right">Amount</th>
+              </>
+            )}
             <th className="px-5 py-3 font-medium text-right">Actions</th>
           </tr>
         </thead>
