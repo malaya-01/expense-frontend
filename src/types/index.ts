@@ -14,6 +14,7 @@ export type User = {
   timezone?: string;
   locale?: string;
   avatar_url?: string | null;
+  email_verified?: boolean;
   is_admin?: boolean;
   permissions?: string[];
 };

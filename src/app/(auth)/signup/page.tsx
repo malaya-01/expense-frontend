@@ -12,14 +12,11 @@ import { Card, CardBody } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { loginUser, registerUser } from "@/lib/api/auth";
 import { getErrorMessage } from "@/lib/api/client";
-import { useAuth } from "@/lib/auth-context";
-import { userIdFromToken } from "@/lib/jwt";
 import { APP_NAME } from "@/lib/brand";
 import { COUNTRIES, SUPPORTED_CURRENCIES, getCountry } from "@/lib/currency/currency.data";
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { setSession } = useAuth();
   const { showToast } = useToast();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -52,7 +49,7 @@ export default function SignUpPage() {
     }
     setLoading(true);
     try {
-      await registerUser({
+      const result = await registerUser({
         full_name: fullName,
         email,
         password,
@@ -60,27 +57,26 @@ export default function SignUpPage() {
         country,
         currency,
       });
-      const tokens = await loginUser({ email, password });
-      const id =
-        tokens.user?.id || userIdFromToken(tokens.accessToken) || "local";
-      await setSession({
-        id,
-        email: tokens.user?.email || email,
-        full_name: tokens.user?.full_name ?? fullName,
-        country: tokens.user?.country ?? country,
-        currency: tokens.user?.currency || currency || "USD",
-        timezone: tokens.user?.timezone,
-        locale: tokens.user?.locale,
-        avatar_url: tokens.user?.avatar_url ?? null,
-        is_admin: tokens.user?.is_admin ?? false,
-        permissions: tokens.user?.permissions ?? [],
-      });
+      const needsVerify =
+        result.requires_email_verification !== false &&
+        result.email_verified !== true;
+      if (needsVerify) {
+        showToast({
+          title: "Verify your email",
+          description:
+            result.message ||
+            "We sent a verification link. Open it before signing in.",
+          tone: "success",
+        });
+        router.replace(`/check-email?email=${encodeURIComponent(email)}`);
+        return;
+      }
       showToast({
         title: `Welcome to ${APP_NAME}`,
-        description: "Your account is ready.",
+        description: "Your account is ready. Sign in to continue.",
         tone: "success",
       });
-      router.replace("/dashboard");
+      router.replace("/signin");
     } catch (err) {
       showToast({
         title: "Sign up failed",
@@ -98,7 +94,8 @@ export default function SignUpPage() {
         Create {APP_NAME} account
       </h3>
       <p className="mb-8 text-sm leading-5 text-[var(--ds-gray-900)]">
-        Tell us where you are so totals use your currency.
+        Tell us where you are so totals use your currency. You&apos;ll verify your
+        email before signing in.
       </p>
 
       <Card>
@@ -193,6 +190,9 @@ export default function SignUpPage() {
             <Button type="submit" className="w-full" loading={loading}>
               Create account
             </Button>
+            <p className="text-center text-xs text-[var(--ds-gray-700)]">
+              We&apos;ll email you a verification link before you can sign in.
+            </p>
           </form>
         </CardBody>
       </Card>

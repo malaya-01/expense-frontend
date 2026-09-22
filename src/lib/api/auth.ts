@@ -8,9 +8,19 @@ export async function registerUser(payload: {
   confirmPassword: string;
   country: string;
   currency?: string;
-}): Promise<User & { message?: string }> {
+}): Promise<
+  User & {
+    message?: string;
+    requires_email_verification?: boolean;
+  }
+> {
   const res = await api.post("/auth/register", payload);
-  return unwrap<User & { message?: string }>(res);
+  return unwrap<
+    User & {
+      message?: string;
+      requires_email_verification?: boolean;
+    }
+  >(res);
 }
 
 export async function loginUser(payload: {
@@ -42,11 +52,19 @@ export async function generateOtp(email: string) {
   }>(res);
 }
 
+export async function verifyRecoveryOtp(payload: {
+  email: string;
+  otp: string;
+}) {
+  const res = await api.post("/auth/verify-otp", payload);
+  return unwrap<{ message: string; reset_token: string }>(res);
+}
+
 export async function resetPassword(payload: {
   email: string;
   newPassword: string;
   confirmNewPassword: string;
-  otp: string;
+  resetToken: string;
 }) {
   const res = await api.post("/auth/reset-password", payload);
   return unwrap<{ message: string }>(res);

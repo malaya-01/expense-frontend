@@ -314,6 +314,30 @@ function createClient(): AxiosInstance {
     async (error) => {
       const original = error.config as TrackedRequestConfig | undefined;
       finishApiRequest(original);
+
+      const errMessage =
+        (error.response?.data as { message?: string } | undefined)?.message ||
+        "";
+      if (
+        error.response?.status === 403 &&
+        String(errMessage).includes("EMAIL_NOT_VERIFIED") &&
+        typeof window !== "undefined"
+      ) {
+        clearTokens();
+        authFailureHandler?.();
+        let email = "";
+        try {
+          const raw = localStorage.getItem("expense-tracker:user");
+          if (raw) email = JSON.parse(raw)?.email || "";
+        } catch {
+          /* ignore */
+        }
+        localStorage.removeItem("expense-tracker:user");
+        const q = email ? `?email=${encodeURIComponent(email)}` : "";
+        window.location.assign(`/check-email${q}`);
+        return Promise.reject(error);
+      }
+
       if (
         error.response?.status !== 401 ||
         !original ||
