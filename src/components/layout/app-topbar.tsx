@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeftRight,
@@ -24,9 +24,6 @@ import {
 import { openCommandPalette } from "@/components/layout/command-palette";
 import { NotificationCenter } from "@/components/layout/notification-center";
 import { SyncStatusButton } from "@/components/sync/sync-status";
-import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
-import { useAuth } from "@/lib/auth-context";
-import { canCrud } from "@/lib/permissions";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import {
   setMobileNavOpen,
@@ -55,11 +52,8 @@ const ROUTE_TITLES = [
 
 export function AppTopbar() {
   const router = useRouter();
-  const { openTransactionModal } = useTransactionModal();
-  const { user } = useAuth();
   const pathname = usePathname();
   const dispatch = useAppDispatch();
-  const [mounted, setMounted] = useState(false);
   const sidebarPinned = useAppSelector((state) => state.ui.sidebarPinned);
   const page = useMemo(
     () =>
@@ -70,14 +64,7 @@ export function AppTopbar() {
       },
     [pathname],
   );
-  useEffect(() => {
-    setMounted(true);
-  }, []);
   const PageIcon = page.icon;
-  const showTransactionAction =
-    mounted &&
-    (pathname === "/dashboard" || pathname === "/expenses") &&
-    canCrud(user, "expenses", "create");
 
   return (
     <header className="fixed inset-x-0 top-0 z-[70] flex h-12 items-center gap-1 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-background-100)] px-2">
@@ -134,16 +121,6 @@ export function AppTopbar() {
           <Search size={14} />
         </button>
         <NotificationCenter />
-        {showTransactionAction ? (
-          <button
-            type="button"
-            onClick={() => openTransactionModal()}
-            className="hidden h-7 items-center gap-1 rounded-[6px] bg-[var(--ds-focus-color)] px-2.5 text-[11px] font-medium text-white hover:brightness-95 sm:flex ds-focus"
-          >
-            <Plus size={13} />
-            New transaction
-          </button>
-        ) : null}
       </div>
     </header>
   );

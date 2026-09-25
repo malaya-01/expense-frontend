@@ -332,6 +332,14 @@ export function CommandPalette() {
         run: () => router.push("/settings?section=appearance"),
       },
       {
+        id: "report-schedule",
+        title: "Email report schedule",
+        subtitle: "Weekly, monthly, or custom financial reports",
+        keywords: "report email weekly monthly excel schedule saturday",
+        icon: ChartNoAxesCombined,
+        run: () => router.push("/settings?section=reports"),
+      },
+      {
         id: "settings",
         title: "Open settings",
         subtitle: "Configure Opal",

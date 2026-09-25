@@ -2,17 +2,6 @@
 
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  Bot,
-  Cloud,
-  Database,
-  Info,
-  Keyboard,
-  LogOut,
-  Palette,
-  ShieldCheck,
-  UserRound,
-} from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +13,7 @@ import { AppearanceSection } from "@/components/settings/theme-settings";
 import { AiProvidersSection } from "@/components/settings/ai-providers-section";
 import { SyncSettingsSection } from "@/components/settings/sync-settings-section";
 import { FaceUnlockSettings } from "@/components/settings/face-unlock-section";
+import { ReportScheduleSection } from "@/components/settings/report-schedule-section";
 import { useAuth } from "@/lib/auth-context";
 import {
   COUNTRIES,
@@ -46,15 +36,56 @@ import { getClientPlatform } from "@/lib/runtime-platform";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 
 const SECTIONS = [
-  { id: "general", label: "General", icon: UserRound },
-  { id: "appearance", label: "Appearance", icon: Palette },
-  { id: "ai", label: "AI & Models", icon: Bot },
-  { id: "security", label: "Security", icon: ShieldCheck },
-  { id: "data", label: "Data & Backup", icon: Database },
-  { id: "sync", label: "Offline & Sync", icon: Cloud },
-  { id: "shortcuts", label: "Shortcuts", icon: Keyboard },
-  { id: "session", label: "Session", icon: LogOut },
-  { id: "about", label: "About", icon: Info },
+  {
+    id: "general",
+    label: "General",
+    blurb: "Workspace defaults for country, currency, and timezone.",
+  },
+  {
+    id: "reports",
+    label: "Reports",
+    blurb: "How often Opal emails your financial report, and in what format.",
+  },
+  {
+    id: "appearance",
+    label: "Appearance",
+    blurb: "Personalize your workspace with themes and display settings.",
+  },
+  {
+    id: "ai",
+    label: "AI & Models",
+    blurb: "Connect providers and choose the model Opal Advisor uses.",
+  },
+  {
+    id: "security",
+    label: "Security",
+    blurb: "Password, device unlock, and account protection.",
+  },
+  {
+    id: "data",
+    label: "Data & Backup",
+    blurb: "Export your twin and manage local copies.",
+  },
+  {
+    id: "sync",
+    label: "Sync",
+    blurb: "Offline queue, conflicts, and durable backup.",
+  },
+  {
+    id: "shortcuts",
+    label: "Shortcuts",
+    blurb: "Keyboard commands for moving through Opal faster.",
+  },
+  {
+    id: "session",
+    label: "Session",
+    blurb: "Sign out of this device.",
+  },
+  {
+    id: "about",
+    label: "About",
+    blurb: "App version and product details.",
+  },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -249,50 +280,41 @@ function SettingsPageInner() {
     <div>
       <PageHeader
         title="Settings"
-        description={`Configure ${APP_NAME} security, AI providers, appearance, and workspace tools.`}
+        description="Configure your workspace, preferences and experience."
       />
-      <nav className="sticky top-0 z-30 -mx-3 mb-3 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_10%,transparent)] bg-[var(--ds-background-100)] px-3 py-2 sm:-mx-6 sm:px-6 lg:hidden">
-        <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <nav
+        aria-label="Settings sections"
+        className="sticky top-0 z-20 -mx-3 mb-5 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_10%,transparent)] bg-[var(--ds-background-100)] px-3 sm:-mx-6 sm:px-6"
+      >
+        <div className="flex gap-1 overflow-x-auto py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {SECTIONS.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => go(item.id)}
               className={cn(
-                "flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px] whitespace-nowrap ds-focus",
+                "shrink-0 rounded-[8px] px-3 py-1.5 text-[13px] whitespace-nowrap transition-colors ds-focus",
                 section === item.id
-                  ? "bg-[var(--ds-gray-1000)] font-medium text-[var(--ds-primary-foreground)]"
-                  : "bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)] ds-border",
+                  ? "bg-[var(--ds-background-elevated)] font-medium text-[var(--ds-gray-1000)] shadow-[var(--ds-shadow-border)]"
+                  : "text-[var(--ds-gray-900)] hover:bg-[var(--ds-background-200)] hover:text-[var(--ds-gray-1000)]",
               )}
             >
-              <item.icon size={13} className="shrink-0 opacity-80" />
               {item.label}
             </button>
           ))}
         </div>
       </nav>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <nav className="hidden gap-1 rounded-[12px] bg-[var(--ds-background-elevated)] p-1.5 ds-border lg:sticky lg:top-2 lg:flex lg:h-fit lg:flex-col">
-          {SECTIONS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => go(item.id)}
-              className={cn(
-                "flex min-h-10 items-center gap-2.5 rounded-[8px] px-3 py-2 text-left text-[13px] whitespace-nowrap ds-focus",
-                section === item.id
-                  ? "bg-[var(--ds-gray-100)] font-medium text-[var(--ds-gray-1000)]"
-                  : "text-[var(--ds-gray-900)] hover:bg-[var(--ds-background-100)]",
-              )}
-            >
-              <item.icon size={15} className="shrink-0 opacity-80" />
-              {item.label}
-            </button>
-          ))}
-        </nav>
+      <div className="min-w-0 space-y-4">
+        <div>
+          <h2 className="font-heading text-base font-semibold tracking-[-0.02em] sm:text-lg">
+            {SECTIONS.find((item) => item.id === section)?.label}
+          </h2>
+          <p className="mt-0.5 text-xs leading-5 text-[var(--ds-gray-700)] sm:text-sm">
+            {SECTIONS.find((item) => item.id === section)?.blurb}
+          </p>
+        </div>
 
-        <div className="min-w-0 space-y-4">
           {section === "general" ? (
             <Card>
               <CardHeader className="flex flex-row items-start justify-between gap-3">
@@ -375,6 +397,10 @@ function SettingsPageInner() {
                 </form>
               </CardBody>
             </Card>
+          ) : null}
+
+          {section === "reports" ? (
+            <ReportScheduleSection canUpdate={settingsPerms.update} />
           ) : null}
 
           {section === "ai" ? <AiProvidersSection /> : null}
@@ -598,7 +624,6 @@ function SettingsPageInner() {
             </Card>
           ) : null}
         </div>
-      </div>
     </div>
   );
 }

@@ -14,8 +14,9 @@ export function SettingsGuide() {
     <article>
       <DocH2>What it is</DocH2>
       <DocP>
-        Settings is the control center for profile, currency, appearance, AI
-        providers, security, backup, sync, and shortcuts.
+        Settings is the control center for profile, currency, emailed reports,
+        appearance, AI providers, security, backup, sync, and shortcuts. Sections
+        live in a single tab bar under the page title — not a second sidebar.
       </DocP>
 
       <DocH2>When to use it</DocH2>
@@ -24,6 +25,7 @@ export function SettingsGuide() {
         <li>Connect OpenRouter / other AI keys</li>
         <li>Force a sync or review offline backup</li>
         <li>Update password or notification preferences</li>
+        <li>Choose weekly, monthly, or custom emailed financial reports</li>
       </DocList>
 
       <DocH2>How to open it</DocH2>
@@ -35,7 +37,7 @@ export function SettingsGuide() {
         <li>
           Deep links like{" "}
           <InlineLink href="/settings?section=ai">?section=ai</InlineLink> jump
-          to a panel
+          to a tab
         </li>
       </DocOl>
 
@@ -44,7 +46,11 @@ export function SettingsGuide() {
         items={[
           {
             title: "General / profile",
-            body: "Name, country, currency, timezone — how amounts display.",
+            body: "Name, country, currency, timezone — how amounts display and when reports send.",
+          },
+          {
+            title: "Reports by email",
+            body: "Default is Saturday 10:00. Change to monthly or custom dates, and attach Excel plus AI coaching.",
           },
           {
             title: "Appearance",
@@ -56,7 +62,7 @@ export function SettingsGuide() {
           },
           {
             title: "Offline & sync",
-            body: "Manual sync, pending status, and durable backup options.",
+            body: "Manual sync, pending status, and durable backup options. Also a Settings tab labeled Sync.",
           },
         ]}
       />
@@ -73,7 +79,7 @@ export function SettingsGuide() {
           { href: "/documentation/ai", label: "AI Advisor" },
           { href: "/documentation/offline-sync", label: "Offline & sync" },
           { href: "/documentation/admin", label: "Admin" },
-          { href: "/settings", label: "Open settings" },
+          { href: "/settings?section=reports", label: "Report emails" },
         ]}
       />
     </article>

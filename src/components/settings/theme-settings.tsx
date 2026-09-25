@@ -159,25 +159,15 @@ export function AppearanceSection() {
   const { activeThemeId, presetThemes, setTheme } = useTheme();
 
   return (
-    <div className="space-y-3 sm:space-y-4">
-      <div>
-        <h2 className="font-heading text-sm font-semibold tracking-[-0.02em] sm:text-lg">
-          Themes
-        </h2>
-        <p className="mt-0.5 hidden text-xs leading-5 text-[var(--ds-gray-700)] sm:block">
-          Pick a workspace palette. Changes apply instantly across Opal.
-        </p>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {presetThemes.map((theme) => (
-          <ThemePreviewCard
-            key={theme.id}
-            theme={theme}
-            active={theme.id === activeThemeId}
-            onSelect={() => setTheme(theme.id)}
-          />
-        ))}
-      </div>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {presetThemes.map((theme) => (
+        <ThemePreviewCard
+          key={theme.id}
+          theme={theme}
+          active={theme.id === activeThemeId}
+          onSelect={() => setTheme(theme.id)}
+        />
+      ))}
     </div>
   );
 }

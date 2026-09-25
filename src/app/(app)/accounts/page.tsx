@@ -240,7 +240,7 @@ export default function AccountsPage() {
     <div className="min-w-0 max-w-full overflow-x-hidden">
       <div className="mb-3 sm:mb-5">
         <div className="min-w-0">
-          <h1 className="sr-only sm:not-sr-only sm:text-[28px] sm:font-semibold sm:tracking-[-0.04em] sm:text-[var(--ds-gray-1000)]">
+          <h1 className="font-heading text-[22px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
             Accounts
           </h1>
           <p className="line-clamp-2 max-w-xl text-[13px] leading-5 text-[var(--ds-gray-700)] sm:mt-1 sm:line-clamp-none sm:text-sm">

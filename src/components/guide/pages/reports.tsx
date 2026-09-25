@@ -15,7 +15,9 @@ export function ReportsGuide() {
       <DocH2>What it is</DocH2>
       <DocP>
         Reports summarize spending and income over time so you can spot trends
-        without exporting a spreadsheet first.
+        without exporting a spreadsheet first. Opal also emails a comprehensive
+        HTML + Excel report on a schedule — Saturday 10:00 in your timezone
+        unless you change it in Settings.
       </DocP>
 
       <DocH2>When to use it</DocH2>
@@ -23,6 +25,7 @@ export function ReportsGuide() {
         <li>Month-end review of where money went</li>
         <li>Comparing periods or categories</li>
         <li>Preparing questions for the AI advisor with real numbers</li>
+        <li>Receiving the emailed workbook with charts and coaching</li>
       </DocList>
 
       <DocH2>How to open it</DocH2>
@@ -74,7 +77,7 @@ export function ReportsGuide() {
           { href: "/documentation/transactions", label: "Transactions" },
           { href: "/documentation/categories", label: "Categories" },
           { href: "/documentation/ai", label: "AI Advisor" },
-          { href: "/reports", label: "Open reports" },
+          { href: "/settings?section=reports", label: "Email schedule" },
         ]}
       />
     </article>
