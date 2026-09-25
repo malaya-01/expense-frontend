@@ -80,11 +80,11 @@ export function AppTopbar() {
     canCrud(user, "expenses", "create");
 
   return (
-    <header className="fixed inset-x-0 top-0 z-[70] flex h-11 items-center gap-1 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-background-100)] px-2">
+    <header className="fixed inset-x-0 top-0 z-[70] flex h-12 items-center gap-1 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-background-100)] px-2">
       <button
         type="button"
         onClick={() => dispatch(setMobileNavOpen(true))}
-        className="flex size-7 items-center justify-center rounded-[6px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] md:hidden ds-focus"
+        className="flex size-9 items-center justify-center rounded-[6px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] md:hidden ds-focus"
         aria-label="Open sidebar"
       >
         <Menu size={15} />
@@ -92,7 +92,7 @@ export function AppTopbar() {
       <button
         type="button"
         onClick={() => dispatch(toggleSidebarPinned())}
-        className="hidden size-7 items-center justify-center rounded-[6px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] md:flex ds-focus"
+        className="hidden size-9 items-center justify-center rounded-[6px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] md:flex ds-focus"
         aria-label={sidebarPinned ? "Hide sidebar" : "Show sidebar"}
         title={
           sidebarPinned
@@ -127,7 +127,7 @@ export function AppTopbar() {
         <button
           type="button"
           onClick={openCommandPalette}
-          className="flex size-7 items-center justify-center rounded-[6px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] ds-focus"
+          className="flex size-9 items-center justify-center rounded-[6px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] ds-focus"
           aria-label={`Search ${APP_NAME}`}
           title="Search (Ctrl+K)"
         >

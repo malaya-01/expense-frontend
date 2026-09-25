@@ -111,7 +111,7 @@ export function AiAdvisorWorkspace() {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-transparent">
-      <div className="flex h-10 items-center gap-3 px-3 md:hidden">
+      <div className="flex h-10 items-center px-2 md:hidden">
         <button
           type="button"
           onClick={() => setMobileConversationsOpen(true)}
@@ -120,9 +120,6 @@ export function AiAdvisorWorkspace() {
         >
           <PanelLeft size={16} strokeWidth={1.8} />
         </button>
-        <p className="text-sm font-medium text-[var(--ds-gray-1000)]">
-          AI Advisor
-        </p>
       </div>
 
       {workspace.error ? (

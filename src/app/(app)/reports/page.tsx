@@ -132,9 +132,11 @@ export default function ReportsPage() {
               variant="secondary"
               onClick={refresh}
               loading={loading}
+              aria-label="Refresh reports"
+              className="px-2.5 sm:px-3"
             >
               <RefreshCw size={14} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
             <Button
               variant="secondary"
@@ -148,6 +150,7 @@ export default function ReportsPage() {
               variant="secondary"
               onClick={exportJson}
               disabled={!report}
+              className="hidden sm:inline-flex"
             >
               <Download size={14} />
               JSON

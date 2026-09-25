@@ -427,6 +427,12 @@ export function MobileNav() {
   ];
   const items = filterNav(candidates, user).slice(0, 4);
   const pathname = usePathname();
+  const shortLabel = (href: string, label: string) => {
+    if (href === "/dashboard") return "Home";
+    if (href === "/expenses") return "Txns";
+    if (href === "/ai") return "AI";
+    return label;
+  };
 
   return (
     <>
@@ -439,21 +445,21 @@ export function MobileNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-[9px] px-1 py-1.5 text-[10px]",
+                "flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-[9px] px-1 py-1.5 text-[11px]",
                 active
                   ? "bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)]"
                   : "text-[var(--ds-gray-900)]",
               )}
             >
               <item.icon size={17} strokeWidth={1.8} />
-              {item.label}
+              {shortLabel(item.href, item.label)}
             </Link>
           );
         })}
         <button
           type="button"
           onClick={() => dispatch(setMobileNavOpen(true))}
-          className="flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-[9px] px-1 py-1.5 text-[10px] text-[var(--ds-gray-900)]"
+          className="flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-[9px] px-1 py-1.5 text-[11px] text-[var(--ds-gray-900)]"
           aria-label="Open all modules"
         >
           <Menu size={17} strokeWidth={1.8} />

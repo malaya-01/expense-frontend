@@ -26,39 +26,49 @@ export function ModuleHeader({
   filterLabel?: string;
   actions?: ReactNode;
 }) {
+  const hasToolbar = Boolean(onSearchChange || onFilterChange || actions);
+
   return (
     <div className="mb-3 sm:mb-5">
-      <div className="min-w-0">
-        <h1 className="text-[20px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
-          {title}
-        </h1>
-        <p className="mt-0.5 line-clamp-2 max-w-2xl text-[11px] leading-4 text-[var(--ds-gray-700)] sm:mt-1 sm:line-clamp-none sm:text-sm sm:leading-5">
-          {description}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          {/* Topbar already shows the route on mobile — keep page H1 for a11y, soften visual weight */}
+          <h1 className="sr-only sm:not-sr-only sm:text-[28px] sm:font-semibold sm:tracking-[-0.04em] sm:text-[var(--ds-gray-1000)]">
+            {title}
+          </h1>
+          <p className="line-clamp-2 max-w-2xl text-[13px] leading-5 text-[var(--ds-gray-700)] sm:mt-1 sm:line-clamp-none sm:text-sm">
+            {description}
+          </p>
+        </div>
+        {actions && !onSearchChange && !onFilterChange ? (
+          <div className="hidden shrink-0 items-center gap-2 sm:flex">
+            {actions}
+          </div>
+        ) : null}
       </div>
 
-      {(onSearchChange || onFilterChange || actions) ? (
-        <div className="mt-2.5 flex flex-wrap items-center gap-2 sm:mt-3">
+      {hasToolbar ? (
+        <div className="mt-2.5 flex items-center gap-2 sm:mt-3">
           {onSearchChange ? (
-            <div className="min-w-0 flex-1 basis-[12rem] sm:max-w-xs sm:flex-none sm:basis-auto sm:w-56">
+            <div className="min-w-0 flex-1 sm:max-w-xs sm:flex-none sm:w-56">
               <Input
                 value={search || ""}
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder={searchPlaceholder}
                 aria-label={searchPlaceholder}
                 startAdornment={<Search size={14} aria-hidden />}
-                className="h-9 sm:h-10"
+                className="h-10"
               />
             </div>
           ) : null}
           {onFilterChange && filterOptions?.length ? (
-            <div className="w-[7.25rem] shrink-0 sm:w-44">
+            <div className="w-[8.5rem] shrink-0 sm:w-44">
               <Select
                 value={filter || filterOptions[0]?.value}
                 onChange={(e) => onFilterChange(e.target.value)}
                 aria-label={filterLabel}
                 startAdornment={<Filter size={14} aria-hidden />}
-                className="h-9 sm:h-10"
+                className="h-10"
               >
                 {filterOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -69,10 +79,16 @@ export function ModuleHeader({
             </div>
           ) : null}
           {actions ? (
-            <div className="ml-auto flex w-full items-center justify-end gap-2 sm:w-auto [&_button]:h-9 [&_button]:justify-center [&_button]:px-3 [&_button]:text-[12px] sm:[&_button]:h-10 sm:[&_button]:px-4 sm:[&_button]:text-[13px]">
+            <div className="ml-auto flex shrink-0 items-center gap-2 [&_button]:h-10 [&_button]:justify-center [&_button]:px-3 [&_button]:text-[12px] sm:[&_button]:px-4 sm:[&_button]:text-[13px]">
               {actions}
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {actions && !onSearchChange && !onFilterChange ? (
+        <div className="mt-2.5 flex items-center gap-2 sm:hidden [&_button]:h-10 [&_button]:flex-1 [&_button]:justify-center [&_button]:px-3 [&_button]:text-[12px]">
+          {actions}
         </div>
       ) : null}
     </div>

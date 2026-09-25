@@ -190,10 +190,11 @@ export default function ExpensesPage() {
                 <span className="sm:hidden">Scan</span>
                 <span className="hidden sm:inline">Scan receipt</span>
               </Button>
-              <Button onClick={() => openTransactionModal()}>
-                <span className="sm:hidden">New</span>
-                <span className="hidden sm:inline">New transaction</span>
-              </Button>
+              <div className="hidden sm:block">
+                <Button onClick={() => openTransactionModal()}>
+                  New transaction
+                </Button>
+              </div>
             </div>
           ) : null
         }
@@ -389,6 +390,7 @@ export default function ExpensesPage() {
         />
         <InfiniteScrollSentinel
           hasMore={list.hasMore}
+          loading={list.loadingMore}
           onLoadMore={list.loadMore}
         />
         </>

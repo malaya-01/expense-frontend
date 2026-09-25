@@ -4,9 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
-  LayoutGrid,
   Lightbulb,
-  List,
   Layers,
   PiggyBank,
   Plus,
@@ -87,7 +85,6 @@ export default function CategoriesPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKind>("all");
-  const [view, setView] = useState<"grid" | "list">("grid");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState<CreateCategoryInput>(emptyForm);
@@ -224,26 +221,16 @@ export default function CategoriesPage() {
   return (
     <div>
       <div className="mb-3 sm:mb-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-[22px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
-              Categories
-            </h1>
-            <p className="mt-0.5 hidden text-sm leading-5 text-[var(--ds-gray-700)] sm:block">
-              Track spending envelopes with budget, progress, and color coding.
-            </p>
-          </div>
-          {perms.create ? (
-            <div className="hidden shrink-0 sm:block">
-              <Button onClick={openCreate} className="gap-1.5">
-                <Plus size={15} />
-                New category
-              </Button>
-            </div>
-          ) : null}
+        <div className="min-w-0">
+          <h1 className="sr-only sm:not-sr-only sm:text-[28px] sm:font-semibold sm:tracking-[-0.04em] sm:text-[var(--ds-gray-1000)]">
+            Categories
+          </h1>
+          <p className="hidden text-sm leading-5 text-[var(--ds-gray-700)] sm:mt-1 sm:block">
+            Track spending envelopes with budget, progress, and color coding.
+          </p>
         </div>
 
-        <div className="mt-2.5 flex items-center gap-2 sm:mt-3">
+        <div className="mt-0 flex items-center gap-2 sm:mt-3">
           <div className="min-w-0 flex-1">
             <Input
               value={search}
@@ -251,71 +238,40 @@ export default function CategoriesPage() {
               placeholder="Search categories..."
               aria-label="Search categories"
               startAdornment={<Search size={14} aria-hidden />}
-              className="h-9 sm:h-10"
+              className="h-10"
             />
           </div>
           {perms.create ? (
-            <div className="shrink-0 sm:hidden">
-              <Button onClick={openCreate} className="h-9 gap-1 px-3 text-[12px]">
+            <div className="shrink-0">
+              <Button onClick={openCreate} className="h-10 gap-1 px-3 text-[12px] sm:px-4 sm:text-[13px]">
                 <Plus size={15} />
-                New
+                <span className="sm:hidden">New</span>
+                <span className="hidden sm:inline">New category</span>
               </Button>
             </div>
           ) : null}
         </div>
 
         {!loading && categories.length > 0 ? (
-          <div className="mt-2.5 flex items-center gap-2">
-            <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {FILTER_CHIPS.map((chip) => {
-                const active = filter === chip.id;
-                return (
-                  <button
-                    key={chip.id}
-                    type="button"
-                    onClick={() => setFilter(chip.id)}
-                    className={cn(
-                      "shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors",
-                      active
-                        ? "bg-[var(--ds-gray-1000)] text-[var(--ds-primary-foreground)]"
-                        : "bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)] ds-border",
-                    )}
-                  >
-                    {chip.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="flex shrink-0 rounded-[10px] bg-[var(--ds-background-elevated)] p-0.5 ds-border">
-              <button
-                type="button"
-                aria-label="Grid view"
-                aria-pressed={view === "grid"}
-                onClick={() => setView("grid")}
-                className={cn(
-                  "flex size-8 items-center justify-center rounded-[8px]",
-                  view === "grid"
-                    ? "bg-[var(--ds-gray-1000)] text-[var(--ds-primary-foreground)]"
-                    : "text-[var(--ds-gray-700)]",
-                )}
-              >
-                <LayoutGrid size={14} />
-              </button>
-              <button
-                type="button"
-                aria-label="List view"
-                aria-pressed={view === "list"}
-                onClick={() => setView("list")}
-                className={cn(
-                  "flex size-8 items-center justify-center rounded-[8px]",
-                  view === "list"
-                    ? "bg-[var(--ds-gray-1000)] text-[var(--ds-primary-foreground)]"
-                    : "text-[var(--ds-gray-700)]",
-                )}
-              >
-                <List size={14} />
-              </button>
-            </div>
+          <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {FILTER_CHIPS.map((chip) => {
+              const active = filter === chip.id;
+              return (
+                <button
+                  key={chip.id}
+                  type="button"
+                  onClick={() => setFilter(chip.id)}
+                  className={cn(
+                    "shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors",
+                    active
+                      ? "bg-[var(--ds-gray-1000)] text-[var(--ds-primary-foreground)]"
+                      : "bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)] ds-border",
+                  )}
+                >
+                  {chip.label}
+                </button>
+              );
+            })}
           </div>
         ) : null}
       </div>
@@ -396,14 +352,7 @@ export default function CategoriesPage() {
         </Card>
       ) : (
         <>
-          <div
-            className={cn(
-              "grid gap-2.5 sm:gap-3",
-              view === "grid"
-                ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
-                : "grid-cols-1",
-            )}
-          >
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 xl:grid-cols-3">
             {list.items.map((category) => (
               <CategoryCard
                 key={category.id}
@@ -418,6 +367,7 @@ export default function CategoriesPage() {
           </div>
           <InfiniteScrollSentinel
             hasMore={list.hasMore}
+            loading={list.loadingMore}
             onLoadMore={list.loadMore}
           />
         </>

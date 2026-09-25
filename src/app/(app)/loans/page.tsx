@@ -379,7 +379,7 @@ export default function LoansPage() {
         </div>
       ) : (
         <>
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-3">
           {list.items.map((loan) => (
             <LoanCard
               key={loan.id}
@@ -410,6 +410,7 @@ export default function LoansPage() {
         </div>
         <InfiniteScrollSentinel
           hasMore={list.hasMore}
+          loading={list.loadingMore}
           onLoadMore={list.loadMore}
         />
         </>

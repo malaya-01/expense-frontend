@@ -318,6 +318,7 @@ export default function AdminPage() {
               ))}
               <InfiniteScrollSentinel
                 hasMore={list.hasMore}
+                loading={list.loadingMore}
                 onLoadMore={list.loadMore}
               />
               </>

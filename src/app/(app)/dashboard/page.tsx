@@ -168,7 +168,7 @@ export default function DashboardPage() {
         title={firstName ? `${firstName}'s ${APP_NAME}` : "Overview"}
         description="Where is your money, where did it go, and what should you do next?"
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2">
             <Button variant="secondary" onClick={() => router.push("/accounts")}>
               Accounts
             </Button>
@@ -176,7 +176,11 @@ export default function DashboardPage() {
               Reports
             </Button>
             {canCreateTx ? (
-              <Button onClick={() => openTransactionModal()}>New transaction</Button>
+              <div className="hidden sm:block">
+                <Button onClick={() => openTransactionModal()}>
+                  New transaction
+                </Button>
+              </div>
             ) : null}
           </div>
         }

@@ -73,7 +73,7 @@ export function BudgetCard({
           <div className="flex shrink-0 items-center gap-1.5">
             <span
               className={cn(
-                "max-w-[4.5rem] truncate rounded-full px-1.5 py-0.5 text-[9px] font-medium sm:max-w-none sm:px-2 sm:text-[10px]",
+                "rounded-full px-2 py-0.5 text-[11px] font-medium",
                 STATUS_CLASS[budget.status],
               )}
             >

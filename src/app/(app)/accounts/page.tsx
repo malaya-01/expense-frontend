@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Building2,
-  ChevronRight,
   CreditCard,
   Filter,
   Landmark,
@@ -240,25 +239,14 @@ export default function AccountsPage() {
   return (
     <div className="min-w-0 max-w-full overflow-x-hidden">
       <div className="mb-3 sm:mb-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-[20px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
-              Accounts
-            </h1>
-            <p className="mt-0.5 line-clamp-1 max-w-xl text-[11px] text-[var(--ds-gray-700)] sm:mt-1 sm:line-clamp-none sm:text-sm">
-              Financial containers — every place value lives in your Digital
-              Financial Twin.
-            </p>
-          </div>
-          {perms.create ? (
-            <Button
-              onClick={openCreate}
-              className="hidden shrink-0 sm:inline-flex"
-            >
-              <Plus size={16} />
-              Add account
-            </Button>
-          ) : null}
+        <div className="min-w-0">
+          <h1 className="sr-only sm:not-sr-only sm:text-[28px] sm:font-semibold sm:tracking-[-0.04em] sm:text-[var(--ds-gray-1000)]">
+            Accounts
+          </h1>
+          <p className="line-clamp-2 max-w-xl text-[13px] leading-5 text-[var(--ds-gray-700)] sm:mt-1 sm:line-clamp-none sm:text-sm">
+            Financial containers — every place value lives in your Digital
+            Financial Twin.
+          </p>
         </div>
         <div className="mt-2.5 flex items-center gap-2 sm:mt-3">
           <div className="min-w-0 flex-1 sm:max-w-xs sm:flex-none sm:w-56">
@@ -268,16 +256,16 @@ export default function AccountsPage() {
               placeholder="Search accounts..."
               aria-label="Search accounts"
               startAdornment={<Search size={14} aria-hidden />}
-              className="h-9 sm:h-10"
+              className="h-10"
             />
           </div>
-          <div className="w-[7.5rem] shrink-0 sm:w-44">
+          <div className="w-[8.5rem] shrink-0 sm:w-44">
             <Select
               value={groupFilter}
               onChange={(e) => setGroupFilter(e.target.value as GroupFilter)}
               aria-label="Filter accounts"
               startAdornment={<Filter size={14} aria-hidden />}
-              className="h-9 sm:h-10"
+              className="h-10"
             >
               <option value="all">All accounts</option>
               <option value="liquid">Cash & banks</option>
@@ -287,15 +275,16 @@ export default function AccountsPage() {
               <option value="other">Other</option>
             </Select>
           </div>
+          {perms.create ? (
+            <div className="shrink-0">
+              <Button onClick={openCreate} className="h-10 gap-1 px-3 text-[12px] sm:px-4 sm:text-[13px]">
+                <Plus size={15} />
+                <span className="sm:hidden">Add</span>
+                <span className="hidden sm:inline">Add account</span>
+              </Button>
+            </div>
+          ) : null}
         </div>
-        {perms.create ? (
-          <div className="mt-2 sm:hidden">
-            <Button onClick={openCreate} className="h-9 w-full">
-              <Plus size={16} />
-              Add account
-            </Button>
-          </div>
-        ) : null}
       </div>
 
       <div className="mb-4 grid min-w-0 grid-cols-2 gap-2 sm:mb-6 sm:gap-3 xl:grid-cols-4">
@@ -468,31 +457,9 @@ export default function AccountsPage() {
                 );
               })}
 
-              {perms.create ? (
-              <button
-                type="button"
-                onClick={openCreate}
-                className="flex h-[4.25rem] w-full min-w-0 items-center gap-3 overflow-hidden rounded-[12px] border border-dashed border-[color:color-mix(in_srgb,var(--ds-gray-1000)_18%,transparent)] bg-[var(--ds-background-elevated)] px-3 pl-4 text-left transition-colors hover:bg-[var(--ds-gray-100)] ds-focus sm:h-[4.75rem] sm:rounded-[16px] sm:px-5"
-              >
-                <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--ds-gray-100)] text-[var(--ds-gray-900)] sm:size-10">
-                  <Plus size={16} />
-                </span>
-                <span className="min-w-0 flex-1 overflow-hidden">
-                  <span className="block truncate text-sm font-semibold text-[var(--ds-gray-1000)]">
-                    Add a new account
-                  </span>
-                  <span className="mt-0.5 block truncate text-xs text-[var(--ds-gray-700)]">
-                    Cash, bank, card, investment, or loan
-                  </span>
-                </span>
-                <ChevronRight
-                  size={16}
-                  className="shrink-0 text-[var(--ds-gray-700)]"
-                />
-              </button>
-              ) : null}
               <InfiniteScrollSentinel
                 hasMore={list.hasMore}
+                loading={list.loadingMore}
                 onLoadMore={list.loadMore}
               />
             </div>

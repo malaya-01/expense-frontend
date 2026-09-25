@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AppSidebar, MobileNav } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
+import { MobileCreateFab } from "@/components/layout/mobile-create-fab";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { TransactionModalProvider } from "@/components/expenses/transaction-modal-provider";
 import { ReceiptCaptureProvider } from "@/components/receipts/receipt-capture-provider";
@@ -75,7 +76,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <AppSidebar />
           <main
             className={cn(
-              "h-[calc(100dvh-2.75rem)] translate-y-11 transition-[margin-left] duration-200 md:ml-[var(--app-sidebar-offset)]",
+              "h-[calc(100dvh-3rem)] translate-y-12 transition-[margin-left] duration-200 md:ml-[var(--app-sidebar-offset)]",
               isFullBleedWorkspace
                 ? "overflow-hidden p-0 pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-0"
                 : "app-scrollbar overflow-x-hidden overflow-y-auto overscroll-contain scroll-pt-3 px-3 pt-5 pb-[calc(6.25rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 sm:pb-6 md:pb-10",
@@ -95,6 +96,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </main>
           <MobileNav />
+          <MobileCreateFab />
           <CommandPalette />
         </div>
         </ReceiptCaptureProvider>

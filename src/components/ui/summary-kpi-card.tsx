@@ -38,7 +38,7 @@ export function SummaryKpiCard({
   return (
     <article
       className={cn(
-        "min-w-0 max-w-full overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] p-3 ds-border sm:rounded-[16px] sm:p-5",
+        "min-w-0 max-w-full overflow-hidden rounded-[12px] bg-[var(--ds-background-elevated)] p-3.5 ds-border sm:rounded-[16px] sm:p-5",
         className,
       )}
       data-kpi-card
@@ -46,42 +46,44 @@ export function SummaryKpiCard({
       <div className="flex items-center gap-2">
         {Icon ? (
           <span
-            className="inline-flex size-7 shrink-0 items-center justify-center rounded-[8px] sm:size-9 sm:rounded-[10px]"
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-[9px] sm:size-9 sm:rounded-[10px]"
             style={{
               color,
               background: `color-mix(in srgb, ${color} 14%, transparent)`,
             }}
           >
-            <Icon size={15} strokeWidth={1.9} className="sm:hidden" />
-            <Icon size={17} strokeWidth={1.9} className="hidden sm:block" />
+            <Icon size={16} strokeWidth={1.9} />
           </span>
         ) : (
           <span
-            className="size-2 shrink-0 rounded-full sm:size-2.5"
+            className="size-2.5 shrink-0 rounded-full"
             style={{ background: color }}
             aria-hidden
           />
         )}
-        <h2 className="truncate text-[11px] font-medium text-[var(--ds-gray-900)] sm:text-sm">
+        <h2 className="truncate text-[12px] font-medium text-[var(--ds-gray-900)] sm:text-sm">
           {title}
         </h2>
       </div>
-      <p className="mt-2 truncate text-[20px] font-semibold leading-6 tracking-[-1px] tabular-nums text-[var(--ds-gray-1000)] sm:mt-4 sm:text-[28px] sm:leading-8" data-kpi-value>
+      <p
+        className="mt-2.5 truncate text-[18px] font-semibold leading-6 tracking-[-0.04em] tabular-nums text-[var(--ds-gray-1000)] sm:mt-4 sm:text-[28px] sm:leading-8"
+        data-kpi-value
+      >
         {value}
       </p>
       {subtitle ? (
-        <p className="mt-1 line-clamp-2 text-[10px] leading-3.5 text-[var(--ds-gray-700)] sm:mt-2 sm:line-clamp-none sm:text-xs sm:leading-4">
+        <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[var(--ds-gray-700)] sm:mt-2 sm:line-clamp-none sm:text-xs">
           {subtitle}
         </p>
       ) : null}
       {footerLeft || footerRight ? (
-        <div className="mt-2 flex items-end justify-between gap-2 border-t border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] pt-2 sm:mt-4 sm:gap-3 sm:pt-3">
+        <div className="mt-2.5 flex items-end justify-between gap-2 border-t border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] pt-2.5 sm:mt-4 sm:gap-3 sm:pt-3">
           {footerLeft ? (
             <div className="min-w-0">
-              <p className="truncate text-[9px] uppercase tracking-[0.04em] text-[var(--ds-gray-700)] sm:text-[10px]">
+              <p className="truncate text-[10px] uppercase tracking-[0.04em] text-[var(--ds-gray-700)]">
                 {footerLeft.label}
               </p>
-              <p className="mt-0.5 truncate text-[11px] font-medium tabular-nums text-[var(--ds-gray-1000)] sm:text-xs">
+              <p className="mt-0.5 truncate text-[12px] font-medium tabular-nums text-[var(--ds-gray-1000)]">
                 {footerLeft.value}
               </p>
             </div>
@@ -90,10 +92,10 @@ export function SummaryKpiCard({
           )}
           {footerRight ? (
             <div className="min-w-0 text-right">
-              <p className="truncate text-[9px] uppercase tracking-[0.04em] text-[var(--ds-gray-700)] sm:text-[10px]">
+              <p className="truncate text-[10px] uppercase tracking-[0.04em] text-[var(--ds-gray-700)]">
                 {footerRight.label}
               </p>
-              <p className="mt-0.5 truncate text-[11px] font-medium tabular-nums text-[var(--ds-gray-1000)] sm:text-xs">
+              <p className="mt-0.5 truncate text-[12px] font-medium tabular-nums text-[var(--ds-gray-1000)]">
                 {footerRight.value}
               </p>
             </div>

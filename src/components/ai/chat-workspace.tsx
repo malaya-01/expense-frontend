@@ -334,7 +334,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
         </div>
       ) : null}
 
-      <div className="shrink-0 bg-[color-mix(in_srgb,var(--ds-background-100)_92%,transparent)] px-3 pb-3 pt-1.5 backdrop-blur-md sm:px-8 sm:pb-4 sm:pt-2">
+      <div className="shrink-0 bg-[color-mix(in_srgb,var(--ds-background-100)_92%,transparent)] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-md sm:px-8 sm:pb-4 sm:pt-2">
         {!perms.create ? (
           <p className="mx-auto mb-2 max-w-[720px] text-center text-[11px] text-[var(--ds-gray-700)]">
             You can view conversations, but sending messages requires AI create

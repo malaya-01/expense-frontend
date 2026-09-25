@@ -237,7 +237,7 @@ export default function SpaceDetailPage() {
     return (
       <div className="space-y-4">
         <div className="h-10 w-64 animate-pulse rounded-[10px] bg-[var(--ds-gray-100)]" />
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
@@ -349,7 +349,7 @@ export default function SpaceDetailPage() {
 
       {tab === "overview" ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-3">
             <SummaryKpiCard
               title="Total spent"
               value={formatCurrency(data.metrics.total_spent, currency)}
@@ -753,6 +753,7 @@ function ExpensesPanel({
         </ul>
         <InfiniteScrollSentinel
           hasMore={list.hasMore}
+          loading={list.loadingMore}
           onLoadMore={list.loadMore}
         />
         </>
