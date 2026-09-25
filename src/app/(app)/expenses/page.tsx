@@ -73,6 +73,7 @@ export default function ExpensesPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [selected, setSelected] = useState<LedgerTransaction | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -161,6 +162,10 @@ export default function ExpensesPage() {
     typeFilter !== "all" ||
     currencyFilter !== "all";
 
+  useEffect(() => {
+    if (hasFilters) setFiltersOpen(true);
+  }, [hasFilters]);
+
   function clearFilters() {
     setQuery("");
     setTypeFilter("all");
@@ -190,45 +195,65 @@ export default function ExpensesPage() {
         }
       />
 
-      <Card className="mb-4 sm:mb-5">
-        <CardBody className="pt-3.5 sm:pt-5">
-          <div className="mb-2.5 flex items-center justify-between gap-3 sm:mb-3">
-            <div className="flex items-center gap-2">
+      <Card className="mb-3 sm:mb-5">
+        <CardBody className="pt-3 sm:pt-5">
+          <div className="mb-2 flex items-center justify-between gap-2 sm:mb-3">
+            <div className="flex min-w-0 items-center gap-2">
               <SlidersHorizontal
                 size={15}
-                className="text-[var(--ds-gray-700)]"
+                className="shrink-0 text-[var(--ds-gray-700)]"
               />
-              <h2 className="text-sm font-medium sm:text-base">Find transactions</h2>
+              <h2 className="truncate text-sm font-medium sm:text-base">
+                Find transactions
+              </h2>
               {hasFilters ? <Badge tone="info">Filtered</Badge> : null}
             </div>
-            {hasFilters ? (
-              <Button size="sm" variant="ghost" onClick={clearFilters}>
-                <X size={13} />
-                Clear
-              </Button>
-            ) : null}
-          </div>
-          <div className="grid grid-cols-2 items-end gap-3 sm:gap-3 xl:grid-cols-[minmax(0,1.5fr)_minmax(8.5rem,0.7fr)_minmax(8.5rem,0.7fr)_minmax(9rem,0.85fr)_minmax(9rem,0.85fr)]">
-            <div className="col-span-2 min-w-0 xl:col-span-1">
-              <label
-                htmlFor="tx-search"
-                className="mb-1.5 block text-[11px] font-medium text-[var(--ds-gray-900)]"
+            <div className="flex shrink-0 items-center gap-1">
+              {hasFilters ? (
+                <Button size="sm" variant="ghost" onClick={clearFilters}>
+                  <X size={13} />
+                  <span className="hidden sm:inline">Clear</span>
+                </Button>
+              ) : null}
+              <Button
+                size="sm"
+                variant="secondary"
+                className="sm:hidden"
+                aria-expanded={filtersOpen}
+                onClick={() => setFiltersOpen((open) => !open)}
               >
-                Search
-              </label>
-              <Input
-                id="tx-search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Merchant, category, account, notes…"
-                aria-label="Search transactions"
-                startAdornment={<Search size={15} aria-hidden />}
-              />
+                Filters
+              </Button>
             </div>
+          </div>
+
+          <div className="min-w-0">
+            <label
+              htmlFor="tx-search"
+              className="mb-1 block text-[11px] font-medium text-[var(--ds-gray-900)] sm:mb-1.5"
+            >
+              Search
+            </label>
+            <Input
+              id="tx-search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Merchant, category, account…"
+              aria-label="Search transactions"
+              startAdornment={<Search size={15} aria-hidden />}
+              className="h-9 sm:h-10"
+            />
+          </div>
+
+          <div
+            className={`${
+              filtersOpen ? "mt-3 grid" : "hidden"
+            } grid-cols-2 items-end gap-2 sm:!mt-3 sm:!grid sm:gap-3 xl:grid-cols-4`}
+          >
             <div className="min-w-0">
               <label
                 htmlFor="tx-type"
-                className="mb-1.5 block text-[11px] font-medium text-[var(--ds-gray-900)]"
+                className="mb-1 block text-[11px] font-medium text-[var(--ds-gray-900)] sm:mb-1.5"
               >
                 Type
               </label>
@@ -237,6 +262,7 @@ export default function ExpensesPage() {
                 value={typeFilter}
                 onChange={(event) => setTypeFilter(event.target.value)}
                 aria-label="Filter by transaction type"
+                className="h-9 sm:h-10"
               >
                 <option value="all">All types</option>
                 <option value="expense">Expense</option>
@@ -247,7 +273,7 @@ export default function ExpensesPage() {
             <div className="min-w-0">
               <label
                 htmlFor="tx-currency"
-                className="mb-1.5 block text-[11px] font-medium text-[var(--ds-gray-900)]"
+                className="mb-1 block text-[11px] font-medium text-[var(--ds-gray-900)] sm:mb-1.5"
               >
                 Currency
               </label>
@@ -256,6 +282,7 @@ export default function ExpensesPage() {
                 value={currencyFilter}
                 onChange={(event) => setCurrencyFilter(event.target.value)}
                 aria-label="Filter by currency"
+                className="h-9 sm:h-10"
               >
                 <option value="all">All currencies</option>
                 {currencies.map((currency) => (
@@ -268,7 +295,7 @@ export default function ExpensesPage() {
             <div className="min-w-0">
               <label
                 htmlFor="tx-date-from"
-                className="mb-1.5 block text-[11px] font-medium text-[var(--ds-gray-900)]"
+                className="mb-1 block text-[11px] font-medium text-[var(--ds-gray-900)] sm:mb-1.5"
               >
                 From
               </label>
@@ -278,13 +305,13 @@ export default function ExpensesPage() {
                 value={dateFrom}
                 onChange={(event) => setDateFrom(event.target.value)}
                 aria-label="Transactions from date"
-                className="date-input"
+                className="date-input h-9 sm:h-10"
               />
             </div>
             <div className="min-w-0">
               <label
                 htmlFor="tx-date-to"
-                className="mb-1.5 block text-[11px] font-medium text-[var(--ds-gray-900)]"
+                className="mb-1 block text-[11px] font-medium text-[var(--ds-gray-900)] sm:mb-1.5"
               >
                 To
               </label>
@@ -295,7 +322,7 @@ export default function ExpensesPage() {
                 min={dateFrom || undefined}
                 onChange={(event) => setDateTo(event.target.value)}
                 aria-label="Transactions to date"
-                className="date-input"
+                className="date-input h-9 sm:h-10"
               />
             </div>
           </div>

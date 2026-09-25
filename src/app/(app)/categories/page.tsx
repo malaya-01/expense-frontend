@@ -2,8 +2,19 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Lightbulb, Plus, Search, Check } from "lucide-react";
-import { PageHeader, EmptyState } from "@/components/ui/page-header";
+import {
+  AlertTriangle,
+  LayoutGrid,
+  Lightbulb,
+  List,
+  Layers,
+  PiggyBank,
+  Plus,
+  Search,
+  Check,
+  Wallet,
+} from "lucide-react";
+import { EmptyState } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +44,7 @@ import {
 } from "@/lib/categories/icons";
 import { Pagination } from "@/components/ui/pagination";
 import { usePagination } from "@/hooks/use-pagination";
+import { formatCurrency } from "@/lib/format";
 import type { Category, CreateCategoryInput } from "@/types";
 
 const COLORS = [
@@ -59,6 +71,12 @@ const emptyForm: CreateCategoryInput = {
 
 type FilterKind = "all" | "budgeted" | "unbudgeted";
 
+const FILTER_CHIPS: Array<{ id: FilterKind; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "budgeted", label: "Budgeted" },
+  { id: "unbudgeted", label: "No budget" },
+];
+
 export default function CategoriesPage() {
   const perms = useModulePermissions("categories");
   const { user } = useAuth();
@@ -69,6 +87,7 @@ export default function CategoriesPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKind>("all");
+  const [view, setView] = useState<"grid" | "list">("grid");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState<CreateCategoryInput>(emptyForm);
@@ -93,6 +112,27 @@ export default function CategoriesPage() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  const stats = useMemo(() => {
+    let overBudget = 0;
+    let totalSpent = 0;
+    let totalBudget = 0;
+    for (const category of categories) {
+      const spent = Number(category.spent_amount || 0);
+      const budget = Number(category.budget_amount || 0);
+      totalSpent += spent;
+      if (budget > 0) {
+        totalBudget += budget;
+        if (spent > budget) overBudget += 1;
+      }
+    }
+    return {
+      total: categories.length,
+      overBudget,
+      totalSpent,
+      totalBudget,
+    };
+  }, [categories]);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -182,43 +222,162 @@ export default function CategoriesPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Categories"
-        description="Track spending envelopes with budgets, progress, and color coding."
-        actions={
-          <>
-            <div className="min-w-[180px] flex-1 sm:flex-none sm:w-52">
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search categories…"
-                aria-label="Search categories"
-                startAdornment={<Search size={14} aria-hidden />}
-              />
-            </div>
-            <div className="w-[148px] shrink-0">
-              <Select
-                value={filter}
-                onChange={(event) =>
-                  setFilter(event.target.value as FilterKind)
-                }
-                aria-label="Filter categories"
-                className="h-9"
+      <div className="mb-3 sm:mb-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-[20px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
+              Categories
+            </h1>
+            <p className="mt-0.5 line-clamp-1 text-[11px] leading-4 text-[var(--ds-gray-700)] sm:mt-1 sm:line-clamp-none sm:text-sm">
+              Track spending envelopes with budget, progress, and color coding.
+            </p>
+          </div>
+          {perms.create ? (
+            <Button
+              onClick={openCreate}
+              className="hidden shrink-0 gap-1.5 sm:inline-flex"
+            >
+              <Plus size={15} />
+              New category
+            </Button>
+          ) : null}
+        </div>
+
+        <div className="mt-2.5 sm:mt-3">
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search categories..."
+            aria-label="Search categories"
+            startAdornment={<Search size={14} aria-hidden />}
+            className="h-9 sm:h-10"
+          />
+        </div>
+
+        <div className="mt-2 flex items-center gap-2">
+          <div className="min-w-0 flex-1 sm:max-w-[11rem]">
+            <Select
+              value={filter}
+              onChange={(event) => setFilter(event.target.value as FilterKind)}
+              aria-label="Filter categories"
+              className="!h-9 sm:!h-10"
+            >
+              <option value="all">All types</option>
+              <option value="budgeted">Budgeted</option>
+              <option value="unbudgeted">No budget</option>
+            </Select>
+          </div>
+          {perms.create ? (
+            <Button onClick={openCreate} className="h-9 shrink-0 gap-1 sm:hidden">
+              <Plus size={15} />
+              New category
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      {!loading && categories.length > 0 ? (
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:mb-4 sm:grid-cols-4">
+          {[
+            {
+              label: "Total categories",
+              value: String(stats.total),
+              icon: Layers,
+            },
+            {
+              label: "Over budget",
+              value: String(stats.overBudget),
+              icon: AlertTriangle,
+              danger: stats.overBudget > 0,
+            },
+            {
+              label: "Total spent",
+              value: formatCurrency(stats.totalSpent, currency),
+              icon: Wallet,
+            },
+            {
+              label: "Total budget",
+              value: formatCurrency(stats.totalBudget, currency),
+              icon: PiggyBank,
+            },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="rounded-[12px] bg-[var(--ds-background-elevated)] px-2.5 py-2 ds-border sm:px-3 sm:py-2.5"
+            >
+              <div className="flex items-center gap-1.5 text-[10px] text-[var(--ds-gray-700)]">
+                <item.icon size={12} aria-hidden />
+                <span className="truncate">{item.label}</span>
+              </div>
+              <p
+                className={cn(
+                  "mt-1 truncate text-[13px] font-semibold tabular-nums sm:text-[14px]",
+                  item.danger
+                    ? "text-[var(--ds-status-red)]"
+                    : "text-[var(--ds-gray-1000)]",
+                )}
               >
-                <option value="all">All types</option>
-                <option value="budgeted">Budgeted</option>
-                <option value="unbudgeted">No budget</option>
-              </Select>
+                {item.value}
+              </p>
             </div>
-            {perms.create ? (
-              <Button onClick={openCreate} className="gap-1.5">
-                <Plus size={15} />
-                New category
-              </Button>
-            ) : null}
-          </>
-        }
-      />
+          ))}
+        </div>
+      ) : null}
+
+      {!loading && categories.length > 0 ? (
+        <div className="mb-3 flex items-center gap-2 sm:mb-4">
+          <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {FILTER_CHIPS.map((chip) => {
+              const active = filter === chip.id;
+              return (
+                <button
+                  key={chip.id}
+                  type="button"
+                  onClick={() => setFilter(chip.id)}
+                  className={cn(
+                    "shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors",
+                    active
+                      ? "bg-[var(--ds-gray-1000)] text-[var(--ds-primary-foreground)]"
+                      : "bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)] ds-border",
+                  )}
+                >
+                  {chip.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex shrink-0 rounded-[10px] bg-[var(--ds-background-elevated)] p-0.5 ds-border">
+            <button
+              type="button"
+              aria-label="Grid view"
+              aria-pressed={view === "grid"}
+              onClick={() => setView("grid")}
+              className={cn(
+                "flex size-8 items-center justify-center rounded-[8px]",
+                view === "grid"
+                  ? "bg-[var(--ds-gray-1000)] text-[var(--ds-primary-foreground)]"
+                  : "text-[var(--ds-gray-700)]",
+              )}
+            >
+              <LayoutGrid size={14} />
+            </button>
+            <button
+              type="button"
+              aria-label="List view"
+              aria-pressed={view === "list"}
+              onClick={() => setView("list")}
+              className={cn(
+                "flex size-8 items-center justify-center rounded-[8px]",
+                view === "list"
+                  ? "bg-[var(--ds-gray-1000)] text-[var(--ds-primary-foreground)]"
+                  : "text-[var(--ds-gray-700)]",
+              )}
+            >
+              <List size={14} />
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {error ? (
         <p className="mb-4 text-sm text-[var(--ds-status-red)]">{error}</p>
@@ -248,38 +407,45 @@ export default function CategoriesPage() {
         </Card>
       ) : (
         <>
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
-          {pager.items.map((category) => (
-            <CategoryCard
-              key={category.id}
-              category={category}
-              currency={currency}
-              onEdit={perms.update ? () => openEdit(category) : undefined}
-              onDelete={
-                perms.delete ? () => setDeleteTarget(category) : undefined
-              }
-            />
-          ))}
-        </div>
-        <Pagination
-          page={pager.page}
-          pageCount={pager.pageCount}
-          total={pager.total}
-          from={pager.from}
-          to={pager.to}
-          onPageChange={pager.setPage}
-        />
+          <div
+            className={cn(
+              "grid gap-2 sm:gap-3",
+              view === "grid"
+                ? "grid-cols-2 xl:grid-cols-3"
+                : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+            )}
+          >
+            {pager.items.map((category) => (
+              <CategoryCard
+                key={category.id}
+                category={category}
+                currency={currency}
+                onEdit={perms.update ? () => openEdit(category) : undefined}
+                onDelete={
+                  perms.delete ? () => setDeleteTarget(category) : undefined
+                }
+              />
+            ))}
+          </div>
+          <Pagination
+            page={pager.page}
+            pageCount={pager.pageCount}
+            total={pager.total}
+            from={pager.from}
+            to={pager.to}
+            onPageChange={pager.setPage}
+          />
         </>
       )}
 
       {!loading && categories.length > 0 ? (
-        <aside className="mt-6 flex items-start gap-3 rounded-[14px] bg-[color-mix(in_srgb,var(--ds-status-orange)_10%,var(--ds-background-elevated))] px-4 py-3 text-sm text-[var(--ds-gray-900)]">
+        <aside className="mt-4 flex items-start gap-3 rounded-[14px] bg-[color-mix(in_srgb,var(--ds-status-orange)_10%,var(--ds-background-elevated))] px-3 py-2.5 text-sm text-[var(--ds-gray-900)] sm:mt-6 sm:px-4 sm:py-3">
           <Lightbulb
-            size={18}
+            size={16}
             className="mt-0.5 shrink-0 text-[var(--ds-status-orange)]"
             aria-hidden
           />
-          <p className="min-w-0 leading-5">
+          <p className="min-w-0 text-[12px] leading-5 sm:text-sm">
             <span className="font-semibold text-[var(--ds-gray-1000)]">
               Tip:
             </span>{" "}
@@ -328,7 +494,8 @@ export default function CategoriesPage() {
               />
             </div>
             <p className="mt-1.5 text-[11px] text-[var(--ds-gray-700)]">
-              Icon updates as you type. Click it to pick a different one before saving.
+              Icon updates as you type. Click it to pick a different one before
+              saving.
             </p>
           </div>
           <div>

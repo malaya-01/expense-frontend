@@ -239,32 +239,45 @@ export default function AccountsPage() {
 
   return (
     <div className="min-w-0 max-w-full overflow-x-hidden">
-      <div className="mb-4 flex flex-col gap-2.5 sm:mb-5 sm:gap-3 md:flex-row md:items-end md:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-[22px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
-            Accounts
-          </h1>
-          <p className="mt-0.5 line-clamp-2 max-w-xl text-xs text-[var(--ds-gray-700)] sm:mt-1 sm:line-clamp-none sm:text-sm">
-            Financial containers — every place value lives in your Digital
-            Financial Twin.
-          </p>
+      <div className="mb-3 sm:mb-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-[20px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
+              Accounts
+            </h1>
+            <p className="mt-0.5 line-clamp-1 max-w-xl text-[11px] text-[var(--ds-gray-700)] sm:mt-1 sm:line-clamp-none sm:text-sm">
+              Financial containers — every place value lives in your Digital
+              Financial Twin.
+            </p>
+          </div>
+          {perms.create ? (
+            <Button
+              onClick={openCreate}
+              className="hidden shrink-0 sm:inline-flex"
+            >
+              <Plus size={16} />
+              Add account
+            </Button>
+          ) : null}
         </div>
-        <div className="grid grid-cols-[1fr_auto] gap-2 sm:flex sm:flex-row sm:items-center">
-          <div className="min-w-0 sm:w-56 sm:flex-none">
+        <div className="mt-2.5 flex items-center gap-2 sm:mt-3">
+          <div className="min-w-0 flex-1 sm:max-w-xs sm:flex-none sm:w-56">
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search accounts..."
               aria-label="Search accounts"
               startAdornment={<Search size={14} aria-hidden />}
+              className="h-9 sm:h-10"
             />
           </div>
-          <div className="min-w-[8.5rem] sm:w-44">
+          <div className="w-[7.5rem] shrink-0 sm:w-44">
             <Select
               value={groupFilter}
               onChange={(e) => setGroupFilter(e.target.value as GroupFilter)}
               aria-label="Filter accounts"
               startAdornment={<Filter size={14} aria-hidden />}
+              className="h-9 sm:h-10"
             >
               <option value="all">All accounts</option>
               <option value="liquid">Cash & banks</option>
@@ -274,15 +287,15 @@ export default function AccountsPage() {
               <option value="other">Other</option>
             </Select>
           </div>
-          <div className="col-span-2 sm:col-span-1 sm:contents">
-            {perms.create ? (
-              <Button onClick={openCreate} className="w-full shrink-0 sm:w-auto">
-                <Plus size={16} />
-                Add account
-              </Button>
-            ) : null}
-          </div>
         </div>
+        {perms.create ? (
+          <div className="mt-2 sm:hidden">
+            <Button onClick={openCreate} className="h-9 w-full">
+              <Plus size={16} />
+              Add account
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <div className="mb-4 grid min-w-0 grid-cols-2 gap-2 sm:mb-6 sm:gap-3 xl:grid-cols-4">
