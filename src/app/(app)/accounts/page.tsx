@@ -48,8 +48,8 @@ import {
   isExpenseSourceType,
 } from "@/lib/accounts/types-meta";
 import { useAuth } from "@/lib/auth-context";
-import { usePagination } from "@/hooks/use-pagination";
-import { Pagination } from "@/components/ui/pagination";
+import { useInfiniteList } from "@/hooks/use-infinite-list";
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
@@ -158,18 +158,18 @@ export default function AccountsPage() {
     });
   }, [containers, search, groupFilter]);
 
-  const pager = usePagination(filtered, {
-    pageSize: 10,
+  const list = useInfiniteList(filtered, {
+    pageSize: 20,
     resetKey: `${search}|${groupFilter}`,
   });
 
   const grouped = useMemo(() => {
     const map = new Map<string, FinancialContainer[]>();
-    for (const c of pager.items) {
+    for (const c of list.items) {
       const group = getContainerMeta(c.type).group;
-      const list = map.get(group) || [];
-      list.push(c);
-      map.set(group, list);
+      const items = map.get(group) || [];
+      items.push(c);
+      map.set(group, items);
     }
     return CONTAINER_TYPES.map((t) => t.group)
       .filter((g, i, arr) => arr.indexOf(g) === i)
@@ -181,7 +181,7 @@ export default function AccountsPage() {
         total: groupSectionTotal(map.get(group) || [], baseCurrency),
       }))
       .filter((g) => g.items.length > 0);
-  }, [pager.items, baseCurrency]);
+  }, [list.items, baseCurrency]);
 
   const liquidCount = containers.filter((c) =>
     ["cash", "wallet", "bank"].includes(c.type),
@@ -491,13 +491,9 @@ export default function AccountsPage() {
                 />
               </button>
               ) : null}
-              <Pagination
-                page={pager.page}
-                pageCount={pager.pageCount}
-                total={pager.total}
-                from={pager.from}
-                to={pager.to}
-                onPageChange={pager.setPage}
+              <InfiniteScrollSentinel
+                hasMore={list.hasMore}
+                onLoadMore={list.loadMore}
               />
             </div>
           )}

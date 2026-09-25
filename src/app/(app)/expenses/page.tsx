@@ -11,7 +11,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { Alert, Badge, Skeleton } from "@/components/ui/feedback";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Pagination } from "@/components/ui/pagination";
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel";
 import { TransactionTable } from "@/components/expenses/expense-table";
 import { TransactionDetailModal } from "@/components/expenses/transaction-detail-modal";
 import {
@@ -28,7 +28,7 @@ import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import type { LedgerTransaction } from "@/types";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
-import { usePagination } from "@/hooks/use-pagination";
+import { useInfiniteList } from "@/hooks/use-infinite-list";
 import { useTableSort } from "@/hooks/use-table-sort";
 import type { TransactionSortKey } from "@/components/expenses/expense-table";
 
@@ -139,8 +139,8 @@ export default function ExpensesPage() {
     comparators: TRANSACTION_COMPARATORS,
   });
 
-  const pager = usePagination(sortedFiltered, {
-    pageSize: 10,
+  const list = useInfiniteList(sortedFiltered, {
+    pageSize: 20,
     resetKey: `${query}|${typeFilter}|${currencyFilter}|${dateFrom}|${dateTo}|${sortKey}|${sortDir}`,
   });
 
@@ -178,18 +178,22 @@ export default function ExpensesPage() {
     <div>
       <ModuleHeader
         title="Transactions"
-        description={`${filtered.length} shown · ${formatCurrency(inflow, baseCurrency)} in · ${formatCurrency(outflow, baseCurrency)} out · ${baseCurrency}`}
+        description={`${filtered.length} shown · ${formatCurrency(inflow, baseCurrency)} in · ${formatCurrency(outflow, baseCurrency)} out`}
         actions={
           perms.create ? (
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex items-center gap-2">
               <Button
                 variant="secondary"
                 onClick={() => startReceiptCapture()}
               >
                 <ScanLine size={14} />
-                Scan receipt
+                <span className="sm:hidden">Scan</span>
+                <span className="hidden sm:inline">Scan receipt</span>
               </Button>
-              <Button onClick={() => openTransactionModal()}>New transaction</Button>
+              <Button onClick={() => openTransactionModal()}>
+                <span className="sm:hidden">New</span>
+                <span className="hidden sm:inline">New transaction</span>
+              </Button>
             </div>
           ) : null
         }
@@ -374,7 +378,7 @@ export default function ExpensesPage() {
       ) : (
         <>
         <TransactionTable
-          transactions={pager.items}
+          transactions={list.items}
           baseCurrency={baseCurrency}
           onOpen={setSelected}
           onEdit={perms.update ? openEditTransactionModal : undefined}
@@ -383,13 +387,9 @@ export default function ExpensesPage() {
           sortDir={sortDir}
           onSort={toggleSort}
         />
-        <Pagination
-          page={pager.page}
-          pageCount={pager.pageCount}
-          total={pager.total}
-          from={pager.from}
-          to={pager.to}
-          onPageChange={pager.setPage}
+        <InfiniteScrollSentinel
+          hasMore={list.hasMore}
+          onLoadMore={list.loadMore}
         />
         </>
       )}

@@ -29,13 +29,13 @@ import { Modal } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SummaryKpiCard } from "@/components/ui/summary-kpi-card";
 import { Alert, Badge, Progress } from "@/components/ui/feedback";
-import { Pagination } from "@/components/ui/pagination";
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel";
 import { cn } from "@/lib/cn";
 import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { APP_NAME } from "@/lib/brand";
 import { useToast } from "@/components/ui/toast";
-import { usePagination } from "@/hooks/use-pagination";
+import { useInfiniteList } from "@/hooks/use-infinite-list";
 import { listAccounts } from "@/lib/api/accounts";
 import {
   contributeSpaceGoal,
@@ -709,7 +709,7 @@ function ExpensesPanel({
       .finally(() => setLoading(false));
   }, [data.space.id, data.metrics.total_spent]);
 
-  const pager = usePagination(expenses, { pageSize: 10 });
+  const list = useInfiniteList(expenses, { pageSize: 20 });
 
   return (
     <Panel
@@ -728,7 +728,7 @@ function ExpensesPanel({
       ) : expenses.length ? (
         <>
         <ul className="space-y-2">
-          {pager.items.map((expense) => (
+          {list.items.map((expense) => (
             <li
               key={expense.id}
               className="rounded-[12px] bg-[var(--ds-background-100)] px-3 py-3 sm:px-4"
@@ -751,13 +751,9 @@ function ExpensesPanel({
             </li>
           ))}
         </ul>
-        <Pagination
-          page={pager.page}
-          pageCount={pager.pageCount}
-          total={pager.total}
-          from={pager.from}
-          to={pager.to}
-          onPageChange={pager.setPage}
+        <InfiniteScrollSentinel
+          hasMore={list.hasMore}
+          onLoadMore={list.loadMore}
         />
         </>
       ) : (

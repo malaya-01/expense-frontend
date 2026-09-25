@@ -7,9 +7,9 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pagination } from "@/components/ui/pagination";
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel";
 import { useAuth } from "@/lib/auth-context";
-import { usePagination } from "@/hooks/use-pagination";
+import { useInfiniteList } from "@/hooks/use-infinite-list";
 import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
@@ -107,8 +107,8 @@ export default function AdminPage() {
     void loadUsers();
   }, [canManageUsers, loadUsers]);
 
-  const pager = usePagination(users, {
-    pageSize: 12,
+  const list = useInfiniteList(users, {
+    pageSize: 20,
     resetKey: q,
   });
 
@@ -295,7 +295,7 @@ export default function AdminPage() {
               <p className="text-xs text-[var(--ds-gray-700)]">No users found.</p>
             ) : (
               <>
-              {pager.items.map((u) => (
+              {list.items.map((u) => (
                 <button
                   key={u.id}
                   type="button"
@@ -316,14 +316,9 @@ export default function AdminPage() {
                   </span>
                 </button>
               ))}
-              <Pagination
-                page={pager.page}
-                pageCount={pager.pageCount}
-                total={pager.total}
-                from={pager.from}
-                to={pager.to}
-                onPageChange={pager.setPage}
-                className="mt-3"
+              <InfiniteScrollSentinel
+                hasMore={list.hasMore}
+                onLoadMore={list.loadMore}
               />
               </>
             )}

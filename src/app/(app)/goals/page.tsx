@@ -31,8 +31,8 @@ import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
 import { CardGridSkeleton } from "@/components/ui/feedback";
-import { Pagination } from "@/components/ui/pagination";
-import { usePagination } from "@/hooks/use-pagination";
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel";
+import { useInfiniteList } from "@/hooks/use-infinite-list";
 import type {
   CreateGoalInput,
   FinancialContainer,
@@ -107,7 +107,8 @@ export default function GoalsPage() {
     });
   }, [goals, search, statusFilter]);
 
-  const pager = usePagination(visible, {
+  const list = useInfiniteList(visible, {
+    pageSize: 20,
     resetKey: `${search}|${statusFilter}`,
   });
 
@@ -258,7 +259,7 @@ export default function GoalsPage() {
       ) : (
         <>
         <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
-          {pager.items.map((g) => (
+          {list.items.map((g) => (
             <GoalCard
               key={g.id}
               goal={g}
@@ -277,13 +278,9 @@ export default function GoalsPage() {
             />
           ))}
         </div>
-        <Pagination
-          page={pager.page}
-          pageCount={pager.pageCount}
-          total={pager.total}
-          from={pager.from}
-          to={pager.to}
-          onPageChange={pager.setPage}
+        <InfiniteScrollSentinel
+          hasMore={list.hasMore}
+          onLoadMore={list.loadMore}
         />
         </>
       )}

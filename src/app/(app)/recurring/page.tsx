@@ -20,11 +20,11 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, CardGridSkeleton } from "@/components/ui/feedback";
-import { Pagination } from "@/components/ui/pagination";
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
-import { usePagination } from "@/hooks/use-pagination";
+import { useInfiniteList } from "@/hooks/use-infinite-list";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { listAccounts } from "@/lib/api/accounts";
 import { listCategories } from "@/lib/api/categories";
@@ -142,7 +142,8 @@ export default function RecurringPage() {
     });
   }, [schedules, search, statusFilter]);
 
-  const pager = usePagination(visible, {
+  const list = useInfiniteList(visible, {
+    pageSize: 20,
     resetKey: `${search}|${statusFilter}`,
   });
 
@@ -303,7 +304,7 @@ export default function RecurringPage() {
       ) : (
         <>
         <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
-          {pager.items.map((schedule) => (
+          {list.items.map((schedule) => (
             <RecurringCard
               key={schedule.id}
               schedule={schedule}
@@ -323,13 +324,9 @@ export default function RecurringPage() {
             />
           ))}
         </div>
-        <Pagination
-          page={pager.page}
-          pageCount={pager.pageCount}
-          total={pager.total}
-          from={pager.from}
-          to={pager.to}
-          onPageChange={pager.setPage}
+        <InfiniteScrollSentinel
+          hasMore={list.hasMore}
+          onLoadMore={list.loadMore}
         />
         </>
       )}

@@ -28,8 +28,8 @@ import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
 import { CardGridSkeleton } from "@/components/ui/feedback";
-import { Pagination } from "@/components/ui/pagination";
-import { usePagination } from "@/hooks/use-pagination";
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel";
+import { useInfiniteList } from "@/hooks/use-infinite-list";
 import { ASSET_TYPES, assetTypeLabel } from "@/lib/investments/meta";
 import type {
   CreateInvestmentInput,
@@ -119,7 +119,8 @@ export default function InvestmentsPage() {
     });
   }, [holdings, search, assetFilter]);
 
-  const pager = usePagination(visible, {
+  const list = useInfiniteList(visible, {
+    pageSize: 20,
     resetKey: `${search}|${assetFilter}`,
   });
 
@@ -272,7 +273,7 @@ export default function InvestmentsPage() {
       ) : (
         <>
         <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
-          {pager.items.map((h) => (
+          {list.items.map((h) => (
             <HoldingCard
               key={h.id}
               holding={h}
@@ -288,13 +289,9 @@ export default function InvestmentsPage() {
             />
           ))}
         </div>
-        <Pagination
-          page={pager.page}
-          pageCount={pager.pageCount}
-          total={pager.total}
-          from={pager.from}
-          to={pager.to}
-          onPageChange={pager.setPage}
+        <InfiniteScrollSentinel
+          hasMore={list.hasMore}
+          onLoadMore={list.loadMore}
         />
         </>
       )}

@@ -28,26 +28,19 @@ export function ModuleHeader({
 }) {
   return (
     <div className="mb-3 sm:mb-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-[20px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
-            {title}
-          </h1>
-          <p className="mt-0.5 line-clamp-1 max-w-xl text-[11px] leading-4 text-[var(--ds-gray-700)] sm:mt-1 sm:line-clamp-none sm:text-sm sm:leading-5">
-            {description}
-          </p>
-        </div>
-        {actions ? (
-          <div className="hidden shrink-0 sm:flex sm:items-center sm:gap-2">
-            {actions}
-          </div>
-        ) : null}
+      <div className="min-w-0">
+        <h1 className="text-[20px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
+          {title}
+        </h1>
+        <p className="mt-0.5 line-clamp-2 max-w-2xl text-[11px] leading-4 text-[var(--ds-gray-700)] sm:mt-1 sm:line-clamp-none sm:text-sm sm:leading-5">
+          {description}
+        </p>
       </div>
 
-      {onSearchChange || onFilterChange ? (
-        <div className="mt-2.5 flex items-center gap-2 sm:mt-3">
+      {(onSearchChange || onFilterChange || actions) ? (
+        <div className="mt-2.5 flex flex-wrap items-center gap-2 sm:mt-3">
           {onSearchChange ? (
-            <div className="min-w-0 flex-1 sm:max-w-xs sm:flex-none sm:w-56">
+            <div className="min-w-0 flex-1 basis-[12rem] sm:max-w-xs sm:flex-none sm:basis-auto sm:w-56">
               <Input
                 value={search || ""}
                 onChange={(e) => onSearchChange(e.target.value)}
@@ -75,12 +68,11 @@ export function ModuleHeader({
               </Select>
             </div>
           ) : null}
-        </div>
-      ) : null}
-
-      {actions ? (
-        <div className="mt-2 flex sm:hidden [&_button]:h-9 [&_button]:w-full">
-          {actions}
+          {actions ? (
+            <div className="ml-auto flex w-full items-center justify-end gap-2 sm:w-auto [&_button]:h-9 [&_button]:justify-center [&_button]:px-3 [&_button]:text-[12px] sm:[&_button]:h-10 sm:[&_button]:px-4 sm:[&_button]:text-[13px]">
+              {actions}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

@@ -42,8 +42,8 @@ import {
   suggestCategoryIconHeuristic,
   type CategoryIconId,
 } from "@/lib/categories/icons";
-import { Pagination } from "@/components/ui/pagination";
-import { usePagination } from "@/hooks/use-pagination";
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel";
+import { useInfiniteList } from "@/hooks/use-infinite-list";
 import { formatCurrency } from "@/lib/format";
 import type { Category, CreateCategoryInput } from "@/types";
 
@@ -150,7 +150,8 @@ export default function CategoriesPage() {
     });
   }, [categories, filter, search]);
 
-  const pager = usePagination(visible, {
+  const list = useInfiniteList(visible, {
+    pageSize: 20,
     resetKey: `${search}|${filter}`,
   });
 
@@ -225,62 +226,105 @@ export default function CategoriesPage() {
       <div className="mb-3 sm:mb-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-[20px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
+            <h1 className="text-[22px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
               Categories
             </h1>
-            <p className="mt-0.5 line-clamp-1 text-[11px] leading-4 text-[var(--ds-gray-700)] sm:mt-1 sm:line-clamp-none sm:text-sm">
+            <p className="mt-0.5 hidden text-sm leading-5 text-[var(--ds-gray-700)] sm:block">
               Track spending envelopes with budget, progress, and color coding.
             </p>
           </div>
           {perms.create ? (
-            <Button
-              onClick={openCreate}
-              className="hidden shrink-0 gap-1.5 sm:inline-flex"
-            >
-              <Plus size={15} />
-              New category
-            </Button>
+            <div className="hidden shrink-0 sm:block">
+              <Button onClick={openCreate} className="gap-1.5">
+                <Plus size={15} />
+                New category
+              </Button>
+            </div>
           ) : null}
         </div>
 
-        <div className="mt-2.5 sm:mt-3">
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search categories..."
-            aria-label="Search categories"
-            startAdornment={<Search size={14} aria-hidden />}
-            className="h-9 sm:h-10"
-          />
-        </div>
-
-        <div className="mt-2 flex items-center gap-2">
-          <div className="min-w-0 flex-1 sm:max-w-[11rem]">
-            <Select
-              value={filter}
-              onChange={(event) => setFilter(event.target.value as FilterKind)}
-              aria-label="Filter categories"
-              className="!h-9 sm:!h-10"
-            >
-              <option value="all">All types</option>
-              <option value="budgeted">Budgeted</option>
-              <option value="unbudgeted">No budget</option>
-            </Select>
+        <div className="mt-2.5 flex items-center gap-2 sm:mt-3">
+          <div className="min-w-0 flex-1">
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search categories..."
+              aria-label="Search categories"
+              startAdornment={<Search size={14} aria-hidden />}
+              className="h-9 sm:h-10"
+            />
           </div>
           {perms.create ? (
-            <Button onClick={openCreate} className="h-9 shrink-0 gap-1 sm:hidden">
-              <Plus size={15} />
-              New category
-            </Button>
+            <div className="shrink-0 sm:hidden">
+              <Button onClick={openCreate} className="h-9 gap-1 px-3 text-[12px]">
+                <Plus size={15} />
+                New
+              </Button>
+            </div>
           ) : null}
         </div>
+
+        {!loading && categories.length > 0 ? (
+          <div className="mt-2.5 flex items-center gap-2">
+            <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {FILTER_CHIPS.map((chip) => {
+                const active = filter === chip.id;
+                return (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    onClick={() => setFilter(chip.id)}
+                    className={cn(
+                      "shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors",
+                      active
+                        ? "bg-[var(--ds-gray-1000)] text-[var(--ds-primary-foreground)]"
+                        : "bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)] ds-border",
+                    )}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex shrink-0 rounded-[10px] bg-[var(--ds-background-elevated)] p-0.5 ds-border">
+              <button
+                type="button"
+                aria-label="Grid view"
+                aria-pressed={view === "grid"}
+                onClick={() => setView("grid")}
+                className={cn(
+                  "flex size-8 items-center justify-center rounded-[8px]",
+                  view === "grid"
+                    ? "bg-[var(--ds-gray-1000)] text-[var(--ds-primary-foreground)]"
+                    : "text-[var(--ds-gray-700)]",
+                )}
+              >
+                <LayoutGrid size={14} />
+              </button>
+              <button
+                type="button"
+                aria-label="List view"
+                aria-pressed={view === "list"}
+                onClick={() => setView("list")}
+                className={cn(
+                  "flex size-8 items-center justify-center rounded-[8px]",
+                  view === "list"
+                    ? "bg-[var(--ds-gray-1000)] text-[var(--ds-primary-foreground)]"
+                    : "text-[var(--ds-gray-700)]",
+                )}
+              >
+                <List size={14} />
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {!loading && categories.length > 0 ? (
         <div className="mb-3 grid grid-cols-2 gap-2 sm:mb-4 sm:grid-cols-4">
           {[
             {
-              label: "Total categories",
+              label: "Categories",
               value: String(stats.total),
               icon: Layers,
             },
@@ -291,12 +335,12 @@ export default function CategoriesPage() {
               danger: stats.overBudget > 0,
             },
             {
-              label: "Total spent",
+              label: "Spent",
               value: formatCurrency(stats.totalSpent, currency),
               icon: Wallet,
             },
             {
-              label: "Total budget",
+              label: "Budget",
               value: formatCurrency(stats.totalBudget, currency),
               icon: PiggyBank,
             },
@@ -305,13 +349,13 @@ export default function CategoriesPage() {
               key={item.label}
               className="rounded-[12px] bg-[var(--ds-background-elevated)] px-2.5 py-2 ds-border sm:px-3 sm:py-2.5"
             >
-              <div className="flex items-center gap-1.5 text-[10px] text-[var(--ds-gray-700)]">
+              <div className="flex items-center gap-1.5 text-[11px] text-[var(--ds-gray-700)]">
                 <item.icon size={12} aria-hidden />
                 <span className="truncate">{item.label}</span>
               </div>
               <p
                 className={cn(
-                  "mt-1 truncate text-[13px] font-semibold tabular-nums sm:text-[14px]",
+                  "mt-1 truncate text-[14px] font-semibold tabular-nums sm:text-[15px]",
                   item.danger
                     ? "text-[var(--ds-status-red)]"
                     : "text-[var(--ds-gray-1000)]",
@@ -321,61 +365,6 @@ export default function CategoriesPage() {
               </p>
             </div>
           ))}
-        </div>
-      ) : null}
-
-      {!loading && categories.length > 0 ? (
-        <div className="mb-3 flex items-center gap-2 sm:mb-4">
-          <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {FILTER_CHIPS.map((chip) => {
-              const active = filter === chip.id;
-              return (
-                <button
-                  key={chip.id}
-                  type="button"
-                  onClick={() => setFilter(chip.id)}
-                  className={cn(
-                    "shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors",
-                    active
-                      ? "bg-[var(--ds-gray-1000)] text-[var(--ds-primary-foreground)]"
-                      : "bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)] ds-border",
-                  )}
-                >
-                  {chip.label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex shrink-0 rounded-[10px] bg-[var(--ds-background-elevated)] p-0.5 ds-border">
-            <button
-              type="button"
-              aria-label="Grid view"
-              aria-pressed={view === "grid"}
-              onClick={() => setView("grid")}
-              className={cn(
-                "flex size-8 items-center justify-center rounded-[8px]",
-                view === "grid"
-                  ? "bg-[var(--ds-gray-1000)] text-[var(--ds-primary-foreground)]"
-                  : "text-[var(--ds-gray-700)]",
-              )}
-            >
-              <LayoutGrid size={14} />
-            </button>
-            <button
-              type="button"
-              aria-label="List view"
-              aria-pressed={view === "list"}
-              onClick={() => setView("list")}
-              className={cn(
-                "flex size-8 items-center justify-center rounded-[8px]",
-                view === "list"
-                  ? "bg-[var(--ds-gray-1000)] text-[var(--ds-primary-foreground)]"
-                  : "text-[var(--ds-gray-700)]",
-              )}
-            >
-              <List size={14} />
-            </button>
-          </div>
         </div>
       ) : null}
 
@@ -409,13 +398,13 @@ export default function CategoriesPage() {
         <>
           <div
             className={cn(
-              "grid gap-2 sm:gap-3",
+              "grid gap-2.5 sm:gap-3",
               view === "grid"
-                ? "grid-cols-2 xl:grid-cols-3"
-                : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+                ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
+                : "grid-cols-1",
             )}
           >
-            {pager.items.map((category) => (
+            {list.items.map((category) => (
               <CategoryCard
                 key={category.id}
                 category={category}
@@ -427,13 +416,9 @@ export default function CategoriesPage() {
               />
             ))}
           </div>
-          <Pagination
-            page={pager.page}
-            pageCount={pager.pageCount}
-            total={pager.total}
-            from={pager.from}
-            to={pager.to}
-            onPageChange={pager.setPage}
+          <InfiniteScrollSentinel
+            hasMore={list.hasMore}
+            onLoadMore={list.loadMore}
           />
         </>
       )}
