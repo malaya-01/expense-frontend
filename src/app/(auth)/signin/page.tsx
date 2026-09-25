@@ -10,11 +10,27 @@ import { Label } from "@/components/ui/label";
 import { Card, CardBody } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { loginUser } from "@/lib/api/auth";
-import { getErrorMessage, getAccessToken, getLockUntil } from "@/lib/api/client";
+import { getCurrentUser } from "@/lib/api/user";
+import {
+  getErrorMessage,
+  getAccessToken,
+  getLockUntil,
+  restoreSessionFromRefreshToken,
+} from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import { useGlobalLoader } from "@/components/brand/global-loader";
 import { userIdFromToken } from "@/lib/jwt";
+import { FaceUnlockSignInButton } from "@/components/native/face-unlock-signin";
+import {
+  authenticateFaceUnlock,
+  applyFaceUnlockAfterPasswordLogin,
+  disableFaceUnlock,
+  getFaceUnlockMeta,
+  isFaceUnlockCanceled,
+  isSilentRestoreBlocked,
+  type FaceUnlockMeta,
+} from "@/lib/native/face-unlock";
 
 function SignInForm() {
   const router = useRouter();
@@ -25,11 +41,19 @@ function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [faceLoading, setFaceLoading] = useState(false);
   const [hasSession, setHasSession] = useState(false);
+  const [faceMeta, setFaceMeta] = useState<FaceUnlockMeta | null>(null);
   const sessionToastShown = useRef(false);
 
   useEffect(() => {
-    setHasSession(Boolean(getAccessToken()));
+    setHasSession(Boolean(getAccessToken()) && !isSilentRestoreBlocked());
+    void getFaceUnlockMeta().then((meta) => {
+      setFaceMeta(meta);
+      if (meta?.email) {
+        setEmail((current) => current || meta.email);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -53,6 +77,11 @@ function SignInForm() {
       if (!id) {
         throw new Error("Sign-in succeeded but no user id was returned.");
       }
+      await applyFaceUnlockAfterPasswordLogin({
+        userId: id,
+        email: tokens.user?.email || email,
+        refreshToken: tokens.refreshToken,
+      });
       await setSession({
         id,
         email: tokens.user?.email || email,
@@ -97,6 +126,56 @@ function SignInForm() {
     }
   }
 
+  async function onFaceUnlock() {
+    setFaceLoading(true);
+    showPageLoader("Unlocking");
+    try {
+      const creds = await authenticateFaceUnlock();
+      await restoreSessionFromRefreshToken(creds.refreshToken);
+      const user = await getCurrentUser();
+      if (user.id !== creds.userId) {
+        await disableFaceUnlock();
+        throw new Error(
+          "Face Unlock is tied to a different account on this phone.",
+        );
+      }
+      await setSession(user);
+      showToast({
+        title: "Signed in",
+        description: `Welcome back${user.full_name ? `, ${user.full_name}` : ""}.`,
+        tone: "success",
+      });
+      router.replace("/dashboard");
+    } catch (err) {
+      if (isFaceUnlockCanceled(err)) return;
+      const message = getErrorMessage(err, "Face Unlock failed");
+      const expired =
+        message.toLowerCase().includes("refresh") ||
+        (typeof err === "object" &&
+          err !== null &&
+          "response" in err &&
+          (err as { response?: { status?: number } }).response?.status === 401);
+      if (expired) {
+        await disableFaceUnlock();
+        setFaceMeta(null);
+        showToast({
+          title: "Saved session expired",
+          description: "Sign in with your password, then enable Face Unlock again.",
+          tone: "warning",
+        });
+        return;
+      }
+      showToast({
+        title: "Face Unlock failed",
+        description: message,
+        tone: "error",
+      });
+    } finally {
+      setFaceLoading(false);
+      showPageLoader(null);
+    }
+  }
+
   return (
     <div>
       <h3 className="mb-2 text-[28px] leading-9 tracking-[-1.12px] sm:text-[32px] sm:leading-10 sm:tracking-[-1.28px]">
@@ -108,6 +187,14 @@ function SignInForm() {
 
       <Card>
         <CardBody className="pt-6">
+          {faceMeta ? (
+            <FaceUnlockSignInButton
+              meta={faceMeta}
+              loading={faceLoading}
+              disabled={loading}
+              onUnlock={() => void onFaceUnlock()}
+            />
+          ) : null}
           <form onSubmit={onSubmit} className="space-y-4">
             <div>
               <Label htmlFor="email">Email</Label>
@@ -144,7 +231,7 @@ function SignInForm() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || faceLoading}>
               Continue
             </Button>
           </form>

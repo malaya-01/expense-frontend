@@ -9,6 +9,7 @@ import {
   writeCustomThemes,
 } from "@/lib/themes/storage";
 import { clearTokens, getAccessToken } from "@/lib/api/client";
+import { isSilentRestoreBlocked } from "@/lib/native/face-unlock";
 import { setActiveOfflineUserId } from "@/lib/offline/clear-session";
 import {
   hydrateAuth,
@@ -68,6 +69,9 @@ function syncSidebarOffset(pinned: boolean, width: number) {
 }
 
 export function bootstrapAppState(dispatch: AppDispatch) {
+  if (isSilentRestoreBlocked()) {
+    clearTokens();
+  }
   const token = getAccessToken();
   let storedUser = null;
   try {

@@ -6,11 +6,13 @@ import axios, {
 import type { ApiResponse } from "@/types";
 import { beginApiActivity, endApiActivity } from "@/lib/api/activity";
 import { getClientPlatform } from "@/lib/runtime-platform";
+import { FACE_UNLOCK_ENROLLED_STORAGE_KEY } from "@/lib/native/face-unlock";
 
 const ACCESS_COOKIE = "access_token";
 const REFRESH_COOKIE = "refresh_token";
 const ACCESS_STORAGE_KEY = "finos:access_token";
 const REFRESH_STORAGE_KEY = "finos:refresh_token";
+const REFRESH_SESSION_KEY = "finos:refresh_token_session";
 export const API_BASE_STORAGE_KEY = "finos:api_base_url";
 
 const DEFAULT_API_BASE =
@@ -121,6 +123,33 @@ function clearLocal(key: string) {
   }
 }
 
+function readSession(key: string): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    return sessionStorage.getItem(key) || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeSession(key: string, value: string) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearSession(key: string) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+
 async function persistNativeKey(key: string, value: string | null) {
   try {
     const { Capacitor } = await import("@capacitor/core");
@@ -146,21 +175,40 @@ function isJwtExpired(token: string, skewMs = 60_000): boolean {
   }
 }
 
+/** In-process refresh when Face Unlock holds the durable copy in Keystore. */
+let memoryRefresh: string | undefined;
+
+function shouldPersistRefresh(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    return localStorage.getItem(FACE_UNLOCK_ENROLLED_STORAGE_KEY) !== "1";
+  } catch {
+    return true;
+  }
+}
+
 export function getAccessToken(): string | undefined {
   return readCookie(ACCESS_COOKIE) || readLocal(ACCESS_STORAGE_KEY);
 }
 
 export function getRefreshToken(): string | undefined {
-  // Prefer client-persisted refresh (required on Capacitor — HttpOnly cookies
-  // often do not survive WebView process death across origins).
+  // Prefer in-memory / session (Face Unlock) then client-persisted refresh
+  // (required on Capacitor — HttpOnly cookies often do not survive WebView
+  // process death).
   return (
+    memoryRefresh ||
+    readSession(REFRESH_SESSION_KEY) ||
     readLocal(REFRESH_STORAGE_KEY) ||
     readCookie(REFRESH_COOKIE) ||
     readCookie("refreshToken")
   );
 }
 
-export function setTokens(accessToken: string, refreshToken?: string) {
+export function setTokens(
+  accessToken: string,
+  refreshToken?: string,
+  options?: { persistRefresh?: boolean },
+) {
   // Access JWT itself expires in ~15m; cookie/local keep the string for 7d
   // so we can refresh using the refresh token without forcing re-login.
   writeCookie(ACCESS_COOKIE, accessToken, 7);
@@ -168,17 +216,27 @@ export function setTokens(accessToken: string, refreshToken?: string) {
   void persistNativeKey(ACCESS_STORAGE_KEY, accessToken);
 
   if (refreshToken) {
-    writeLocal(REFRESH_STORAGE_KEY, refreshToken);
-    void persistNativeKey(REFRESH_STORAGE_KEY, refreshToken);
+    memoryRefresh = refreshToken;
+    writeSession(REFRESH_SESSION_KEY, refreshToken);
+    const persist = options?.persistRefresh ?? shouldPersistRefresh();
+    if (persist) {
+      writeLocal(REFRESH_STORAGE_KEY, refreshToken);
+      void persistNativeKey(REFRESH_STORAGE_KEY, refreshToken);
+    } else {
+      clearLocal(REFRESH_STORAGE_KEY);
+      void persistNativeKey(REFRESH_STORAGE_KEY, null);
+    }
   }
 }
 
 export function clearTokens() {
+  memoryRefresh = undefined;
   removeCookie(ACCESS_COOKIE);
   removeCookie(REFRESH_COOKIE);
   removeCookie("refreshToken");
   clearLocal(ACCESS_STORAGE_KEY);
   clearLocal(REFRESH_STORAGE_KEY);
+  clearSession(REFRESH_SESSION_KEY);
   void persistNativeKey(ACCESS_STORAGE_KEY, null);
   void persistNativeKey(REFRESH_STORAGE_KEY, null);
 }
@@ -197,7 +255,14 @@ export async function hydrateNativeAuthTokens(): Promise<void> {
     if (access.value && !readLocal(ACCESS_STORAGE_KEY)) {
       writeLocal(ACCESS_STORAGE_KEY, access.value);
     }
-    if (refresh.value && !readLocal(REFRESH_STORAGE_KEY)) {
+    // Face Unlock keeps the refresh token in Keystore, not Preferences.
+    let enrolled = false;
+    try {
+      enrolled = localStorage.getItem(FACE_UNLOCK_ENROLLED_STORAGE_KEY) === "1";
+    } catch {
+      enrolled = false;
+    }
+    if (!enrolled && refresh.value && !readLocal(REFRESH_STORAGE_KEY)) {
       writeLocal(REFRESH_STORAGE_KEY, refresh.value);
     }
   } catch {
@@ -221,19 +286,59 @@ async function postRefresh(
   return res.data.data;
 }
 
+async function syncFaceUnlockRefresh(refreshToken?: string) {
+  if (!refreshToken) return;
+  try {
+    const { isFaceUnlockEnabled, updateFaceUnlockRefresh } = await import(
+      "@/lib/native/face-unlock"
+    );
+    if (await isFaceUnlockEnabled()) {
+      await updateFaceUnlockRefresh(refreshToken);
+    }
+  } catch {
+    /* Keystore update is best-effort */
+  }
+}
+
 /** Refresh access token using stored refresh token (and/or HttpOnly cookie). */
 export async function refreshSession(): Promise<string> {
   const tokens = await postRefresh(getRefreshToken());
   setTokens(tokens.accessToken, tokens.refreshToken);
+  await syncFaceUnlockRefresh(tokens.refreshToken);
+  return tokens.accessToken;
+}
+
+/** Restore a session from a Keystore-held refresh token after biometrics. */
+export async function restoreSessionFromRefreshToken(
+  refreshToken: string,
+): Promise<string> {
+  memoryRefresh = refreshToken;
+  const tokens = await postRefresh(refreshToken);
+  setTokens(tokens.accessToken, tokens.refreshToken, { persistRefresh: false });
+  await syncFaceUnlockRefresh(tokens.refreshToken || refreshToken);
   return tokens.accessToken;
 }
 
 /**
  * Ensure we have a usable access token after cold start.
  * Uses the 7-day refresh token so the user is not bounced to sign-in
- * every time the Android WebView process is killed.
+ * every time the Android WebView process is killed — unless Face Unlock
+ * is enrolled, in which case silent restore is skipped until biometrics.
  */
 export async function ensureSession(): Promise<boolean> {
+  try {
+    const {
+      isFaceUnlockEnabled,
+      isFaceUnlockSessionActive,
+    } = await import("@/lib/native/face-unlock");
+    if ((await isFaceUnlockEnabled()) && !isFaceUnlockSessionActive()) {
+      clearTokens();
+      return false;
+    }
+  } catch {
+    /* Face Unlock optional */
+  }
+
   await hydrateNativeAuthTokens();
   const access = getAccessToken();
   const refresh = getRefreshToken();
