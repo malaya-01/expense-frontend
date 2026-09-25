@@ -31,7 +31,7 @@ export function MobileGuide() {
         <ul className="list-disc space-y-1.5 pl-5 text-sm leading-6 text-[var(--ds-gray-900)]">
           <li>Use the menu button to open navigation</li>
           <li>Stay signed in — refresh tokens are stored securely</li>
-          <li>Confirm before exiting from home screens</li>
+          <li>Back steps through screens; press back again to leave from Dashboard</li>
           <li>Sync when you regain signal after offline entry</li>
         </ul>
       </div>

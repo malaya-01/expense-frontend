@@ -1,44 +1,46 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { APP_NAME } from "@/lib/brand";
+import { useEffect, useRef } from "react";
+import { showToast } from "@/lib/store/slices/uiSlice";
+import { useAppDispatch } from "@/lib/store/hooks";
+
+const EXIT_WINDOW_MS = 2000;
 
 /**
- * Listens for Android back-at-root → shows "exit app?" confirmation.
+ * Android back at a root screen: first press shows a toast,
+ * second press within 2s leaves the app.
  */
 export function ExitConfirmHost() {
-  const [open, setOpen] = useState(false);
+  const dispatch = useAppDispatch();
+  const armedUntil = useRef(0);
 
   useEffect(() => {
     const onAsk = () => {
-      setOpen((current) => {
-        // Second back while dialog is open cancels exit.
-        if (current) return false;
-        return true;
-      });
+      const now = Date.now();
+      if (now < armedUntil.current) {
+        armedUntil.current = 0;
+        void (async () => {
+          try {
+            const { App } = await import("@capacitor/app");
+            await App.exitApp();
+          } catch {
+            window.close();
+          }
+        })();
+        return;
+      }
+      armedUntil.current = now + EXIT_WINDOW_MS;
+      dispatch(
+        showToast({
+          title: "Press back again to exit",
+          tone: "info",
+          duration: EXIT_WINDOW_MS,
+        }),
+      );
     };
     window.addEventListener("finos:confirm-exit", onAsk);
     return () => window.removeEventListener("finos:confirm-exit", onAsk);
-  }, []);
+  }, [dispatch]);
 
-  return (
-    <ConfirmDialog
-      open={open}
-      title={`Exit ${APP_NAME}?`}
-      description="Are you sure you want to close the app?"
-      confirmLabel="Exit"
-      destructive
-      onClose={() => setOpen(false)}
-      onConfirm={async () => {
-        setOpen(false);
-        try {
-          const { App } = await import("@capacitor/app");
-          await App.exitApp();
-        } catch {
-          window.close();
-        }
-      }}
-    />
-  );
+  return null;
 }

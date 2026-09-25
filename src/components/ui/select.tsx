@@ -16,6 +16,7 @@ import {
 import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useOverlayBack } from "@/lib/native/overlay-back";
 
 type OptionEl = ReactElement<{
   value?: string | number;
@@ -142,6 +143,8 @@ export function Select({
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  useOverlayBack(open, () => setOpen(false));
 
   function pick(next: string) {
     setOpen(false);

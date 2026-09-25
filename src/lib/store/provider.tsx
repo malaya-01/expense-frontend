@@ -11,6 +11,12 @@ import {
 } from "@/lib/api/client";
 import { logout } from "./slices/authSlice";
 import { setAppStore } from "./store-ref";
+import { closeTopOverlay } from "@/lib/native/overlay-back";
+import {
+  hasInAppHistory,
+  installHistoryDepthTracker,
+  isDashboardAnchor,
+} from "@/lib/native/back-history";
 
 async function markNativeAppChrome() {
   try {
@@ -26,29 +32,24 @@ async function registerAndroidBackHandler() {
   try {
     const { Capacitor } = await import("@capacitor/core");
     if (!Capacitor.isNativePlatform()) return;
+    installHistoryDepthTracker();
     const { App } = await import("@capacitor/app");
     await App.addListener("backButton", ({ canGoBack }) => {
-      const path = (window.location.pathname || "/").replace(/\/$/, "") || "/";
-      const atExitSurface =
-        path === "/" ||
-        path === "/dashboard" ||
-        path === "/signin" ||
-        path === "/signup" ||
-        path === "/register";
+      if (closeTopOverlay()) return;
 
-      // Close open overlays first (menus / sync popover).
       window.dispatchEvent(new Event("finos:close-overlays"));
 
-      if (atExitSurface) {
-        // Ask before leaving the app (handled by ExitConfirmHost).
-        window.dispatchEvent(new Event("finos:confirm-exit"));
-        return;
-      }
-      if (canGoBack || window.history.length > 1) {
+      if (canGoBack || hasInAppHistory()) {
         window.history.back();
         return;
       }
-      window.location.assign("/dashboard");
+
+      if (!isDashboardAnchor()) {
+        window.location.replace("/dashboard");
+        return;
+      }
+
+      window.dispatchEvent(new Event("finos:confirm-exit"));
     });
   } catch {
     /* ignore */

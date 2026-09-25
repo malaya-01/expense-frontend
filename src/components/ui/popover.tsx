@@ -10,6 +10,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
+import { useOverlayBack } from "@/lib/native/overlay-back";
 
 export function Popover({
   trigger,
@@ -102,6 +103,8 @@ export function Popover({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  useOverlayBack(open, () => setOpen(false));
 
   return (
     <div className="relative inline-flex">

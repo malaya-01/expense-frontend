@@ -27,6 +27,7 @@ import { PRIMARY_NAV, SECONDARY_NAV } from "./app-sidebar";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { useReceiptCapture } from "@/components/receipts/receipt-capture-provider";
 import { cn } from "@/lib/cn";
+import { useOverlayBack } from "@/lib/native/overlay-back";
 import { useAuth } from "@/lib/auth-context";
 import {
   canAccessAdmin,
@@ -119,6 +120,7 @@ export function CommandPalette() {
   const canCreateTx = canCrud(user, "expenses", "create");
   const canCreateSpace = canCrud(user, "spaces", "create");
   const canSpaces = hasPermission(user, "spaces.access");
+  useOverlayBack(open, () => dispatch(closeCommandPalette()));
 
   useEffect(() => {
     const onGlobalKey = (event: KeyboardEvent) => {

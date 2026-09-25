@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Expand, X } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useOverlayBack } from "@/lib/native/overlay-back";
 
 export function ReceiptPreviewStage({
   src,
@@ -21,6 +22,7 @@ export function ReceiptPreviewStage({
   onRemove?: () => void;
 }) {
   const [zoomed, setZoomed] = useState(false);
+  useOverlayBack(zoomed, () => setZoomed(false));
 
   useEffect(() => {
     if (!zoomed) return;

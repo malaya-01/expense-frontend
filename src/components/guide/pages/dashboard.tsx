@@ -65,8 +65,9 @@ export function DashboardGuide() {
       </DocP>
 
       <Callout tone="note" title="Android back button">
-        On the dashboard (and a few other root screens), Android Back asks if
-        you want to exit the app — it does not jump randomly through history.
+        Android Back closes an open form first, then steps through screens you
+        opened. Only Dashboard is the exit anchor — Back there shows “Press
+        back again to exit.”
       </Callout>
 
       <DocH2>Related</DocH2>

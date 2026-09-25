@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useOverlayBack } from "@/lib/native/overlay-back";
 
 const EXIT_MS = 280;
 
@@ -26,6 +27,9 @@ export function Drawer({
 }) {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useOverlayBack(open, () => onCloseRef.current());
   const drawerRef = useRef<HTMLElement>(null);
   const [mounted, setMounted] = useState(open);
   const [visible, setVisible] = useState(open);
@@ -51,7 +55,7 @@ export function Drawer({
     window.requestAnimationFrame(() => closeRef.current?.focus());
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current();
       if (event.key === "Tab") {
         const focusable = Array.from(
           drawerRef.current?.querySelectorAll<HTMLElement>(
@@ -76,7 +80,7 @@ export function Drawer({
       document.body.style.overflow = previousOverflow;
       previousFocus?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!mounted || typeof document === "undefined") return null;
 

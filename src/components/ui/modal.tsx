@@ -11,6 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useOverlayBack } from "@/lib/native/overlay-back";
 
 const EXIT_MS = 280;
 
@@ -42,6 +43,7 @@ export function Modal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  useOverlayBack(open, () => onCloseRef.current());
 
   const [mounted, setMounted] = useState(open);
   const [visible, setVisible] = useState(open);
