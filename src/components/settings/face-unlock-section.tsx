@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { NativeBiometric } from "@capgo/capacitor-native-biometric";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,7 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import { getErrorMessage, getRefreshToken } from "@/lib/api/client";
 import { APP_NAME } from "@/lib/brand";
-import { isNativeClient } from "@/lib/runtime-platform";
+import { refreshClientPlatform } from "@/lib/runtime-platform";
 import {
   disableFaceUnlock,
   enrollFaceUnlock,
@@ -23,9 +25,11 @@ export function FaceUnlockSettings() {
   const { showToast } = useToast();
   const [native, setNative] = useState(false);
   const [ready, setReady] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [meta, setMeta] = useState<FaceUnlockMeta | null>(null);
   const [label, setLabel] = useState("Face Unlock");
   const [available, setAvailable] = useState(false);
+  const [hint, setHint] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function refresh() {
@@ -36,13 +40,48 @@ export function FaceUnlockSettings() {
     setMeta(nextMeta);
     setAvailable(availability.available);
     setLabel(nextMeta?.label || availability.label);
+    setHint(availability.hint);
   }
 
   useEffect(() => {
-    setNative(isNativeClient());
-    setReady(true);
-    void refresh();
+    let cancelled = false;
+    async function boot() {
+      refreshClientPlatform();
+      const nativeNow = Capacitor.isNativePlatform();
+      if (cancelled) return;
+      setNative(nativeNow);
+      setReady(true);
+      if (!nativeNow) return;
+      setChecking(true);
+      try {
+        await refresh();
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    }
+    void boot();
+    let listener: { remove: () => Promise<void> } | undefined;
+    if (Capacitor.isNativePlatform()) {
+      void NativeBiometric.addListener("biometryChange", () => {
+        if (!cancelled) void refresh();
+      }).then((handle) => {
+        listener = handle;
+      });
+    }
+    return () => {
+      cancelled = true;
+      void listener?.remove();
+    };
   }, [user?.id]);
+
+  async function checkAgain() {
+    setChecking(true);
+    try {
+      await refresh();
+    } finally {
+      setChecking(false);
+    }
+  }
 
   async function enable() {
     if (!user?.id || !user.email) return;
@@ -63,6 +102,8 @@ export function FaceUnlockSettings() {
         refreshToken,
       });
       setMeta(next);
+      setAvailable(true);
+      setLabel(next.label);
       showToast({
         title: `${next.label} is on`,
         description: `This device will ask for ${next.label.toLowerCase()} after you sign out or reopen the app.`,
@@ -102,7 +143,20 @@ export function FaceUnlockSettings() {
     }
   }
 
-  if (!ready) return null;
+  if (!ready) {
+    return (
+      <Card>
+        <CardHeader>
+          <h2 className="font-heading text-base font-semibold">
+            Face or fingerprint
+          </h2>
+          <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
+            Checking this device…
+          </p>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   if (!native) {
     return (
@@ -121,6 +175,9 @@ export function FaceUnlockSettings() {
     );
   }
 
+  const enabled = Boolean(meta);
+  const blocked = busy || checking;
+
   return (
     <Card>
       <CardHeader>
@@ -133,35 +190,64 @@ export function FaceUnlockSettings() {
         </p>
       </CardHeader>
       <CardBody className="space-y-3">
-        {!available && !meta ? (
-          <p className="text-xs leading-5 text-[var(--ds-gray-700)]">
-            This phone has no Face Unlock or fingerprint enrolled. Add one in
-            Android settings first.
+        {checking ? (
+          <p className="flex items-center gap-2 text-xs leading-5 text-[var(--ds-gray-700)]">
+            <span className="inline-block size-3.5 animate-spin rounded-full border-2 border-current border-r-transparent" />
+            Checking Face Unlock and fingerprint on this phone…
           </p>
-        ) : (
-          <Checkbox
-            id="face-unlock-toggle"
-            checked={Boolean(meta)}
-            disabled={busy || (!available && !meta)}
-            onChange={(checked) => {
-              if (checked) void enable();
-              else void disable();
-            }}
-            label="Use Face Unlock or fingerprint to sign in"
-            description={
-              meta
-                ? `Enabled for ${meta.email} (${label})`
-                : "The phone can use Face Unlock or a fingerprint — whichever it offers."
-            }
-          />
-        )}
-        {meta ? (
-          <div className="flex justify-end">
-            <Button variant="danger" size="sm" loading={busy} onClick={() => void disable()}>
+        ) : null}
+
+        <Checkbox
+          id="face-unlock-toggle"
+          checked={enabled}
+          disabled={blocked}
+          onChange={(checked) => {
+            if (checked) void enable();
+            else void disable();
+          }}
+          label="Use Face Unlock or fingerprint to sign in"
+          description={
+            enabled
+              ? `Enabled for ${meta?.email} (${label})`
+              : available
+                ? hint ||
+                  "The phone can use Face Unlock or a fingerprint — whichever it offers."
+                : hint ||
+                  "Tap Enable to try, or Check again after adding Face Unlock in Android Settings."
+          }
+        />
+
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={checking}
+            disabled={blocked}
+            onClick={() => void checkAgain()}
+          >
+            Check again
+          </Button>
+          {enabled ? (
+            <Button
+              variant="danger"
+              size="sm"
+              loading={busy}
+              disabled={checking}
+              onClick={() => void disable()}
+            >
               Disable
             </Button>
-          </div>
-        ) : null}
+          ) : (
+            <Button
+              size="sm"
+              loading={busy}
+              disabled={checking}
+              onClick={() => void enable()}
+            >
+              Enable
+            </Button>
+          )}
+        </div>
       </CardBody>
     </Card>
   );

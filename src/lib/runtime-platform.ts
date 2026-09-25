@@ -147,7 +147,14 @@ export function getClientPlatform(): ClientPlatform {
       label: "Web (desktop)",
     };
   }
-  if (!cached) cached = detectSync();
+  if (!cached) {
+    cached = detectSync();
+  } else if (cached.surface === "web") {
+    const bridge = getCapacitorBridge();
+    if (bridge?.isNativePlatform?.()) {
+      cached = detectSync();
+    }
+  }
   return cached;
 }
 

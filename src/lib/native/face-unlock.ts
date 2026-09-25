@@ -12,6 +12,10 @@ const META_KEY = "opal:face_unlock";
 const PROMPTED_KEY = "opal:face_unlock_prompted";
 const SESSION_KEY = "opal:face_unlock_session";
 
+const AVAILABILITY_TIMEOUT_MS = 8_000;
+const VERIFY_TIMEOUT_MS = 75_000;
+const CREDENTIAL_TIMEOUT_MS = 12_000;
+
 /** Survives logout so cold start can skip silent session restore. */
 export const FACE_UNLOCK_ENROLLED_STORAGE_KEY = "finos:face_unlock_enrolled";
 
@@ -21,6 +25,15 @@ export type FaceUnlockMeta = {
   email: string;
   biometryType: number;
   label: string;
+};
+
+export type FaceUnlockAvailability = {
+  available: boolean;
+  biometryType: BiometryType;
+  label: string;
+  errorCode?: number;
+  hint: string;
+  deviceIsSecure: boolean;
 };
 
 function isNative(): boolean {
@@ -102,15 +115,6 @@ export function biometryLabel(type: BiometryType | number): string {
   }
 }
 
-const ALLOWED_BIOMETRY_TYPES = [
-  BiometryType.FINGERPRINT,
-  BiometryType.FACE_AUTHENTICATION,
-  BiometryType.TOUCH_ID,
-  BiometryType.FACE_ID,
-  BiometryType.IRIS_AUTHENTICATION,
-  BiometryType.MULTIPLE,
-];
-
 export function biometryUnlockCta(label: string): string {
   if (/finger|touch/i.test(label) && !/face/i.test(label)) {
     return "Unlock with fingerprint";
@@ -126,6 +130,49 @@ export function isFaceUnlockCanceled(error: unknown): boolean {
   return /cancel/i.test(String(rec.message || ""));
 }
 
+async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message: string,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function pluginErrorMessage(error: unknown, fallback: string): string {
+  if (!error || typeof error !== "object") {
+    return typeof error === "string" && error.trim() ? error : fallback;
+  }
+  const rec = error as { message?: string; errorDetails?: string };
+  const text = String(rec.message || rec.errorDetails || "").trim();
+  return text || fallback;
+}
+
+function availabilityHint(errorCode?: number): string {
+  switch (errorCode) {
+    case 3:
+      return "This phone has no Face Unlock or fingerprint enrolled. Add one in Android Settings → Security, then tap Check again.";
+    case 1:
+      return "Biometrics are temporarily unavailable. Wait a moment, then tap Check again.";
+    case 2:
+    case 4:
+      return "Too many failed attempts. Unlock the phone with your PIN, then try again.";
+    case 14:
+      return "Set a screen lock (PIN, pattern, or password) in Android Settings first.";
+    default:
+      return "Opal could not reach Face Unlock or fingerprint on this phone. Check Android Settings → Security, then tap Check again.";
+  }
+}
+
 async function readMeta(): Promise<FaceUnlockMeta | null> {
   if (!isNative()) {
     writeEnrolledFlag(false);
@@ -133,7 +180,11 @@ async function readMeta(): Promise<FaceUnlockMeta | null> {
   }
   try {
     const { Preferences } = await import("@capacitor/preferences");
-    const { value } = await Preferences.get({ key: META_KEY });
+    const { value } = await withTimeout(
+      Preferences.get({ key: META_KEY }),
+      AVAILABILITY_TIMEOUT_MS,
+      "Could not read Face Unlock settings.",
+    );
     if (!value) {
       writeEnrolledFlag(false);
       return null;
@@ -170,45 +221,69 @@ export async function isFaceUnlockEnabled(): Promise<boolean> {
   return Boolean(await readMeta());
 }
 
-export async function getFaceUnlockAvailability(): Promise<{
-  available: boolean;
-  biometryType: BiometryType;
-  label: string;
-}> {
+export async function getFaceUnlockAvailability(): Promise<FaceUnlockAvailability> {
   if (!isNative()) {
     return {
       available: false,
       biometryType: BiometryType.NONE,
       label: "Biometrics",
+      hint: `Face or fingerprint unlock is available in the ${APP_NAME} Android app.`,
+      deviceIsSecure: false,
     };
   }
   try {
-    const result = await NativeBiometric.isAvailable({ useFallback: false });
+    const result = await withTimeout(
+      NativeBiometric.isAvailable({ useFallback: false }),
+      AVAILABILITY_TIMEOUT_MS,
+      "Checking Face Unlock timed out. Close the app and try again.",
+    );
+    const errorCode =
+      typeof result.errorCode === "number" ? result.errorCode : undefined;
     return {
       available: Boolean(result.isAvailable),
       biometryType: result.biometryType,
       label: biometryLabel(result.biometryType),
+      errorCode,
+      hint: result.isAvailable
+        ? "The phone can use Face Unlock or a fingerprint — whichever it offers."
+        : availabilityHint(errorCode),
+      deviceIsSecure: Boolean(result.deviceIsSecure),
     };
-  } catch {
+  } catch (error) {
     return {
       available: false,
       biometryType: BiometryType.NONE,
       label: "Biometrics",
+      hint: pluginErrorMessage(error, availabilityHint()),
+      deviceIsSecure: false,
     };
   }
 }
 
 async function verifyUnlock(label: string): Promise<void> {
-  await NativeBiometric.verifyIdentity({
-    reason: `Unlock ${APP_NAME} with Face or fingerprint`,
-    title: label,
-    subtitle: APP_NAME,
-    description: "Use Face Unlock or your fingerprint to continue.",
-    negativeButtonText: "Cancel",
-    maxAttempts: 5,
-    useFallback: false,
-    allowedBiometryTypes: ALLOWED_BIOMETRY_TYPES,
-  });
+  try {
+    await withTimeout(
+      NativeBiometric.verifyIdentity({
+        reason: `Unlock ${APP_NAME} with Face or fingerprint`,
+        title: label,
+        subtitle: APP_NAME,
+        description: "Use Face Unlock or your fingerprint to continue.",
+        negativeButtonText: "Cancel",
+        maxAttempts: 5,
+        useFallback: false,
+      }),
+      VERIFY_TIMEOUT_MS,
+      "The phone never showed a Face Unlock or fingerprint prompt. Unlock the screen, then try again.",
+    );
+  } catch (error) {
+    if (isFaceUnlockCanceled(error)) throw error;
+    throw new Error(
+      pluginErrorMessage(
+        error,
+        "The phone could not confirm it was you. Try Face Unlock or your fingerprint again.",
+      ),
+    );
+  }
 }
 
 function encodeUser(userId: string, email: string): string {
@@ -241,23 +316,32 @@ export async function enrollFaceUnlock(input: {
     throw new Error("Sign in with your password once, then enable Face Unlock.");
   }
   const availability = await getFaceUnlockAvailability();
-  if (!availability.available) {
-    throw new Error(
-      "This phone has no Face Unlock or fingerprint enrolled. Add Face Unlock or a fingerprint in system settings first.",
+  const label = availability.label || "Face or fingerprint";
+  await verifyUnlock(label);
+  try {
+    await withTimeout(
+      NativeBiometric.deleteCredentials({ server: CREDENTIAL_SERVER }),
+      CREDENTIAL_TIMEOUT_MS,
+      "Could not reset old Face Unlock data.",
     );
+  } catch {
+    /* first enroll, or already empty */
   }
-  await verifyUnlock(availability.label);
-  await NativeBiometric.setCredentials({
-    username: encodeUser(input.userId, input.email),
-    password: input.refreshToken,
-    server: CREDENTIAL_SERVER,
-  });
+  await withTimeout(
+    NativeBiometric.setCredentials({
+      username: encodeUser(input.userId, input.email),
+      password: input.refreshToken,
+      server: CREDENTIAL_SERVER,
+    }),
+    CREDENTIAL_TIMEOUT_MS,
+    "Could not save Face Unlock on this phone. Try again.",
+  );
   const meta: FaceUnlockMeta = {
     enabled: true,
     userId: input.userId,
     email: input.email,
     biometryType: availability.biometryType,
-    label: availability.label,
+    label,
   };
   await writeMeta(meta);
   await markPrompted();
@@ -271,11 +355,15 @@ export async function updateFaceUnlockRefresh(
 ): Promise<void> {
   const meta = await readMeta();
   if (!meta || !refreshToken) return;
-  await NativeBiometric.setCredentials({
-    username: encodeUser(meta.userId, meta.email),
-    password: refreshToken,
-    server: CREDENTIAL_SERVER,
-  });
+  await withTimeout(
+    NativeBiometric.setCredentials({
+      username: encodeUser(meta.userId, meta.email),
+      password: refreshToken,
+      server: CREDENTIAL_SERVER,
+    }),
+    CREDENTIAL_TIMEOUT_MS,
+    "Could not update Face Unlock credentials.",
+  );
 }
 
 export async function disableFaceUnlock(): Promise<void> {
@@ -308,9 +396,13 @@ export async function authenticateFaceUnlock(): Promise<{
     throw new Error("Face Unlock is not enabled on this device.");
   }
   await verifyUnlock(meta.label);
-  const creds = await NativeBiometric.getCredentials({
-    server: CREDENTIAL_SERVER,
-  });
+  const creds = await withTimeout(
+    NativeBiometric.getCredentials({
+      server: CREDENTIAL_SERVER,
+    }),
+    CREDENTIAL_TIMEOUT_MS,
+    "Could not read the saved Face Unlock session.",
+  );
   const bound = decodeUser(creds.username);
   if (bound.userId !== meta.userId) {
     throw new Error("Face Unlock is tied to a different account on this phone.");

@@ -69,12 +69,15 @@ export function FaceUnlockPrompt() {
         tone: "success",
       });
     } catch (error) {
-      if (isFaceUnlockCanceled(error)) return;
+      if (isFaceUnlockCanceled(error)) {
+        setBusy(false);
+        return;
+      }
       showToast({
         title: "Couldn’t enable Face Unlock",
         description: getErrorMessage(
           error,
-          "The phone could not confirm it was you.",
+          "The phone could not confirm it was you. You can try again in Settings → Security.",
         ),
         tone: "error",
       });
