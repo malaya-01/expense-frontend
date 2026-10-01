@@ -155,8 +155,13 @@ export function averageDescriptors(list: Float32Array[]): Float32Array {
   return out;
 }
 
-export function descriptorsAgree(list: Float32Array[]): boolean {
+export function descriptorsAgree(
+  list: Float32Array[],
+  maxDistance = 0.45,
+): boolean {
   if (list.length < 2) return false;
   const mean = averageDescriptors(list);
-  return list.every((descriptor) => descriptorDistance(descriptor, mean) < 0.2);
+  return list.every(
+    (descriptor) => descriptorDistance(descriptor, mean) <= maxDistance,
+  );
 }

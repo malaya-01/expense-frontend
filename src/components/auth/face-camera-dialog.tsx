@@ -15,8 +15,10 @@ import {
   type FaceSample,
 } from "@/lib/face-login/engine";
 
-const ENROLL_SAMPLES = 6;
-const VERIFY_HITS = 3;
+const ENROLL_SAMPLES = 3;
+/** Save anyway after this many clear frames so a steady face cannot sit forever. */
+const ENROLL_FORCE_AT = 5;
+const VERIFY_HITS = 2;
 
 export type FaceEnrollment = {
   descriptor: number[];
@@ -235,22 +237,26 @@ export function FaceCameraDialog({
     runId: number,
   ) {
     const next = samplesRef.current.concat(sample.descriptor);
-    samplesRef.current = next.length > 10 ? next.slice(-8) : next;
-    setProgress(Math.min(samplesRef.current.length, ENROLL_SAMPLES) / ENROLL_SAMPLES);
-    setHint("Hold still");
-    if (samplesRef.current.length < ENROLL_SAMPLES) return;
+    samplesRef.current = next.length > ENROLL_FORCE_AT ? next.slice(-ENROLL_FORCE_AT) : next;
+    const count = samplesRef.current.length;
+    setProgress(Math.min(count / ENROLL_SAMPLES, 1));
+    if (count < ENROLL_SAMPLES) {
+      setHint(`Hold still (${count} of ${ENROLL_SAMPLES})`);
+      return;
+    }
     const recent = samplesRef.current.slice(-ENROLL_SAMPLES);
-    if (!descriptorsAgree(recent)) {
-      setHint("Hold still — capturing a clear face");
+    const stable = descriptorsAgree(recent);
+    if (!stable && count < ENROLL_FORCE_AT) {
+      setHint(`Hold still (${count} of ${ENROLL_FORCE_AT})`);
       return;
     }
     doneRef.current = true;
     if (runRef.current !== runId) return;
-    const averaged = averageDescriptors(recent);
+    const chosen = stable ? averageDescriptors(recent) : sample.descriptor;
     setHint("Face saved");
     setProgress(1);
     onEnrolledRef.current?.({
-      descriptor: Array.from(averaged),
+      descriptor: Array.from(chosen),
       preview: snapshot(video),
     });
   }
