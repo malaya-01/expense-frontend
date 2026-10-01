@@ -1,5 +1,4 @@
 import { api, setTokens, unwrap } from "./client";
-import { applyFaceUnlockAfterPasswordLogin } from "@/lib/native/face-unlock";
 import type { AuthTokens, User } from "@/types";
 
 export async function registerUser(payload: {
@@ -31,11 +30,6 @@ export async function loginUser(payload: {
   const res = await api.post("/auth/login", payload);
   const data = unwrap<AuthTokens & { user?: User }>(res);
   setTokens(data.accessToken, data.refreshToken);
-  await applyFaceUnlockAfterPasswordLogin({
-    userId: data.user?.id,
-    email: data.user?.email,
-    refreshToken: data.refreshToken,
-  });
   return data;
 }
 

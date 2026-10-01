@@ -1,5 +1,5 @@
 import { API_BASE_STORAGE_KEY, clearTokens } from "@/lib/api/client";
-import { FACE_UNLOCK_ENROLLED_STORAGE_KEY } from "@/lib/native/face-unlock";
+import { FACE_LOGIN_STORAGE_KEY } from "@/lib/face-login/profile";
 import { USER_STORAGE_KEY } from "@/lib/store/slices/authSlice";
 import { DISMISSED_NOTIFICATIONS_KEY } from "@/lib/store/slices/notificationsSlice";
 import { getMeta, offlineDb, setMeta } from "./db";
@@ -34,7 +34,7 @@ function wipeAccountStorage() {
   if (typeof window === "undefined") return;
   const keep = new Set([
     API_BASE_STORAGE_KEY,
-    FACE_UNLOCK_ENROLLED_STORAGE_KEY,
+    FACE_LOGIN_STORAGE_KEY,
     "expense-tracker:active-theme-id",
     "expense-tracker:custom-themes",
     "finos:sidebar-pinned",

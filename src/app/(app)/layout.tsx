@@ -10,12 +10,10 @@ import { TransactionModalProvider } from "@/components/expenses/transaction-moda
 import { ReceiptCaptureProvider } from "@/components/receipts/receipt-capture-provider";
 import { useAuth } from "@/lib/auth-context";
 import { getAccessToken } from "@/lib/api/client";
-import { isSilentRestoreBlocked } from "@/lib/native/face-unlock";
 import { fetchMyPermissions } from "@/lib/api/permissions";
 import { cn } from "@/lib/cn";
 import { bootstrapOfflineSync } from "@/lib/offline/sync-engine";
 import { NetworkStatusBanner } from "@/components/sync/network-status-banner";
-import { FaceUnlockPrompt } from "@/components/native/face-unlock-prompt";
 import {
   firstAllowedPath,
   hasPermission,
@@ -31,7 +29,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!ready) return;
-    if (isSilentRestoreBlocked() || (!isAuthenticated && !getAccessToken())) {
+    if (!isAuthenticated && !getAccessToken()) {
       router.replace("/signin");
       return;
     }
@@ -100,7 +98,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <MobileNav />
           <MobileCreateFab />
           <CommandPalette />
-          <FaceUnlockPrompt />
         </div>
       </ReceiptCaptureProvider>
     </TransactionModalProvider>

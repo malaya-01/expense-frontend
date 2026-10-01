@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
+import { ScanFace } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -21,16 +22,13 @@ import { useAuth } from "@/lib/auth-context";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import { useGlobalLoader } from "@/components/brand/global-loader";
 import { userIdFromToken } from "@/lib/jwt";
-import { FaceUnlockSignInButton } from "@/components/native/face-unlock-signin";
+import { FaceCameraDialog } from "@/components/auth/face-camera-dialog";
 import {
-  authenticateFaceUnlock,
-  applyFaceUnlockAfterPasswordLogin,
-  disableFaceUnlock,
-  getFaceUnlockMeta,
-  isFaceUnlockCanceled,
-  isSilentRestoreBlocked,
-  type FaceUnlockMeta,
-} from "@/lib/native/face-unlock";
+  clearFaceLoginProfile,
+  hydrateFaceLoginProfile,
+  readFaceLoginProfileSync,
+  type FaceLoginProfile,
+} from "@/lib/face-login/profile";
 
 function SignInForm() {
   const router = useRouter();
@@ -42,18 +40,25 @@ function SignInForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [faceLoading, setFaceLoading] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [hasSession, setHasSession] = useState(false);
-  const [faceMeta, setFaceMeta] = useState<FaceUnlockMeta | null>(null);
+  const [faceProfile, setFaceProfile] = useState<FaceLoginProfile | null>(null);
   const sessionToastShown = useRef(false);
 
   useEffect(() => {
-    setHasSession(Boolean(getAccessToken()) && !isSilentRestoreBlocked());
-    void getFaceUnlockMeta().then((meta) => {
-      setFaceMeta(meta);
-      if (meta?.email) {
-        setEmail((current) => current || meta.email);
+    let cancelled = false;
+    void hydrateFaceLoginProfile().then(() => {
+      if (cancelled) return;
+      setHasSession(Boolean(getAccessToken()));
+      const profile = readFaceLoginProfileSync();
+      setFaceProfile(profile);
+      if (profile?.email) {
+        setEmail((current) => current || profile.email);
       }
     });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -77,11 +82,6 @@ function SignInForm() {
       if (!id) {
         throw new Error("Sign-in succeeded but no user id was returned.");
       }
-      await applyFaceUnlockAfterPasswordLogin({
-        userId: id,
-        email: tokens.user?.email || email,
-        refreshToken: tokens.refreshToken,
-      });
       await setSession({
         id,
         email: tokens.user?.email || email,
@@ -126,18 +126,19 @@ function SignInForm() {
     }
   }
 
-  async function onFaceUnlock() {
+  async function onFaceVerified() {
+    const profile = readFaceLoginProfileSync();
+    if (!profile) return;
+    setCameraOpen(false);
     setFaceLoading(true);
-    showPageLoader("Unlocking");
+    showPageLoader("Signing in");
     try {
-      const creds = await authenticateFaceUnlock();
-      await restoreSessionFromRefreshToken(creds.refreshToken);
+      await restoreSessionFromRefreshToken(profile.refreshToken);
       const user = await getCurrentUser();
-      if (user.id !== creds.userId) {
-        await disableFaceUnlock();
-        throw new Error(
-          "Face Unlock is tied to a different account on this phone.",
-        );
+      if (user.id !== profile.userId) {
+        await clearFaceLoginProfile();
+        setFaceProfile(null);
+        throw new Error("Face login is tied to a different account on this device.");
       }
       await setSession(user);
       showToast({
@@ -147,26 +148,26 @@ function SignInForm() {
       });
       router.replace("/dashboard");
     } catch (err) {
-      if (isFaceUnlockCanceled(err)) return;
-      const message = getErrorMessage(err, "Face Unlock failed");
+      const message = getErrorMessage(err, "Face login failed");
       const expired =
         message.toLowerCase().includes("refresh") ||
+        message.toLowerCase().includes("session") ||
         (typeof err === "object" &&
           err !== null &&
           "response" in err &&
           (err as { response?: { status?: number } }).response?.status === 401);
       if (expired) {
-        await disableFaceUnlock();
-        setFaceMeta(null);
+        await clearFaceLoginProfile();
+        setFaceProfile(null);
         showToast({
           title: "Saved session expired",
-          description: "Sign in with your password, then enable Face Unlock again.",
+          description: "Sign in with your password, then turn face login on again in Settings.",
           tone: "warning",
         });
         return;
       }
       showToast({
-        title: "Face Unlock failed",
+        title: "Face login failed",
         description: message,
         tone: "error",
       });
@@ -187,13 +188,28 @@ function SignInForm() {
 
       <Card>
         <CardBody className="pt-6">
-          {faceMeta ? (
-            <FaceUnlockSignInButton
-              meta={faceMeta}
-              loading={faceLoading}
-              disabled={loading}
-              onUnlock={() => void onFaceUnlock()}
-            />
+          {faceProfile ? (
+            <div className="mb-6 space-y-3">
+              <Button
+                type="button"
+                className="w-full"
+                loading={faceLoading}
+                disabled={loading}
+                onClick={() => setCameraOpen(true)}
+              >
+                <ScanFace size={18} aria-hidden />
+                Sign in with face
+              </Button>
+              <p className="text-center text-xs text-[var(--ds-gray-700)]">
+                Saved for {faceProfile.email}. Use your password if this is a
+                different account.
+              </p>
+              <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.08em] text-[var(--ds-gray-700)]">
+                <span className="h-px flex-1 bg-[var(--ds-gray-200)]" />
+                or password
+                <span className="h-px flex-1 bg-[var(--ds-gray-200)]" />
+              </div>
+            </div>
           ) : null}
           <form onSubmit={onSubmit} className="space-y-4">
             <div>
@@ -244,6 +260,13 @@ function SignInForm() {
           Sign up
         </Link>
       </p>
+      <FaceCameraDialog
+        open={cameraOpen}
+        mode="verify"
+        savedDescriptor={faceProfile?.descriptor}
+        onClose={() => setCameraOpen(false)}
+        onVerified={() => void onFaceVerified()}
+      />
       {hasSession ? (
         <p className="mt-3 text-center text-xs text-[var(--ds-gray-700)]">
           Session detected —{" "}

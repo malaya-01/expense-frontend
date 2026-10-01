@@ -12,7 +12,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { AppearanceSection } from "@/components/settings/theme-settings";
 import { AiProvidersSection } from "@/components/settings/ai-providers-section";
 import { SyncSettingsSection } from "@/components/settings/sync-settings-section";
-import { FaceUnlockSettings } from "@/components/settings/face-unlock-section";
+import { FaceLoginSettings } from "@/components/settings/face-login-section";
 import { ReportScheduleSection } from "@/components/settings/report-schedule-section";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -408,7 +408,7 @@ function SettingsPageInner() {
 
           {section === "security" ? (
             <div className="space-y-3 sm:space-y-4">
-              <FaceUnlockSettings />
+              <FaceLoginSettings />
               <Card>
                 <CardHeader>
                   <h2 className="font-heading text-base font-semibold">
@@ -573,9 +573,10 @@ function SettingsPageInner() {
               <CardHeader>
                 <h2 className="font-heading text-base font-semibold">Session</h2>
                 <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-                  Signed in as {user?.email || "—"}. Signing out only affects
-                  this device. Face or fingerprint unlock, if enabled, stays
-                  on until you disable it in Security.
+                  Signed in as {user?.email || "—"}. Leaving the app does not
+                  sign you out. Log out is the only way to end this session.
+                  Face login, if you set it up under Security, stays on this
+                  device until you turn it off.
                 </p>
               </CardHeader>
               <CardBody className="space-y-3">
