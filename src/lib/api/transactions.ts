@@ -34,6 +34,7 @@ function apiPayload(
     paid_at: payload.paid_at || undefined,
     platform: payload.platform || undefined,
     platform_txn_id: payload.platform_txn_id || undefined,
+    receipt_id: payload.receipt_id || undefined,
   };
 }
 
@@ -92,6 +93,9 @@ async function enrichTransactionFields(
       payload.amount != null ? Number(payload.amount) : undefined,
     exchange_rate: payload.exchange_rate ?? 1,
     fx_rate_to_base: 1,
+    receipt_id: payload.receipt_id || null,
+    receipt_url: payload.receipt_url || null,
+    receipt_mime: payload.receipt_mime || null,
   };
 }
 

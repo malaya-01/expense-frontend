@@ -76,19 +76,22 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
         const payload = await fileToReceiptPayload(file);
         previewUrl = payload.preview_url;
         let parsed: ReceiptParseResult | null = null;
-        let notice =
-          "Review the fields before saving. The receipt file is not stored.";
+        let notice = "Review the fields before saving.";
         try {
           parsed = await parseReceipt({
             name: payload.name,
             mime_type: payload.mime_type,
             data_base64: payload.data_base64,
           });
+          if (parsed.stored && parsed.receipt_id) {
+            notice =
+              "Review the fields before saving. The scan will be attached to this transaction.";
+          }
           if (parsed.warning) notice = parsed.warning;
         } catch (err) {
           notice = getErrorMessage(
             err,
-            "Could not read this receipt. Fill the form yourself — the file was not saved.",
+            "Could not read this receipt. Fill the form yourself.",
           );
         }
 
@@ -143,6 +146,9 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
           notice,
           previewUrl,
           previewName: payload.name,
+          receiptId: parsed?.receipt_id,
+          receiptUrl: parsed?.receipt_url,
+          receiptMime: payload.mime_type,
         });
       } catch (err) {
         if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -253,7 +259,7 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
           <p className="mt-2 text-sm leading-6 text-[var(--ds-gray-900)]">
             Pay in GPay, PhonePe, or anywhere else, then photograph the receipt
             or pick a screenshot/PDF. Opal reads it with vision — you review and
-            save. Failed payments are ignored. The file is not stored.
+            save. Failed payments are ignored. The scan is attached to the transaction.
           </p>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">

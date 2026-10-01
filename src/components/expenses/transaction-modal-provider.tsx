@@ -30,6 +30,9 @@ export type TransactionDraft = {
   visionProvider?: string | null;
   visionModel?: string | null;
   receiptMatch?: Partial<ReceiptExtractedFields> | null;
+  receiptId?: string | null;
+  receiptUrl?: string | null;
+  receiptMime?: string | null;
 };
 
 type TransactionModalContextValue = {
@@ -184,7 +187,11 @@ export function TransactionModalProvider({
                 src={draft!.previewUrl!}
                 alt={draft?.previewName || "Receipt preview"}
                 fill
-                caption="Preview only — nothing is stored until you record."
+                caption={
+                  draft?.receiptId
+                    ? "This scan is saved with the transaction when you record it."
+                    : "Preview only — the scan could not be stored."
+                }
                 onRemove={clearReceiptPreview}
               />
             </aside>
@@ -206,6 +213,15 @@ export function TransactionModalProvider({
                   defaults={draft?.defaults}
                   fromReceipt={Boolean(draft?.fromReceipt)}
                   receiptMatch={draft?.receiptMatch}
+                  savedReceipt={
+                    draft?.receiptId
+                      ? {
+                          id: draft.receiptId,
+                          url: draft.receiptUrl,
+                          mime: draft.receiptMime,
+                        }
+                      : null
+                  }
                   allowReceiptUpload={!editing && !hasPreview}
                   mode={editing ? "edit" : "create"}
                   onSuccess={handleCreated}
@@ -246,6 +262,15 @@ export function TransactionModalProvider({
                 defaults={draft?.defaults}
                 fromReceipt={Boolean(draft?.fromReceipt)}
                 receiptMatch={draft?.receiptMatch}
+                savedReceipt={
+                  draft?.receiptId
+                    ? {
+                        id: draft.receiptId,
+                        url: draft.receiptUrl,
+                        mime: draft.receiptMime,
+                      }
+                    : null
+                }
                 allowReceiptUpload={!editing && !hasPreview}
                 mode={editing ? "edit" : "create"}
                 onSuccess={handleCreated}

@@ -21,6 +21,8 @@ function cleanPayload(payload: Record<string, unknown>) {
     category_name: _cn,
     source_currency: _sc,
     destination_currency: _dc,
+    receipt_url: _ru,
+    receipt_mime: _rm,
     spent: _spent,
     remaining: _rem,
     percent: _pct,

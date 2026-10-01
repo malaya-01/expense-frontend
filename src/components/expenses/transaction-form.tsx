@@ -51,6 +51,11 @@ type TransactionFormProps = {
   defaults?: Partial<CreateTransactionInput>;
   fromReceipt?: boolean;
   receiptMatch?: Partial<ReceiptExtractedFields> | null;
+  savedReceipt?: {
+    id?: string | null;
+    url?: string | null;
+    mime?: string | null;
+  } | null;
   allowReceiptUpload?: boolean;
   mode?: "create" | "edit";
   onSuccess?: () => void;
@@ -69,6 +74,9 @@ type TransactionFormProps = {
     visionProvider?: string | null;
     visionModel?: string | null;
     receiptMatch?: Partial<ReceiptExtractedFields> | null;
+    receiptId?: string | null;
+    receiptUrl?: string | null;
+    receiptMime?: string | null;
   }) => void;
 };
 
@@ -106,6 +114,7 @@ export function TransactionForm({
   defaults,
   fromReceipt = false,
   receiptMatch,
+  savedReceipt = null,
   allowReceiptUpload = true,
   mode = "create",
   onSuccess,
@@ -166,6 +175,17 @@ export function TransactionForm({
       ),
   );
   const [receiptNotice, setReceiptNotice] = useState("");
+  const [attachedReceipt, setAttachedReceipt] = useState(savedReceipt);
+  useEffect(() => {
+    if (!savedReceipt?.id) return;
+    setAttachedReceipt((current) =>
+      current?.id === savedReceipt.id &&
+      current?.url === savedReceipt.url &&
+      current?.mime === savedReceipt.mime
+        ? current
+        : savedReceipt,
+    );
+  }, [savedReceipt]);
   const [localReading, setLocalReading] = useState<string | null>(null);
   const [visionSource, setVisionSource] = useState<{
     provider: string | null;
@@ -403,6 +423,9 @@ export function TransactionForm({
         paid_at: form.paid_at || localPaidAt(form.date, time),
         platform: form.platform || undefined,
         platform_txn_id: form.platform_txn_id || undefined,
+        receipt_id: attachedReceipt?.id || undefined,
+        receipt_url: attachedReceipt?.url || undefined,
+        receipt_mime: attachedReceipt?.mime || undefined,
       };
 
       if (mode === "edit" && initial) {
@@ -455,19 +478,22 @@ export function TransactionForm({
       const payload = await fileToReceiptPayload(file);
       previewUrl = payload.preview_url;
       let parsed: Awaited<ReturnType<typeof parseReceipt>> | null = null;
-      let notice =
-        "Receipt fields filled. Review before saving — the image is not stored.";
+      let notice = "Receipt fields filled. Review before saving.";
       try {
         parsed = await parseReceipt({
           name: payload.name,
           mime_type: payload.mime_type,
           data_base64: payload.data_base64,
         });
+        if (parsed.stored && parsed.receipt_id) {
+          notice =
+            "Receipt fields filled. The scan will be attached to this transaction.";
+        }
         if (parsed.warning) notice = parsed.warning;
       } catch (err) {
         notice = getErrorMessage(
           err,
-          "Could not read this receipt. Fill the form yourself — the file is not stored.",
+          "Could not read this receipt. Fill the form yourself.",
         );
       }
 
@@ -512,8 +538,18 @@ export function TransactionForm({
           visionProvider: parsed?.used_provider,
           visionModel: parsed?.used_model,
           receiptMatch: parsed?.extracted,
+          receiptId: parsed?.receipt_id,
+          receiptUrl: parsed?.receipt_url,
+          receiptMime: payload.mime_type,
         });
         return;
+      }
+      if (parsed?.receipt_id) {
+        setAttachedReceipt({
+          id: parsed.receipt_id,
+          url: parsed.receipt_url,
+          mime: payload.mime_type,
+        });
       }
       if (localPreview?.url) URL.revokeObjectURL(localPreview.url);
       setLocalPreview({ url: previewUrl, name: payload.name });

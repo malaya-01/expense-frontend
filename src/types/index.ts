@@ -94,6 +94,9 @@ export type LedgerTransaction = {
   destination_name?: string | null;
   destination_currency?: string | null;
   category_name?: string | null;
+  receipt_id?: string | null;
+  receipt_url?: string | null;
+  receipt_mime?: string | null;
   created_at: string;
   updated_at: string;
 } & SyncLocalMeta;
@@ -155,6 +158,9 @@ export type CreateTransactionInput = {
   paid_at?: string;
   platform?: string;
   platform_txn_id?: string;
+  receipt_id?: string;
+  receipt_url?: string | null;
+  receipt_mime?: string | null;
 };
 
 export type ReceiptExtractedFields = {
@@ -186,7 +192,9 @@ export type ReceiptExtractedFields = {
 
 export type ReceiptParseResult = {
   ok: boolean;
-  stored: false;
+  stored: boolean;
+  receipt_id?: string | null;
+  receipt_url?: string | null;
   warning?: string;
   blocked_reason?: "failed_payment" | "pending_payment";
   used_provider: string | null;

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { StatusDot } from "@/components/ui/status-dot";
+import { ReceiptThumb } from "@/components/receipts/receipt-thumb";
 import {
   Alert,
   Badge,
@@ -358,7 +359,15 @@ export default function DashboardPage() {
                       className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
-                        <StatusDot tone={tone} className="shrink-0" />
+                        {tx.receipt_url ? (
+                          <ReceiptThumb
+                            url={tx.receipt_url}
+                            mime={tx.receipt_mime}
+                            alt={`Receipt for ${tx.description}`}
+                          />
+                        ) : (
+                          <StatusDot tone={tone} className="shrink-0" />
+                        )}
                         <div className="min-w-0 flex-1 overflow-hidden">
                           <p className="truncate text-sm text-[var(--ds-gray-1000)]">
                             {tx.description}

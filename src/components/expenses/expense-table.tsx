@@ -8,6 +8,7 @@ import { formatCurrency, formatRelativeDate } from "@/lib/format";
 import type { SortDir } from "@/hooks/use-table-sort";
 import type { LedgerTransaction } from "@/types";
 import { SyncBadge } from "@/components/sync/sync-badge";
+import { ReceiptThumb } from "@/components/receipts/receipt-thumb";
 
 const TYPE_TONE = {
   expense: "orange" as const,
@@ -95,10 +96,18 @@ export function TransactionTable({
                   onClick={() => onOpen?.(tx)}
                   className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-[8px] text-left ds-focus"
                 >
-                  <StatusDot
-                    tone={TYPE_TONE[tx.type]}
-                    className="shrink-0"
-                  />
+                  {tx.receipt_url ? (
+                    <ReceiptThumb
+                      url={tx.receipt_url}
+                      mime={tx.receipt_mime}
+                      alt={`Receipt for ${tx.description}`}
+                    />
+                  ) : (
+                    <StatusDot
+                      tone={TYPE_TONE[tx.type]}
+                      className="shrink-0"
+                    />
+                  )}
                   <div className="min-w-0 flex-1 overflow-hidden">
                     <div className="flex min-w-0 items-center gap-1.5">
                       <h2 className="min-w-0 flex-1 truncate text-[13px] font-medium">{tx.description}</h2>
@@ -222,7 +231,15 @@ export function TransactionTable({
               >
                 <td className="px-5 py-3.5">
                   <div className="flex items-center gap-2.5">
-                    <StatusDot tone={TYPE_TONE[tx.type]} />
+                    {tx.receipt_url ? (
+                      <ReceiptThumb
+                        url={tx.receipt_url}
+                        mime={tx.receipt_mime}
+                        alt={`Receipt for ${tx.description}`}
+                      />
+                    ) : (
+                      <StatusDot tone={TYPE_TONE[tx.type]} />
+                    )}
                     <div>
                       <div className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--ds-gray-1000)]">
                         {tx.description}

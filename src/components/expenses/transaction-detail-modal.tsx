@@ -19,6 +19,11 @@ import { StatusDot } from "@/components/ui/status-dot";
 import { Badge } from "@/components/ui/feedback";
 import { formatCurrency, formatDate, formatRelativeDate } from "@/lib/format";
 import type { LedgerTransaction } from "@/types";
+import {
+  isReceiptImage,
+  receiptMediaUrl,
+  ReceiptThumb,
+} from "@/components/receipts/receipt-thumb";
 
 const TYPE_TONE = {
   expense: "orange" as const,
@@ -119,6 +124,32 @@ export function TransactionDetailModal({
     >
         {tx ? (
       <div className="space-y-4">
+        {tx.receipt_url && receiptMediaUrl(tx.receipt_url) ? (
+          <a
+            href={receiptMediaUrl(tx.receipt_url) || undefined}
+            target="_blank"
+            rel="noreferrer"
+            className="block overflow-hidden rounded-[18px] bg-[var(--ds-background-100)]"
+          >
+            {isReceiptImage(tx.receipt_mime) ? (
+              <img
+                src={receiptMediaUrl(tx.receipt_url) || undefined}
+                alt={`Receipt for ${tx.description}`}
+                className="max-h-72 w-full object-contain"
+              />
+            ) : (
+              <span className="flex items-center gap-3 px-4 py-4 text-sm text-[var(--ds-gray-900)]">
+                <ReceiptThumb
+                  url={tx.receipt_url}
+                  mime={tx.receipt_mime}
+                  alt=""
+                />
+                Open attached receipt
+              </span>
+            )}
+          </a>
+        ) : null}
+
         <div className="overflow-hidden rounded-[18px] bg-[var(--ds-background-100)] p-4 sm:p-5">
           <div className="flex items-center gap-2">
             <StatusDot tone={TYPE_TONE[tx.type]} />
