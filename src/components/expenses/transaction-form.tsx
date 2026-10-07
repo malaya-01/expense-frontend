@@ -632,8 +632,8 @@ export function TransactionForm({
                 Upload receipt
               </span>
               <span className="mt-0.5 block text-[12px] leading-4 text-[var(--ds-gray-700)]">
-                Optional GPay or PhonePe screenshot. Nothing is stored until
-                you record.
+                Optional GPay, PhonePe, or Paytm screenshot. The scan is
+                attached when you record.
               </span>
             </span>
           </button>
@@ -665,117 +665,116 @@ export function TransactionForm({
       </div>
 
       {(needsSource || needsDestination) && (
-        <div className="relative">
-          <div
-            className={cn(
-              needsSource && needsDestination
-                ? "grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-x-10"
-                : undefined,
-            )}
-          >
-            {needsSource ? (
-              <div className="min-w-0">
-                <Label htmlFor="source">From</Label>
-                <Select
-                  id="source"
-                  value={form.source_container_id || ""}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    setForm((prev) => ({
-                      ...prev,
-                      source_container_id: next,
-                      destination_container_id:
-                        prev.destination_container_id === next
-                          ? ""
-                          : prev.destination_container_id,
-                      exchange_rate: undefined,
-                    }));
-                  }}
-                  required
-                >
-                  <option value="">Select container</option>
-                  {sourceOptions.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {containerLabel(c)}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            ) : null}
-
-            {needsDestination ? (
-              <div className="min-w-0">
-                <Label htmlFor="destination">To</Label>
-                <Select
-                  id="destination"
-                  value={form.destination_container_id || ""}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    setForm((prev) => ({
-                      ...prev,
-                      destination_container_id: next,
-                      source_container_id:
-                        prev.source_container_id === next
-                          ? ""
-                          : prev.source_container_id,
-                      exchange_rate: undefined,
-                    }));
-                  }}
-                  required
-                >
-                  <option value="">Select container</option>
-                  {destinationOptions.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {containerLabel(c)}
-                    </option>
-                  ))}
-                </Select>
-                {form.type === "transfer" && containers.length < 2 ? (
-                  <p className="mt-1.5 text-[11px] text-[var(--ds-status-orange)]">
-                    You need a second container for transfers.{" "}
-                    <button
-                      type="button"
-                      className="text-[var(--ds-focus-color)]"
-                      onClick={() => router.push("/accounts")}
-                    >
-                      Create one in Accounts
-                    </button>
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
+        <div
+          className={cn(
+            needsSource && needsDestination
+              ? "flex flex-col sm:flex-row sm:items-end"
+              : undefined,
+          )}
+        >
+          {needsSource ? (
+            <div className="min-w-0 flex-1">
+              <Label htmlFor="source">From</Label>
+              <Select
+                id="source"
+                value={form.source_container_id || ""}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    source_container_id: next,
+                    destination_container_id:
+                      prev.destination_container_id === next
+                        ? ""
+                        : prev.destination_container_id,
+                    exchange_rate: undefined,
+                  }));
+                }}
+                required
+              >
+                <option value="">Select container</option>
+                {sourceOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {containerLabel(c)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ) : null}
 
           {needsSource && needsDestination ? (
-            <button
-              type="button"
-              aria-label="Swap From and To containers"
-              title="Swap From and To"
-              disabled={
-                !form.source_container_id && !form.destination_container_id
-              }
-              onClick={() => {
-                setForm((prev) => ({
-                  ...prev,
-                  source_container_id: prev.destination_container_id,
-                  destination_container_id: prev.source_container_id,
-                  exchange_rate: undefined,
-                }));
-              }}
-              className={cn(
-                "absolute left-1/2 top-1/2 z-10 inline-flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full",
-                "border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]",
-                "bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)]",
-                "shadow-[0_2px_8px_color-mix(in_srgb,var(--ds-gray-1000)_16%,transparent)]",
-                "transition-colors hover:border-[color:color-mix(in_srgb,var(--ds-focus-color)_35%,transparent)]",
-                "hover:bg-[color-mix(in_srgb,var(--ds-focus-color)_10%,var(--ds-background-elevated))]",
-                "hover:text-[var(--ds-focus-color)] ds-focus",
-                "disabled:cursor-not-allowed disabled:opacity-40",
-                "rotate-90 sm:rotate-0",
-              )}
-            >
-              <ArrowLeftRight size={14} strokeWidth={1.8} />
-            </button>
+            <div className="relative z-10 -my-2 flex h-4 items-center justify-center sm:mx-1.5 sm:my-0 sm:mb-1.5 sm:h-9 sm:w-8">
+              <button
+                type="button"
+                aria-label="Swap From and To containers"
+                title="Swap From and To"
+                disabled={
+                  !form.source_container_id && !form.destination_container_id
+                }
+                onClick={() => {
+                  setForm((prev) => ({
+                    ...prev,
+                    source_container_id: prev.destination_container_id,
+                    destination_container_id: prev.source_container_id,
+                    exchange_rate: undefined,
+                  }));
+                }}
+                className={cn(
+                  "inline-flex size-8 items-center justify-center rounded-full",
+                  "border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]",
+                  "bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)]",
+                  "shadow-[0_2px_8px_color-mix(in_srgb,var(--ds-gray-1000)_16%,transparent)]",
+                  "transition-colors hover:border-[color:color-mix(in_srgb,var(--ds-focus-color)_35%,transparent)]",
+                  "hover:text-[var(--ds-focus-color)] ds-focus",
+                  "disabled:cursor-not-allowed disabled:opacity-40",
+                  "rotate-90 sm:rotate-0",
+                )}
+              >
+                <ArrowLeftRight size={14} strokeWidth={1.8} />
+              </button>
+            </div>
+          ) : null}
+
+          {needsDestination ? (
+            <div className="min-w-0 flex-1">
+              <Label htmlFor="destination">To</Label>
+              <Select
+                id="destination"
+                value={form.destination_container_id || ""}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    destination_container_id: next,
+                    source_container_id:
+                      prev.source_container_id === next
+                        ? ""
+                        : prev.source_container_id,
+                    exchange_rate: undefined,
+                  }));
+                }}
+                required
+              >
+                <option value="">Select container</option>
+                {destinationOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {containerLabel(c)}
+                  </option>
+                ))}
+              </Select>
+              {form.type === "transfer" && containers.length < 2 ? (
+                <p className="mt-1.5 text-[11px] text-[var(--ds-status-orange)]">
+                  You need a second container for transfers.{" "}
+                  <button
+                    type="button"
+                    className="text-[var(--ds-focus-color)]"
+                    onClick={() => router.push("/accounts")}
+                  >
+                    Create one in Accounts
+                  </button>
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </div>
       )}
