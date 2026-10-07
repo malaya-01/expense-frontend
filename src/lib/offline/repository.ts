@@ -11,8 +11,13 @@ import type { OutboxOp } from "./db";
 import { isOnline } from "./network";
 import { scheduleSync } from "./sync-engine";
 import { getActiveOfflineUserId } from "./clear-session";
-import { pushOutboxItemViaRest } from "./rest-fallback";
 import {
+  isNotFoundError,
+  isTransientWriteError,
+  pushOutboxItemViaRest,
+} from "./rest-fallback";
+import {
+  getHydrateGeneration,
   invalidateHydrate,
   isHydrateFresh,
   notifyDataUpdated,
@@ -63,27 +68,40 @@ export function createRepository<T extends SyncedRecord>(
    * Local-first: never replace the table wholesale.
    */
   async function hydrateFromRemote(): Promise<void> {
+    const gen = getHydrateGeneration(config.table);
     const remote = await config.remoteList();
+    if (getHydrateGeneration(config.table) !== gen) return;
     const table = offlineDb.table(config.table);
     const existingRows = (await table.toArray()) as SyncedRecord[];
-    const blocked = new Set(
-      existingRows
-        .filter((row) => row._pending || row._sync_failed)
-        .map((row) => String(row.id)),
+    const existingById = new Map(
+      existingRows.map((row) => [String(row.id), row]),
     );
     const ownerId = getActiveOfflineUserId();
-    const next = remote
-      .filter((row) => !blocked.has(String((row as SyncedRecord).id)))
-      .map((row) => {
-        const id = String((row as SyncedRecord).id);
-        return {
+    const next = remote.flatMap((row) => {
+      const id = String((row as SyncedRecord).id);
+      const local = existingById.get(id);
+      if (local?._pending || local?._sync_failed || local?.deleted_at) {
+        return [];
+      }
+      const remoteUpdated = Date.parse(String((row as SyncedRecord).updated_at || ""));
+      const localUpdated = Date.parse(String(local?.updated_at || ""));
+      if (
+        Number.isFinite(remoteUpdated) &&
+        Number.isFinite(localUpdated) &&
+        localUpdated > remoteUpdated
+      ) {
+        return [];
+      }
+      return [
+        {
           ...row,
           id,
           user_id: (row as SyncedRecord).user_id || ownerId,
           _pending: false,
           _sync_failed: false,
-        } as SyncedRecord;
-      });
+        } as SyncedRecord,
+      ];
+    });
     if (next.length) await table.bulkPut(next);
   }
 
@@ -218,7 +236,8 @@ export function createRepository<T extends SyncedRecord>(
         await offlineDb.table(config.table).put(synced as SyncedRecord);
         invalidateHydrate(config.table);
         return synced;
-      } catch {
+      } catch (error) {
+        if (!isTransientWriteError(error)) throw error;
         await persistPending(local, "create", { ...payload, id }, 1);
         return local;
       }
@@ -261,7 +280,8 @@ export function createRepository<T extends SyncedRecord>(
         await offlineDb.table(config.table).put(synced as SyncedRecord);
         invalidateHydrate(config.table);
         return synced;
-      } catch {
+      } catch (error) {
+        if (!isTransientWriteError(error)) throw error;
         await persistPending(
           next,
           "update",
@@ -299,10 +319,24 @@ export function createRepository<T extends SyncedRecord>(
     if (isOnline()) {
       try {
         await pushOutboxItemViaRest(restItem(id, "delete", {}, now));
-        await offlineDb.table(config.table).delete(id);
+        if (tombstone) {
+          await offlineDb.table(config.table).put({
+            ...tombstone,
+            _pending: false,
+            _sync_failed: false,
+          } as SyncedRecord);
+        } else {
+          await offlineDb.table(config.table).delete(id);
+        }
         invalidateHydrate(config.table);
         return;
-      } catch {
+      } catch (error) {
+        if (isNotFoundError(error)) {
+          await offlineDb.table(config.table).delete(id);
+          invalidateHydrate(config.table);
+          return;
+        }
+        if (!isTransientWriteError(error)) throw error;
         if (tombstone) {
           await persistPending(
             tombstone,

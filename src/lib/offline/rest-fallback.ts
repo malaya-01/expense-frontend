@@ -3,8 +3,35 @@
  * the existing REST CRUD endpoints so the app still works.
  */
 
+import axios from "axios";
 import { api, unwrap } from "@/lib/api/client";
 import type { OutboxItem, SyncEntityType } from "./db";
+
+const TRANSACTION_WRITE_KEYS = [
+  "type",
+  "amount",
+  "description",
+  "date",
+  "category_id",
+  "source_container_id",
+  "destination_container_id",
+  "merchant",
+  "notes",
+  "currency",
+  "exchange_rate",
+  "payment_method",
+  "upi_vpa",
+  "upi_txn_id",
+  "payment_status",
+  "paid_at",
+  "platform",
+  "platform_txn_id",
+  "receipt_id",
+] as const;
+
+function isBlank(value: unknown): boolean {
+  return value === undefined || value === null || value === "";
+}
 
 function cleanPayload(payload: Record<string, unknown>) {
   const {
@@ -23,6 +50,8 @@ function cleanPayload(payload: Record<string, unknown>) {
     destination_currency: _dc,
     receipt_url: _ru,
     receipt_mime: _rm,
+    amount_base: _ab,
+    fx_rate_to_base: _fx,
     spent: _spent,
     remaining: _rem,
     percent: _pct,
@@ -32,6 +61,29 @@ function cleanPayload(payload: Record<string, unknown>) {
     ...rest
   } = payload;
   return rest;
+}
+
+function sanitizeTransactionPayload(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  const clean: Record<string, unknown> = {};
+  for (const key of TRANSACTION_WRITE_KEYS) {
+    const value = payload[key];
+    if (isBlank(value)) continue;
+    clean[key] = value;
+  }
+  return clean;
+}
+
+export function isTransientWriteError(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  if (!error.response) return true;
+  const status = error.response.status;
+  return status === 408 || status === 429 || status >= 500;
+}
+
+export function isNotFoundError(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 404;
 }
 
 export async function pushOutboxItemViaRest(
@@ -44,7 +96,12 @@ export async function pushOutboxItemViaRest(
   };
   const id = item.entity_id;
   const type = item.entity_type as SyncEntityType;
-  const payload = item.op === "create" ? withoutId : { ...withoutId };
+  const payload =
+    type === "transaction"
+      ? sanitizeTransactionPayload(raw)
+      : item.op === "create"
+        ? withoutId
+        : { ...withoutId };
 
   switch (type) {
     case "account":
@@ -64,7 +121,11 @@ export async function pushOutboxItemViaRest(
       if (item.op === "update")
         return unwrap(await api.patch(`/transactions/${id}`, payload));
       if (item.op === "delete") {
-        await api.delete(`/transactions/${id}`);
+        try {
+          unwrap(await api.delete(`/transactions/${id}`));
+        } catch (error) {
+          if (!isNotFoundError(error)) throw error;
+        }
         return { id, deleted_at: new Date().toISOString() };
       }
       break;
@@ -163,7 +224,7 @@ export async function pushOutboxItemViaRest(
 export async function hydrateViaRestLists(): Promise<void> {
   const { offlineDb } = await import("./db");
   const { getActiveOfflineUserId } = await import("./clear-session");
-  const { runHydrate } = await import("./hydrate-cache");
+  const { getHydrateGeneration, runHydrate } = await import("./hydrate-cache");
   const ownerId = getActiveOfflineUserId();
   const endpoints: Array<{ path: string; table: string }> = [
     { path: "/accounts", table: "accounts" },
@@ -179,7 +240,9 @@ export async function hydrateViaRestLists(): Promise<void> {
   await Promise.all(
     endpoints.map(({ path, table }) =>
       runHydrate(table, async () => {
+        const gen = getHydrateGeneration(table);
         const res = await api.get(path);
+        if (getHydrateGeneration(table) !== gen) return;
         const data = unwrap<any>(res);
         let rows: any[] = [];
         if (Array.isArray(data)) rows = data;
@@ -189,23 +252,40 @@ export async function hydrateViaRestLists(): Promise<void> {
         const store = offlineDb.table(table);
         const existing = (await store.toArray()) as Array<{
           id: string;
+          updated_at?: string;
+          deleted_at?: string | null;
           _pending?: boolean;
           _sync_failed?: boolean;
         }>;
-        const blocked = new Set(
-          existing
-            .filter((row) => row._pending || row._sync_failed)
-            .map((row) => String(row.id)),
+        const existingById = new Map(
+          existing.map((row) => [String(row.id), row]),
         );
-        const next = rows
-          .filter((row) => row?.id && !blocked.has(String(row.id)))
-          .map((row) => ({
-            ...row,
-            id: String(row.id),
-            user_id: row.user_id || ownerId,
-            _pending: false,
-            _sync_failed: false,
-          }));
+        const next = rows.flatMap((row) => {
+          if (!row?.id) return [];
+          const id = String(row.id);
+          const local = existingById.get(id);
+          if (local?._pending || local?._sync_failed || local?.deleted_at) {
+            return [];
+          }
+          const remoteUpdated = Date.parse(String(row.updated_at || ""));
+          const localUpdated = Date.parse(String(local?.updated_at || ""));
+          if (
+            Number.isFinite(remoteUpdated) &&
+            Number.isFinite(localUpdated) &&
+            localUpdated > remoteUpdated
+          ) {
+            return [];
+          }
+          return [
+            {
+              ...row,
+              id,
+              user_id: row.user_id || ownerId,
+              _pending: false,
+              _sync_failed: false,
+            },
+          ];
+        });
         if (next.length) await store.bulkPut(next);
       }).catch(() => undefined),
     ),

@@ -2,6 +2,7 @@ const FRESH_MS = 20_000;
 
 const inflight = new Map<string, Promise<void>>();
 const lastOk = new Map<string, number>();
+const generation = new Map<string, number>();
 
 export function isHydrateFresh(key: string): boolean {
   const at = lastOk.get(key);
@@ -12,12 +13,26 @@ export function markHydrateFresh(key: string): void {
   lastOk.set(key, Date.now());
 }
 
+export function getHydrateGeneration(key: string): number {
+  return generation.get(key) || 0;
+}
+
+function bumpGeneration(key: string): number {
+  const next = (generation.get(key) || 0) + 1;
+  generation.set(key, next);
+  return next;
+}
+
 export function invalidateHydrate(key?: string): void {
   if (key) {
     lastOk.delete(key);
+    bumpGeneration(key);
+    inflight.delete(key);
     return;
   }
   lastOk.clear();
+  inflight.clear();
+  for (const table of generation.keys()) bumpGeneration(table);
 }
 
 /** Deduplicate concurrent hydrates for the same table. */
@@ -29,9 +44,10 @@ export function runHydrate(
   if (!options?.force && isHydrateFresh(key)) return Promise.resolve();
   const existing = inflight.get(key);
   if (existing) return existing;
+  const gen = getHydrateGeneration(key);
   const next = fn()
     .then(() => {
-      markHydrateFresh(key);
+      if (getHydrateGeneration(key) === gen) markHydrateFresh(key);
     })
     .finally(() => {
       if (inflight.get(key) === next) inflight.delete(key);

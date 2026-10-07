@@ -527,13 +527,29 @@ async function mergePull(
     for (const row of rows) {
       const id = String(row.id);
       const existing = (await offlineDb.table(table).get(id)) as
-        | { _pending?: boolean; _sync_failed?: boolean; user_id?: string }
+        | {
+            _pending?: boolean;
+            _sync_failed?: boolean;
+            user_id?: string;
+            deleted_at?: string | null;
+            updated_at?: string;
+          }
         | undefined;
       // Never remove or overwrite unsynced local work.
       if (existing?._pending || existing?._sync_failed) continue;
+      if (existing?.deleted_at && !row.deleted_at) continue;
       if (row.deleted_at) {
         await offlineDb.table(table).delete(id);
       } else {
+        const remoteUpdated = Date.parse(String(row.updated_at || ""));
+        const localUpdated = Date.parse(String(existing?.updated_at || ""));
+        if (
+          Number.isFinite(remoteUpdated) &&
+          Number.isFinite(localUpdated) &&
+          localUpdated > remoteUpdated
+        ) {
+          continue;
+        }
         await offlineDb.table(table).put({
           ...row,
           id,

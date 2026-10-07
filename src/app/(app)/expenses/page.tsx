@@ -23,10 +23,12 @@ import {
   deleteTransaction,
   listTransactions,
 } from "@/lib/api/transactions";
+import { listAccounts } from "@/lib/api/accounts";
+import { listCategories } from "@/lib/api/categories";
 import { useAuth } from "@/lib/auth-context";
 import { formatCurrency } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
-import type { LedgerTransaction } from "@/types";
+import type { Category, FinancialContainer, LedgerTransaction } from "@/types";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { useInfiniteList } from "@/hooks/use-infinite-list";
 import { useTableSort } from "@/hooks/use-table-sort";
@@ -69,9 +71,13 @@ export default function ExpensesPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [typeFilter, setTypeFilter] = useState("all");
+  const [accountFilter, setAccountFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [currencyFilter, setCurrencyFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [accounts, setAccounts] = useState<FinancialContainer[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [selected, setSelected] = useState<LedgerTransaction | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -79,15 +85,21 @@ export default function ExpensesPage() {
     setLoading(true);
     setError("");
     try {
-      const data = await listTransactions();
+      const [data, accountRows, categoryRows] = await Promise.all([
+        listTransactions(),
+        listAccounts(user?.id).catch(() => [] as FinancialContainer[]),
+        listCategories().catch(() => [] as Category[]),
+      ]);
       setTransactions(data);
+      setAccounts(accountRows);
+      setCategories(categoryRows);
     } catch (err) {
       setError(getErrorMessage(err, "Could not load transactions"));
       setTransactions([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -109,10 +121,18 @@ export default function ExpensesPage() {
         e.notes?.toLowerCase().includes(q) ||
         e.source_name?.toLowerCase().includes(q) ||
         e.destination_name?.toLowerCase().includes(q) ||
+        e.category_name?.toLowerCase().includes(q) ||
         e.type.includes(q);
       return (
         matchesQuery &&
         (typeFilter === "all" || e.type === typeFilter) &&
+        (accountFilter === "all" ||
+          e.source_container_id === accountFilter ||
+          e.destination_container_id === accountFilter) &&
+        (categoryFilter === "all" ||
+          (categoryFilter === "none"
+            ? !e.category_id
+            : e.category_id === categoryFilter)) &&
         (currencyFilter === "all" ||
           (e.currency || "USD") === currencyFilter) &&
         (!dateFrom || e.date >= dateFrom) &&
@@ -123,6 +143,8 @@ export default function ExpensesPage() {
     transactions,
     query,
     typeFilter,
+    accountFilter,
+    categoryFilter,
     currencyFilter,
     dateFrom,
     dateTo,
@@ -141,7 +163,7 @@ export default function ExpensesPage() {
 
   const list = useInfiniteList(sortedFiltered, {
     pageSize: 20,
-    resetKey: `${query}|${typeFilter}|${currencyFilter}|${dateFrom}|${dateTo}|${sortKey}|${sortDir}`,
+    resetKey: `${query}|${typeFilter}|${accountFilter}|${categoryFilter}|${currencyFilter}|${dateFrom}|${dateTo}|${sortKey}|${sortDir}`,
   });
 
   const baseCurrency = user?.currency || "USD";
@@ -157,9 +179,52 @@ export default function ExpensesPage() {
         .sort(),
     [transactions],
   );
+  const accountOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const account of accounts) {
+      map.set(account.id, account.name);
+    }
+    for (const tx of transactions) {
+      if (tx.source_container_id && !map.has(tx.source_container_id)) {
+        map.set(tx.source_container_id, tx.source_name || "Unknown account");
+      }
+      if (
+        tx.destination_container_id &&
+        !map.has(tx.destination_container_id)
+      ) {
+        map.set(
+          tx.destination_container_id,
+          tx.destination_name || "Unknown account",
+        );
+      }
+    }
+    return [...map.entries()]
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) =>
+        a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
+      );
+  }, [accounts, transactions]);
+  const categoryOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const category of categories) {
+      map.set(category.id, category.name);
+    }
+    for (const tx of transactions) {
+      if (tx.category_id && !map.has(tx.category_id)) {
+        map.set(tx.category_id, tx.category_name || "Unknown category");
+      }
+    }
+    return [...map.entries()]
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) =>
+        a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
+      );
+  }, [categories, transactions]);
   const hasFilters =
     Boolean(query || dateFrom || dateTo) ||
     typeFilter !== "all" ||
+    accountFilter !== "all" ||
+    categoryFilter !== "all" ||
     currencyFilter !== "all";
 
   useEffect(() => {
@@ -169,6 +234,8 @@ export default function ExpensesPage() {
   function clearFilters() {
     setQuery("");
     setTypeFilter("all");
+    setAccountFilter("all");
+    setCategoryFilter("all");
     setCurrencyFilter("all");
     setDateFrom("");
     setDateTo("");
@@ -253,7 +320,7 @@ export default function ExpensesPage() {
           <div
             className={`${
               filtersOpen ? "mt-3 grid" : "hidden"
-            } grid-cols-2 items-end gap-2 sm:!mt-3 sm:!grid sm:gap-3 xl:grid-cols-4`}
+            } grid-cols-2 items-end gap-2 sm:!mt-3 sm:!grid sm:gap-3 sm:grid-cols-3 xl:grid-cols-6`}
           >
             <div className="min-w-0">
               <label
@@ -273,6 +340,51 @@ export default function ExpensesPage() {
                 <option value="expense">Expense</option>
                 <option value="income">Income</option>
                 <option value="transfer">Transfer</option>
+              </Select>
+            </div>
+            <div className="min-w-0">
+              <label
+                htmlFor="tx-account"
+                className="mb-1 block text-[11px] font-medium text-[var(--ds-gray-900)] sm:mb-1.5"
+              >
+                Account
+              </label>
+              <Select
+                id="tx-account"
+                value={accountFilter}
+                onChange={(event) => setAccountFilter(event.target.value)}
+                aria-label="Filter by account"
+                className="h-9 sm:h-10"
+              >
+                <option value="all">All accounts</option>
+                {accountOptions.map((account) => (
+                  <option key={account.value} value={account.value}>
+                    {account.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="min-w-0">
+              <label
+                htmlFor="tx-category"
+                className="mb-1 block text-[11px] font-medium text-[var(--ds-gray-900)] sm:mb-1.5"
+              >
+                Category
+              </label>
+              <Select
+                id="tx-category"
+                value={categoryFilter}
+                onChange={(event) => setCategoryFilter(event.target.value)}
+                aria-label="Filter by category"
+                className="h-9 sm:h-10"
+              >
+                <option value="all">All categories</option>
+                <option value="none">Uncategorized</option>
+                {categoryOptions.map((category) => (
+                  <option key={category.value} value={category.value}>
+                    {category.label}
+                  </option>
+                ))}
               </Select>
             </div>
             <div className="min-w-0">
