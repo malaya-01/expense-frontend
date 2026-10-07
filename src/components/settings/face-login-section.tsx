@@ -167,16 +167,17 @@ export function FaceLoginSettings() {
         onClose={() => setCameraOpen(false)}
         onEnrolled={async (result) => {
           try {
-            const saved = await saveFaceLogin(result.descriptor);
+            const saved = await saveFaceLogin(result.descriptor, result.preview);
             await clearFaceLoginProfile();
             setEnabled(saved.enabled);
             setEmail(saved.email);
             setCameraOpen(false);
             showToast({
-              title: "Face login is on",
-              description:
-                "It works on the web and the phone. You stay signed in when you leave the app.",
-              tone: "success",
+              title: saved.stored_in_r2 ? "Face login is on" : "Face saved, photo not uploaded",
+              description: saved.stored_in_r2
+                ? "The encrypted face data and enrollment photo are in Cloudflare R2. You stay signed in when you leave the app."
+                : "Sign-in was saved on the server, but this API has no Cloudflare R2 keys, so nothing was written to the bucket.",
+              tone: saved.stored_in_r2 ? "success" : "warning",
             });
           } catch (error) {
             throw new Error(getErrorMessage(error, "Could not save face login."));

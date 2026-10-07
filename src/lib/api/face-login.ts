@@ -4,6 +4,7 @@ import type { AuthTokens, User } from "@/types";
 export type FaceLoginStatus = {
   enabled: boolean;
   email: string | null;
+  stored_in_r2?: boolean;
 };
 
 export async function getFaceLoginStatus(): Promise<FaceLoginStatus> {
@@ -11,8 +12,14 @@ export async function getFaceLoginStatus(): Promise<FaceLoginStatus> {
   return unwrap<FaceLoginStatus>(res);
 }
 
-export async function saveFaceLogin(descriptor: number[]): Promise<FaceLoginStatus> {
-  const res = await api.put("/user/face-login", { descriptor });
+export async function saveFaceLogin(
+  descriptor: number[],
+  preview?: string,
+): Promise<FaceLoginStatus> {
+  const res = await api.put("/user/face-login", {
+    descriptor,
+    preview_base64: preview || undefined,
+  });
   return unwrap<FaceLoginStatus>(res);
 }
 
