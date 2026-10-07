@@ -5,6 +5,7 @@ type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   error?: string;
   startAdornment?: ReactNode;
   endAdornment?: ReactNode;
+  embedded?: boolean;
 };
 
 export function Input({
@@ -13,6 +14,7 @@ export function Input({
   id,
   startAdornment,
   endAdornment,
+  embedded = false,
   ...props
 }: InputProps) {
   return (
@@ -27,11 +29,11 @@ export function Input({
           id={id}
           suppressHydrationWarning
           className={cn(
-            "h-10 w-full rounded-[9px] bg-[var(--ds-background-elevated)] text-[13px] text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-700)] sm:h-11",
-            "ds-border outline-none",
-            "transition-[box-shadow,background-color] focus:bg-[var(--ds-background-elevated)] focus:shadow-none focus:outline focus:outline-2 focus:outline-[var(--ds-focus-input)]",
-            startAdornment ? "pl-10" : "pl-3 sm:pl-3.5",
-            endAdornment ? "pr-11" : "pr-3 sm:pr-3.5",
+            embedded
+              ? "h-7 w-full bg-transparent px-0 text-[15px] font-semibold text-[var(--ds-gray-1000)] outline-none placeholder:font-medium placeholder:text-[var(--ds-gray-700)]"
+              : "h-10 w-full rounded-[9px] bg-[var(--ds-background-elevated)] text-[13px] text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-700)] sm:h-11 ds-border outline-none transition-[box-shadow,background-color] focus:bg-[var(--ds-background-elevated)] focus:shadow-none focus:outline focus:outline-2 focus:outline-[var(--ds-focus-input)]",
+            !embedded && (startAdornment ? "pl-10" : "pl-3 sm:pl-3.5"),
+            !embedded && (endAdornment ? "pr-11" : "pr-3 sm:pr-3.5"),
             error && "outline outline-1 outline-[var(--ds-status-red)]",
             className,
           )}

@@ -54,9 +54,13 @@ export function Select({
   required,
   onChange,
   startAdornment,
+  embedded = false,
+  chevron = true,
   "aria-label": ariaLabel,
 }: SelectHTMLAttributes<HTMLSelectElement> & {
   startAdornment?: ReactNode;
+  embedded?: boolean;
+  chevron?: boolean;
 }) {
   const listId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -173,13 +177,13 @@ export function Select({
           setOpen((v) => !v);
         }}
         className={cn(
-          "flex h-9 w-full items-center justify-between gap-2 rounded-[9px] bg-[var(--ds-background-elevated)] text-left text-[13px] text-[var(--ds-gray-1000)] sm:h-11",
-          startAdornment ? "pl-2.5 pr-3 sm:pr-3.5" : "px-3 sm:px-3.5",
-          "ds-border",
-          "outline-none transition-colors hover:border-[color:color-mix(in_srgb,var(--ds-gray-1000)_18%,transparent)]",
-          "focus-visible:border-[var(--ds-focus-input)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--ds-focus-input)]",
+          embedded
+            ? "flex h-7 w-full items-center justify-between gap-2 bg-transparent px-0 text-left text-[15px] font-semibold"
+            : "flex h-9 w-full items-center justify-between gap-2 rounded-[9px] bg-[var(--ds-background-elevated)] text-left text-[13px] sm:h-11 ds-border outline-none transition-colors hover:border-[color:color-mix(in_srgb,var(--ds-gray-1000)_18%,transparent)] focus-visible:border-[var(--ds-focus-input)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--ds-focus-input)]",
+          !embedded && (startAdornment ? "pl-2.5 pr-3 sm:pr-3.5" : "px-3 sm:px-3.5"),
+          "text-[var(--ds-gray-1000)]",
           disabled && "pointer-events-none opacity-45",
-          !current && "text-[var(--ds-gray-700)]",
+          !current && "font-medium text-[var(--ds-gray-700)]",
           className,
         )}
       >
@@ -191,13 +195,15 @@ export function Select({
           ) : null}
           <span className="min-w-0 truncate">{label}</span>
         </span>
-        <ChevronDown
-          size={15}
-          className={cn(
-            "shrink-0 text-[var(--ds-gray-700)] transition-transform",
-            open && "rotate-180",
-          )}
-        />
+        {chevron ? (
+          <ChevronDown
+            size={15}
+            className={cn(
+              "shrink-0 text-[var(--ds-gray-700)] transition-transform",
+              open && "rotate-180",
+            )}
+          />
+        ) : null}
       </button>
 
       {open && typeof document !== "undefined"

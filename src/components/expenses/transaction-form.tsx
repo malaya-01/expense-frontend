@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeftRight, ImageUp } from "lucide-react";
+import { ArrowUpDown, ImageUp } from "lucide-react";
 import { listCategories } from "@/lib/api/categories";
 import { listAccounts } from "@/lib/api/accounts";
 import {
@@ -103,6 +103,35 @@ function emptyTransaction(defaults?: Partial<CreateTransactionInput>): CreateTra
     platform: defaults?.platform ?? "",
     platform_txn_id: defaults?.platform_txn_id ?? "",
   };
+}
+
+function FieldCard({
+  label,
+  htmlFor,
+  children,
+  className,
+}: {
+  label: string;
+  htmlFor?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-[18px] border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-gray-100)] px-3.5 py-2.5",
+        className,
+      )}
+    >
+      <Label
+        htmlFor={htmlFor}
+        className="mb-0.5 text-[11px] font-medium leading-4 text-[var(--ds-gray-700)]"
+      >
+        {label}
+      </Label>
+      {children}
+    </div>
+  );
 }
 
 function containerLabel(c: FinancialContainer) {
@@ -651,10 +680,10 @@ export function TransactionForm({
           ) : null}
         </div>
       ) : null}
-      <div>
-        <Label htmlFor="type">Type</Label>
+      <FieldCard label="Type" htmlFor="type">
         <Select
           id="type"
+          embedded
           value={form.type}
           onChange={(e) => setType(e.target.value as TransactionType)}
         >
@@ -662,48 +691,45 @@ export function TransactionForm({
           <option value="income">Income</option>
           <option value="transfer">Transfer</option>
         </Select>
-      </div>
+      </FieldCard>
 
       {(needsSource || needsDestination) && (
-        <div
-          className={cn(
-            needsSource && needsDestination
-              ? "flex flex-col sm:flex-row sm:items-end"
-              : undefined,
-          )}
-        >
+        <div className={cn(needsSource && needsDestination && "flex flex-col")}>
           {needsSource ? (
-            <div className="min-w-0 flex-1">
-              <Label htmlFor="source">From</Label>
-              <Select
-                id="source"
-                value={form.source_container_id || ""}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setForm((prev) => ({
-                    ...prev,
-                    source_container_id: next,
-                    destination_container_id:
-                      prev.destination_container_id === next
-                        ? ""
-                        : prev.destination_container_id,
-                    exchange_rate: undefined,
-                  }));
-                }}
-                required
-              >
-                <option value="">Select container</option>
-                {sourceOptions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {containerLabel(c)}
-                  </option>
-                ))}
-              </Select>
+            <div>
+              <FieldCard label="From" htmlFor="source" className={needsDestination ? "pr-14" : undefined}>
+                <Select
+                  id="source"
+                  embedded
+                  chevron={false}
+                  value={form.source_container_id || ""}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      source_container_id: next,
+                      destination_container_id:
+                        prev.destination_container_id === next
+                          ? ""
+                          : prev.destination_container_id,
+                      exchange_rate: undefined,
+                    }));
+                  }}
+                  required
+                >
+                  <option value="">Select container</option>
+                  {sourceOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {containerLabel(c)}
+                    </option>
+                  ))}
+                </Select>
+              </FieldCard>
             </div>
           ) : null}
 
           {needsSource && needsDestination ? (
-            <div className="relative z-10 -my-2 flex h-4 items-center justify-center sm:mx-1.5 sm:my-0 sm:mb-1.5 sm:h-9 sm:w-8">
+            <div className="relative z-10 -my-3 flex h-6 items-center justify-end pr-1">
               <button
                 type="button"
                 aria-label="Swap From and To containers"
@@ -720,77 +746,80 @@ export function TransactionForm({
                   }));
                 }}
                 className={cn(
-                  "inline-flex size-8 items-center justify-center rounded-full",
-                  "border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]",
-                  "bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)]",
-                  "shadow-[0_2px_8px_color-mix(in_srgb,var(--ds-gray-1000)_16%,transparent)]",
-                  "transition-colors hover:border-[color:color-mix(in_srgb,var(--ds-focus-color)_35%,transparent)]",
-                  "hover:text-[var(--ds-focus-color)] ds-focus",
-                  "disabled:cursor-not-allowed disabled:opacity-40",
-                  "rotate-90 sm:rotate-0",
+                  "inline-flex size-9 items-center justify-center rounded-[12px]",
+                  "bg-white text-[#2f6bff]",
+                  "shadow-[0_2px_10px_rgba(0,0,0,0.16)]",
+                  "ds-focus disabled:cursor-not-allowed disabled:opacity-40",
                 )}
               >
-                <ArrowLeftRight size={14} strokeWidth={1.8} />
+                <ArrowUpDown size={18} strokeWidth={2.25} />
               </button>
             </div>
           ) : null}
 
           {needsDestination ? (
-            <div className="min-w-0 flex-1">
-              <Label htmlFor="destination">To</Label>
-              <Select
-                id="destination"
-                value={form.destination_container_id || ""}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setForm((prev) => ({
-                    ...prev,
-                    destination_container_id: next,
-                    source_container_id:
-                      prev.source_container_id === next
-                        ? ""
-                        : prev.source_container_id,
-                    exchange_rate: undefined,
-                  }));
-                }}
-                required
-              >
-                <option value="">Select container</option>
-                {destinationOptions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {containerLabel(c)}
-                  </option>
-                ))}
-              </Select>
-              {form.type === "transfer" && containers.length < 2 ? (
-                <p className="mt-1.5 text-[11px] text-[var(--ds-status-orange)]">
-                  You need a second container for transfers.{" "}
-                  <button
-                    type="button"
-                    className="text-[var(--ds-focus-color)]"
-                    onClick={() => router.push("/accounts")}
-                  >
-                    Create one in Accounts
-                  </button>
-                </p>
-              ) : null}
-            </div>
+            <FieldCard
+              label="To"
+              htmlFor="destination"
+              className={needsSource ? "pr-14" : undefined}
+            >
+                <Select
+                  id="destination"
+                  embedded
+                  chevron={false}
+                  value={form.destination_container_id || ""}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      destination_container_id: next,
+                      source_container_id:
+                        prev.source_container_id === next
+                          ? ""
+                          : prev.source_container_id,
+                      exchange_rate: undefined,
+                    }));
+                  }}
+                  required
+                >
+                  <option value="">Select container</option>
+                  {destinationOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {containerLabel(c)}
+                    </option>
+                  ))}
+                </Select>
+                {form.type === "transfer" && containers.length < 2 ? (
+                  <p className="mt-1.5 text-[11px] text-[var(--ds-status-orange)]">
+                    You need a second container for transfers.{" "}
+                    <button
+                      type="button"
+                      className="text-[var(--ds-focus-color)]"
+                      onClick={() => router.push("/accounts")}
+                    >
+                      Create one in Accounts
+                    </button>
+                  </p>
+                ) : null}
+              </FieldCard>
           ) : null}
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label htmlFor="amount">
-            Amount
-            {source
-              ? ` (${source.currency})`
+      <div className="grid grid-cols-2 gap-2">
+        <FieldCard
+          label={
+            source
+              ? `Amount (${source.currency})`
               : destination
-                ? ` (${destination.currency})`
-                : ""}
-          </Label>
+                ? `Amount (${destination.currency})`
+                : "Amount"
+          }
+          htmlFor="amount"
+        >
           <Input
             id="amount"
+            embedded
             type="number"
             step="0.01"
             min="0"
@@ -799,12 +828,13 @@ export function TransactionForm({
             onChange={(e) => update("amount", Number(e.target.value))}
             placeholder="0.00"
           />
-        </div>
-        <div>
-          <Label htmlFor="date">Date</Label>
+        </FieldCard>
+        <FieldCard label="Date" htmlFor="date">
           <Input
             id="date"
+            embedded
             type="date"
+            className="[color-scheme:dark]"
             required
             value={form.date}
             onChange={(e) => {
@@ -816,13 +846,14 @@ export function TransactionForm({
               }));
             }}
           />
-        </div>
+        </FieldCard>
         {showReceiptFields ? (
-          <div>
-            <Label htmlFor="paid_time">Time</Label>
+          <FieldCard label="Time" htmlFor="paid_time">
             <Input
               id="paid_time"
+              embedded
               type="time"
+              className="[color-scheme:dark]"
               value={time}
               onChange={(e) => {
                 const next = e.target.value;
@@ -833,30 +864,31 @@ export function TransactionForm({
                 }));
               }}
             />
-          </div>
+          </FieldCard>
         ) : null}
       </div>
 
-      <div>
-        <Label htmlFor="description">Description</Label>
+      <FieldCard label="Description" htmlFor="description">
         <Input
           id="description"
+          embedded
           required
           maxLength={500}
           value={form.description}
           onChange={(e) => update("description", e.target.value)}
           placeholder="What this payment was for"
         />
-      </div>
+      </FieldCard>
 
       {crossCurrency ? (
-        <div className="rounded-[8px] bg-[var(--ds-background-100)] p-4 space-y-3">
-          <div>
-            <Label htmlFor="fx">
-              Exchange rate ({source?.currency} → {destination?.currency})
-            </Label>
+        <div className="space-y-2">
+          <FieldCard
+            label={`Exchange rate (${source?.currency} → ${destination?.currency})`}
+            htmlFor="fx"
+          >
             <Input
               id="fx"
+              embedded
               type="number"
               step="0.000001"
               min="0"
@@ -870,7 +902,7 @@ export function TransactionForm({
               How many {destination?.currency} you receive per 1{" "}
               {source?.currency}. Suggested: {suggestedRate.toFixed(6)}
             </p>
-          </div>
+          </FieldCard>
           {destPreview !== null ? (
             <p className="text-sm text-[var(--ds-gray-900)]">
               Destination will receive{" "}
@@ -882,11 +914,11 @@ export function TransactionForm({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label htmlFor="category">Category</Label>
+      <div className="grid grid-cols-2 gap-2">
+        <FieldCard label="Category" htmlFor="category">
           <Select
             id="category"
+            embedded
             value={form.category_id || ""}
             onChange={(e) => update("category_id", e.target.value)}
           >
@@ -897,68 +929,69 @@ export function TransactionForm({
               </option>
             ))}
           </Select>
-        </div>
-        <div>
-          <Label htmlFor="merchant">Merchant</Label>
+        </FieldCard>
+        <FieldCard label="Merchant" htmlFor="merchant">
           <Input
             id="merchant"
+            embedded
             value={form.merchant || ""}
             onChange={(e) => update("merchant", e.target.value)}
             placeholder="Optional"
           />
-        </div>
+        </FieldCard>
       </div>
 
       {showReceiptFields ? (
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label htmlFor="payment_method">Payment method</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <FieldCard label="Payment method" htmlFor="payment_method">
             <Input
               id="payment_method"
+              embedded
               value={form.payment_method || ""}
               onChange={(e) => update("payment_method", e.target.value)}
               placeholder="UPI, card, cash…"
             />
-          </div>
-          <div>
-            <Label htmlFor="platform">App / platform</Label>
+          </FieldCard>
+          <FieldCard label="App / platform" htmlFor="platform">
             <Input
               id="platform"
+              embedded
               value={form.platform || ""}
               onChange={(e) => update("platform", e.target.value)}
               placeholder="Google Pay, PhonePe…"
             />
-          </div>
-          <div>
-            <Label htmlFor="upi_txn_id">UPI transaction ID</Label>
+          </FieldCard>
+          <FieldCard label="UPI transaction ID" htmlFor="upi_txn_id">
             <Input
               id="upi_txn_id"
+              embedded
               value={form.upi_txn_id || ""}
               onChange={(e) => update("upi_txn_id", e.target.value)}
               placeholder="Optional"
             />
-          </div>
-          <div>
-            <Label htmlFor="platform_txn_id">Google / platform ID</Label>
+          </FieldCard>
+          <FieldCard label="Google / platform ID" htmlFor="platform_txn_id">
             <Input
               id="platform_txn_id"
+              embedded
               value={form.platform_txn_id || ""}
               onChange={(e) => update("platform_txn_id", e.target.value)}
               placeholder="Google transaction ID"
             />
-          </div>
+          </FieldCard>
         </div>
       ) : null}
 
-      <div>
-        <Label htmlFor="notes">Notes</Label>
+      <FieldCard label="Notes" htmlFor="notes">
         <Textarea
           id="notes"
+          plain
           value={form.notes || ""}
           onChange={(e) => update("notes", e.target.value)}
           placeholder="Optional notes"
+          className="min-h-7 text-[15px] font-semibold placeholder:font-medium"
         />
-      </div>
+      </FieldCard>
 
       {containers.length === 0 ? (
         <p className="text-sm text-[var(--ds-status-orange)]">
