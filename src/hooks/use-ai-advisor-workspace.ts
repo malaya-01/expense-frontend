@@ -16,7 +16,6 @@ import { getErrorMessage } from "@/lib/api/client";
 import { humanizeAiProviderError, type AiErrorInfo } from "@/lib/ai/provider-errors";
 import {
   archiveAiConversation,
-  bulkDecideAiProposals,
   confirmAiProposal,
   deleteAiConversation,
   deleteAiDocument,
@@ -35,6 +34,11 @@ import {
   uploadAiDocument,
 } from "@/lib/api/ai";
 import { fileToBase64WithProgress } from "@/lib/ai/file-to-base64";
+import {
+  createProposalDecisionRun,
+  decideAiProposalsWithProgress,
+  type ProposalDecisionRun,
+} from "@/lib/ai/proposal-bulk-progress";
 import { getReportOverview } from "@/lib/api/reports";
 import type {
   AiActionProposal,
@@ -95,6 +99,7 @@ export function useAiAdvisorWorkspace() {
   const [batchReviewIds, setBatchReviewIds] = useState<string[] | null>(null);
   const [busyProposal, setBusyProposal] = useState<string | null>(null);
   const [busyBulk, setBusyBulk] = useState(false);
+  const [bulkRun, setBulkRun] = useState<ProposalDecisionRun | null>(null);
   const [listening, setListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
@@ -662,11 +667,13 @@ export function useAiAdvisorWorkspace() {
     if (!confirming) return;
     setBusyProposal(confirming.id);
     try {
-      await confirmAiProposal(confirming.id);
+      const result = await confirmAiProposal(confirming.id);
       invalidateProposalNameMaps();
       setProposals((prev) =>
         prev.map((p) =>
-          p.id === confirming.id ? { ...p, status: "confirmed" } : p,
+          p.id === confirming.id
+            ? { ...p, status: "confirmed", result }
+            : p,
         ),
       );
       setPendingGlobal((prev) => prev.filter((p) => p.id !== confirming.id));
@@ -701,46 +708,99 @@ export function useAiAdvisorWorkspace() {
   const closeBatchReview = useCallback(() => {
     setBatchReviewOpen(false);
     setBatchReviewIds(null);
+    setBulkRun(null);
   }, []);
 
   const onBulkDecide = useCallback(
     async (decision: { confirm_ids: string[]; reject_ids: string[] }) => {
       if (!decision.confirm_ids.length && !decision.reject_ids.length) return;
+      const byId = new Map(
+        [...pendingGlobal, ...proposals].map((item) => [item.id, item]),
+      );
+      const confirmIds = [...new Set(decision.confirm_ids.filter(Boolean))];
+      const rejectIds = [...new Set(decision.reject_ids.filter(Boolean))].filter(
+        (id) => !confirmIds.includes(id),
+      );
+      const jobs = [
+        ...confirmIds.map((id) => ({
+          id,
+          action: "confirm" as const,
+          title: byId.get(id)?.title || "Confirm action",
+          actionType: byId.get(id)?.action_type || "confirm",
+          summary: byId.get(id)?.summary,
+        })),
+        ...rejectIds.map((id) => ({
+          id,
+          action: "reject" as const,
+          title: byId.get(id)?.title || "Reject action",
+          actionType: byId.get(id)?.action_type || "reject",
+          summary: byId.get(id)?.summary,
+        })),
+      ];
+      if (!jobs.length) return;
+      const initial = createProposalDecisionRun(jobs);
+      setBulkRun(initial);
       setBusyBulk(true);
       try {
-        const result = await bulkDecideAiProposals(decision);
+        const result = await decideAiProposalsWithProgress(
+          initial,
+          (next) => {
+            setBulkRun(next);
+            const confirmed = new Set(
+              next.items
+                .filter(
+                  (item) =>
+                    item.action === "confirm" && item.phase === "success",
+                )
+                .map((item) => item.id),
+            );
+            const rejected = new Set(
+              next.items
+                .filter(
+                  (item) =>
+                    item.action === "reject" && item.phase === "success",
+                )
+                .map((item) => item.id),
+            );
+            const failed = new Set(
+              next.items
+                .filter((item) => item.phase === "error")
+                .map((item) => item.id),
+            );
+            if (!confirmed.size && !rejected.size && !failed.size) return;
+            setProposals((prev) =>
+              prev.map((p) => {
+                if (confirmed.has(p.id)) return { ...p, status: "confirmed" };
+                if (rejected.has(p.id)) return { ...p, status: "rejected" };
+                if (failed.has(p.id)) return { ...p, status: "failed" };
+                return p;
+              }),
+            );
+            setPendingGlobal((prev) =>
+              prev.filter(
+                (p) =>
+                  !confirmed.has(p.id) &&
+                  !rejected.has(p.id) &&
+                  !failed.has(p.id),
+              ),
+            );
+          },
+        );
         if (decision.confirm_ids.length) invalidateProposalNameMaps();
-        const confirmed = new Set(
-          (result.confirmed || []).map((row) => row.id),
-        );
-        const rejected = new Set((result.rejected || []).map((row) => row.id));
-        setProposals((prev) =>
-          prev.map((p) => {
-            if (confirmed.has(p.id)) return { ...p, status: "confirmed" };
-            if (rejected.has(p.id)) return { ...p, status: "rejected" };
-            return p;
-          }),
-        );
-        setPendingGlobal((prev) =>
-          prev.filter((p) => !confirmed.has(p.id) && !rejected.has(p.id)),
-        );
-        if (result.failed?.length) {
+        if (result.failed) {
           reportError(
-            `${result.failed.length} action${result.failed.length === 1 ? "" : "s"} failed. Others were applied.`,
-            "Bulk review failed",
+            `${result.failed} action${result.failed === 1 ? "" : "s"} failed. Check the list for the API response.`,
+            "Some actions failed",
           );
-        } else {
-          setBatchReviewOpen(false);
-          setBatchReviewIds(null);
         }
-        await refreshLists({ silent: true });
       } catch (err) {
         reportError(err, "Bulk review failed");
       } finally {
         setBusyBulk(false);
+        void refreshLists({ silent: true });
       }
     },
-    [refreshLists, reportError],
+    [pendingGlobal, proposals, refreshLists, reportError],
   );
 
   const renameConversation = useCallback(
@@ -991,6 +1051,7 @@ export function useAiAdvisorWorkspace() {
     onBulkDecide,
     busyProposal,
     busyBulk,
+    bulkRun,
     listening,
     voiceSupported,
     webSearchEnabled,

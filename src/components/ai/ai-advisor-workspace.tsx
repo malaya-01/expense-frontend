@@ -285,6 +285,7 @@ export function AiAdvisorWorkspace() {
         open={workspace.batchReviewOpen}
         proposals={workspace.batchReviewProposals}
         busy={workspace.busyBulk}
+        run={workspace.bulkRun}
         onClose={workspace.closeBatchReview}
         onDecide={workspace.onBulkDecide}
         onReviewOne={(proposal) => {
