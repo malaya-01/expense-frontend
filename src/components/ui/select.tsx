@@ -179,7 +179,7 @@ export function Select({
         className={cn(
           embedded
             ? "flex h-7 w-full items-center justify-between gap-2 bg-transparent px-0 text-left text-[15px] font-semibold"
-            : "flex h-9 w-full items-center justify-between gap-2 rounded-[9px] bg-[var(--ds-background-elevated)] text-left text-[13px] sm:h-11 ds-border outline-none transition-colors hover:border-[color:color-mix(in_srgb,var(--ds-gray-1000)_18%,transparent)] focus-visible:border-[var(--ds-focus-input)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--ds-focus-input)]",
+            : "flex h-9 w-full items-center justify-between gap-2 rounded-[9px] bg-[var(--ds-background-elevated)] text-left text-base sm:h-11 sm:text-[13px] ds-border outline-none transition-colors hover:border-[color:color-mix(in_srgb,var(--ds-gray-1000)_18%,transparent)] focus-visible:border-[var(--ds-focus-input)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--ds-focus-input)]",
           !embedded && (startAdornment ? "pl-2.5 pr-3 sm:pr-3.5" : "px-3 sm:px-3.5"),
           "text-[var(--ds-gray-1000)]",
           disabled && "pointer-events-none opacity-45",
@@ -212,6 +212,7 @@ export function Select({
               ref={panelRef}
               id={listId}
               role="listbox"
+              data-nested-overlay
               style={{
                 top: pos.top,
                 left: pos.left,

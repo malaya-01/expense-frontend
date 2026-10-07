@@ -32,7 +32,23 @@ function currentPath() {
   return (window.location.pathname || "/").replace(/\/$/, "") || "/";
 }
 
-/** Dashboard is the only screen that can exit the app. */
+/** Dashboard is the only signed-in screen that can exit the app. */
 export function isDashboardAnchor(path = currentPath()) {
   return path === "/" || path === "/dashboard";
+}
+
+/**
+ * Screens where Android back (with no in-app history) offers to exit instead
+ * of navigating. Includes the auth entry screens so a signed-out user on
+ * /signin is not bounced to /dashboard → /signin forever.
+ */
+export function isExitAnchor(path = currentPath()) {
+  return (
+    isDashboardAnchor(path) || path === "/signin" || path === "/signup"
+  );
+}
+
+/** Where back should land when there is no history and we're not an anchor. */
+export function backFallbackPath(hasAccessToken: boolean) {
+  return hasAccessToken ? "/dashboard" : "/signin";
 }

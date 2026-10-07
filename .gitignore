@@ -20,6 +20,11 @@
 # Android local machine config
 /android/local.properties
 
+# Android release signing (never commit)
+/android/keystore.properties
+*.jks
+*.keystore
+
 # production
 /build
 

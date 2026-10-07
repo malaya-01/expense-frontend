@@ -10,21 +10,42 @@ import { requireDateOnly } from "@/lib/format";
 
 type TxRow = LedgerTransaction & { _pending?: boolean };
 
+type PayloadMode = "create" | "update";
+
+/**
+ * Optional clearable field. On update: undefined = not provided (leave as
+ * is); an explicitly emptied value ("" / null) = clear → null.
+ */
+function clearable(
+  value: string | null | undefined,
+  mode: PayloadMode,
+): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value) return value;
+  return mode === "update" ? null : undefined;
+}
+
 function apiPayload(
   payload: Partial<CreateTransactionInput>,
-  currency?: string,
+  currency: string | undefined,
+  mode: PayloadMode,
 ): Record<string, unknown> {
+  const loose = payload as {
+    category_id?: string | null;
+    merchant?: string | null;
+    notes?: string | null;
+  };
   return {
     type: payload.type,
     amount:
       payload.amount != null ? Number(payload.amount) : undefined,
     description: payload.description,
     date: payload.date,
-    category_id: payload.category_id || undefined,
+    category_id: clearable(loose.category_id, mode),
     source_container_id: payload.source_container_id || undefined,
     destination_container_id: payload.destination_container_id || undefined,
-    merchant: payload.merchant || undefined,
-    notes: payload.notes || undefined,
+    merchant: clearable(loose.merchant, mode),
+    notes: clearable(loose.notes, mode),
     currency: currency || payload.currency || undefined,
     exchange_rate: payload.exchange_rate,
     payment_method: payload.payment_method || undefined,
@@ -47,6 +68,7 @@ async function enrichTransactionFields(
     destination_name?: string | null;
     category_name?: string | null;
   },
+  mode: PayloadMode = "create",
 ): Promise<Record<string, unknown>> {
   const sourceId = payload.source_container_id || undefined;
   const destId = payload.destination_container_id || undefined;
@@ -70,32 +92,46 @@ async function enrichTransactionFields(
     .toString()
     .toUpperCase();
 
+  const isUpdate = mode === "update";
   return {
-    ...apiPayload(payload, derivedCurrency || undefined),
+    ...apiPayload(payload, derivedCurrency || undefined, mode),
     currency: derivedCurrency || undefined,
     source_name:
       (source as { name?: string } | undefined)?.name ||
       payload.source_name ||
       null,
     source_currency:
-      (source as { currency?: string } | undefined)?.currency ?? null,
+      (source as { currency?: string } | undefined)?.currency ??
+      (isUpdate ? undefined : null),
     destination_name:
       (destination as { name?: string } | undefined)?.name ||
       payload.destination_name ||
       null,
     destination_currency:
-      (destination as { currency?: string } | undefined)?.currency ?? null,
+      (destination as { currency?: string } | undefined)?.currency ??
+      (isUpdate ? undefined : null),
     category_name:
       (category as { name?: string } | undefined)?.name ||
-      payload.category_name ||
+      // Category explicitly cleared on edit → drop the stale display name.
+      (isUpdate && payload.category_id !== undefined && !payload.category_id
+        ? null
+        : payload.category_name) ||
       null,
     amount_base:
       payload.amount != null ? Number(payload.amount) : undefined,
-    exchange_rate: payload.exchange_rate ?? 1,
-    fx_rate_to_base: 1,
-    receipt_id: payload.receipt_id || null,
-    receipt_url: payload.receipt_url || null,
-    receipt_mime: payload.receipt_mime || null,
+    // Partial updates must not reset the rate to 1 when it wasn't edited.
+    exchange_rate: isUpdate ? payload.exchange_rate : payload.exchange_rate ?? 1,
+    fx_rate_to_base: isUpdate ? undefined : 1,
+    // On update only touch receipt fields that were actually provided.
+    receipt_id: isUpdate
+      ? clearable(payload.receipt_id, mode)
+      : payload.receipt_id || null,
+    receipt_url: isUpdate
+      ? payload.receipt_url
+      : payload.receipt_url || null,
+    receipt_mime: isUpdate
+      ? payload.receipt_mime
+      : payload.receipt_mime || null,
   };
 }
 
@@ -191,13 +227,16 @@ export async function updateTransaction(
   const existing = (await offlineDb.transactions.get(id)) as
     | TxRow
     | undefined;
-  const enriched = await enrichTransactionFields({
-    type: payload.type || existing?.type,
-    source_name: existing?.source_name,
-    destination_name: existing?.destination_name,
-    category_name: existing?.category_name,
-    ...payload,
-  });
+  const enriched = await enrichTransactionFields(
+    {
+      type: payload.type || existing?.type,
+      source_name: existing?.source_name,
+      destination_name: existing?.destination_name,
+      category_name: existing?.category_name,
+      ...payload,
+    },
+    "update",
+  );
   const updated = (await transactionsRepo.update(
     id,
     enriched,

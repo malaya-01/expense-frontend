@@ -2,7 +2,7 @@ import type {
   CreateRecurringScheduleInput,
   RecurringSchedule,
 } from "@/types";
-import { api } from "./client";
+import { api, isRetryableWriteError } from "./client";
 import { recurringExecuteLocal, recurringRepo } from "@/lib/offline/repos";
 import { isOnline } from "@/lib/offline/network";
 
@@ -30,8 +30,9 @@ export async function executeRecurringSchedule(id: string): Promise<void> {
     try {
       await api.post(`/recurring/${id}/execute`);
       return;
-    } catch {
-      /* queue */
+    } catch (error) {
+      // Queue only when the server never got it; real errors go to the UI.
+      if (!isRetryableWriteError(error)) throw error;
     }
   }
   await recurringExecuteLocal(id);

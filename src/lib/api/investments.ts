@@ -4,8 +4,25 @@ import type {
   InvestmentsPayload,
 } from "@/types";
 import { investmentsRepo } from "@/lib/offline/repos";
+import { convertAmount } from "@/lib/currency/currency.data";
+import { USER_STORAGE_KEY } from "@/lib/store/slices/authSlice";
 
-function normalizeHolding(row: any): InvestmentHolding {
+/** The signed-in user's base currency, as cached by the auth store. */
+function storedBaseCurrency(): string {
+  if (typeof window === "undefined") return "USD";
+  try {
+    const raw = window.localStorage.getItem(USER_STORAGE_KEY);
+    const currency = raw ? JSON.parse(raw)?.currency : null;
+    return typeof currency === "string" && currency ? currency.toUpperCase() : "USD";
+  } catch {
+    return "USD";
+  }
+}
+
+function normalizeHolding(
+  row: any,
+  baseCurrency = storedBaseCurrency(),
+): InvestmentHolding {
   const quantity = Number(row.quantity || 0);
   const avg_cost = Number(row.avg_cost || 0);
   const current_price = Number(row.current_price || 0);
@@ -23,15 +40,48 @@ function normalizeHolding(row: any): InvestmentHolding {
     gain_percent: Number(
       row.gain_percent ?? (cost_basis ? (gain / cost_basis) * 100 : 0),
     ),
-    market_value_base: Number(row.market_value_base ?? market_value),
-    cost_basis_base: Number(row.cost_basis_base ?? cost_basis),
+    // Rows created offline have no server-computed base values yet.
+    market_value_base: Number(
+      row.market_value_base ??
+        convertAmount(market_value, row.currency || baseCurrency, baseCurrency),
+    ),
+    cost_basis_base: Number(
+      row.cost_basis_base ??
+        convertAmount(cost_basis, row.currency || baseCurrency, baseCurrency),
+    ),
+    base_currency: row.base_currency || baseCurrency,
   };
 }
 
-function summarize(holdings: InvestmentHolding[]): InvestmentsPayload {
-  const total_value = holdings.reduce((s, h) => s + Number(h.market_value), 0);
-  const total_cost = holdings.reduce((s, h) => s + Number(h.cost_basis), 0);
+function summarize(
+  holdings: InvestmentHolding[],
+  baseCurrency: string,
+): InvestmentsPayload {
+  // Sum in the base currency; holdings can each be in a different currency.
+  const total_value = holdings.reduce(
+    (s, h) => s + Number(h.market_value_base),
+    0,
+  );
+  const total_cost = holdings.reduce(
+    (s, h) => s + Number(h.cost_basis_base),
+    0,
+  );
   const total_gain = total_value - total_cost;
+  const byType = new Map<string, number>();
+  for (const h of holdings) {
+    byType.set(
+      h.asset_type,
+      (byType.get(h.asset_type) || 0) + Number(h.market_value_base),
+    );
+  }
+  const allocation = [...byType.entries()]
+    .map(([asset_type, value]) => ({
+      asset_type,
+      value,
+      percent:
+        total_value > 0 ? Math.round((value / total_value) * 1000) / 10 : 0,
+    }))
+    .sort((a, b) => b.value - a.value);
   return {
     holdings,
     summary: {
@@ -40,15 +90,18 @@ function summarize(holdings: InvestmentHolding[]): InvestmentsPayload {
       total_gain,
       gain_percent: total_cost ? (total_gain / total_cost) * 100 : 0,
       holding_count: holdings.length,
-      allocation: [],
-      base_currency: "USD",
+      allocation,
+      base_currency: baseCurrency,
     },
   };
 }
 
 export async function listInvestments(): Promise<InvestmentsPayload> {
-  const holdings = (await investmentsRepo.list()).map(normalizeHolding);
-  return summarize(holdings);
+  const baseCurrency = storedBaseCurrency();
+  const holdings = (await investmentsRepo.list()).map((row) =>
+    normalizeHolding(row, baseCurrency),
+  );
+  return summarize(holdings, baseCurrency);
 }
 
 export async function createInvestment(

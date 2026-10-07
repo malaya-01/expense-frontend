@@ -2,17 +2,28 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { resendVerification } from "@/lib/api/auth";
-import { getErrorMessage } from "@/lib/api/client";
+import { CHECK_EMAIL_STORAGE_KEY, getErrorMessage } from "@/lib/api/client";
 import { APP_NAME } from "@/lib/brand";
 
 function CheckEmailContent() {
   const searchParams = useSearchParams();
-  const email = searchParams.get("email") || "";
+  const queryEmail = searchParams.get("email") || "";
+  // Android full-page loads drop the query string; fall back to the email the
+  // API client stashed before redirecting.
+  const [storedEmail, setStoredEmail] = useState("");
+  useEffect(() => {
+    try {
+      setStoredEmail(sessionStorage.getItem(CHECK_EMAIL_STORAGE_KEY) || "");
+    } catch {
+      setStoredEmail("");
+    }
+  }, []);
+  const email = queryEmail || storedEmail;
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
 

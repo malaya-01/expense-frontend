@@ -19,13 +19,15 @@ export function ContributeModal({
   onClose: () => void;
   onSubmit: (amount: number) => Promise<void>;
 }) {
-  const [amount, setAmount] = useState(0);
+  // Raw text so partial decimals like "0." / "0.0" survive typing.
+  const [amountText, setAmountText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!goal || !amount || amount <= 0) {
+    const amount = Number(amountText);
+    if (!goal || !Number.isFinite(amount) || amount <= 0) {
       setError("Enter an amount greater than zero");
       return;
     }
@@ -33,7 +35,7 @@ export function ContributeModal({
     setError("");
     try {
       await onSubmit(amount);
-      setAmount(0);
+      setAmountText("");
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not contribute");
@@ -75,8 +77,8 @@ export function ContributeModal({
             step="0.01"
             min="0.01"
             required
-            value={amount || ""}
-            onChange={(e) => setAmount(Number(e.target.value))}
+            value={amountText}
+            onChange={(e) => setAmountText(e.target.value)}
             placeholder="0.00"
           />
         </div>

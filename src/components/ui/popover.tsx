@@ -126,6 +126,7 @@ export function Popover({
               id={panelId}
               role="dialog"
               data-finos-popover
+              data-nested-overlay
               style={{ top: position.top, left: position.left }}
               onClick={(event) => {
                 if (

@@ -1,4 +1,12 @@
-import { api, getAccessToken, unwrap } from "./client";
+import {
+  api,
+  getAccessToken,
+  getApiBaseUrl,
+  isAuthRejection,
+  isRetryableWriteError,
+  refreshSession,
+  unwrap,
+} from "./client";
 import { beginApiActivity, endApiActivity } from "./activity";
 import type {
   AiChatResponse,
@@ -80,8 +88,9 @@ export async function updateMasterPrompt(master_prompt: string) {
         } as any);
       }
       return data;
-    } catch {
-      /* queue locally if the live call fails */
+    } catch (error) {
+      // Queue only when the server never got it; real errors go to the UI.
+      if (!isRetryableWriteError(error)) throw error;
     }
   }
 
@@ -109,8 +118,8 @@ export async function addAiMemory(content: string): Promise<AiMemory> {
     try {
       const res = await api.post("/ai/memories", { content });
       return unwrap(res);
-    } catch {
-      /* queue locally if the live call fails */
+    } catch (error) {
+      if (!isRetryableWriteError(error)) throw error;
     }
   }
   const userRaw = localStorage.getItem("expense-tracker:user");
@@ -124,7 +133,8 @@ export async function deleteAiMemory(id: string) {
   try {
     const res = await api.delete(`/ai/memories/${id}`);
     return unwrap(res);
-  } catch {
+  } catch (error) {
+    if (!isRetryableWriteError(error)) throw error;
     const { offlineDb } = await import("@/lib/offline/db");
     const { enqueueOutbox } = await import("@/lib/offline/outbox");
     const { isOnline } = await import("@/lib/offline/network");
@@ -152,7 +162,8 @@ export async function setAiMemoryEnabled(enabled: boolean) {
   try {
     const res = await api.patch("/ai/memories/preference", { enabled });
     return unwrap<{ enabled: boolean }>(res);
-  } catch {
+  } catch (error) {
+    if (!isRetryableWriteError(error)) throw error;
     const userRaw = localStorage.getItem("expense-tracker:user");
     const userId = userRaw ? JSON.parse(userRaw)?.id : null;
     if (!userId) throw new Error("Offline: user required");
@@ -277,9 +288,79 @@ export type AiStreamEvent =
       tool_activity: AiChatResponse["tool_activity"];
       citations: AiChatResponse["citations"];
     }
-  | ({ type: "done" } & AiChatResponse)
+  | ({
+      type: "done";
+      /** Optional backend hints that the reply hit an output limit. */
+      truncated?: boolean;
+      finish_reason?: string | null;
+      stop_reason?: string | null;
+    } & AiChatResponse)
   | { type: "error"; message: string }
   | { type: "close" };
+
+/**
+ * No bytes at all (not even an SSE comment / status) for this long means the
+ * connection is dead. Generous so slow providers + backend auto-continuation fit.
+ */
+const STREAM_IDLE_TIMEOUT_MS = 180_000;
+
+/** Thrown when the stream dies without a `done` / `error` event. */
+export class AiStreamInterruptedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AiStreamInterruptedError";
+  }
+}
+
+const TRUNCATION_REASONS =
+  /^(length|max_tokens|max_output_tokens|token_limit|truncated)$/i;
+
+/** Accepts `truncated: true` or a provider finish/stop reason on any level. */
+function isTruncationHint(source: unknown, depth = 0): boolean {
+  if (!source || typeof source !== "object" || depth > 2) return false;
+  const record = source as Record<string, unknown>;
+  if (record.truncated === true) return true;
+  for (const key of [
+    "finish_reason",
+    "stop_reason",
+    "finishReason",
+    "stopReason",
+  ]) {
+    const value = record[key];
+    if (typeof value === "string" && TRUNCATION_REASONS.test(value.trim())) {
+      return true;
+    }
+  }
+  return isTruncationHint(record.metadata, depth + 1);
+}
+
+/**
+ * Parse one SSE event block (lines already split, line endings stripped).
+ * Joins multi-line `data:` fields per the SSE spec; ignores comments / ids.
+ */
+function parseSseBlock(lines: string[]): AiStreamEvent | null {
+  const data: string[] = [];
+  for (const line of lines) {
+    if (!line || line.startsWith(":")) continue;
+    const colon = line.indexOf(":");
+    const field = colon === -1 ? line : line.slice(0, colon);
+    if (field !== "data") continue;
+    let value = colon === -1 ? "" : line.slice(colon + 1);
+    if (value.startsWith(" ")) value = value.slice(1);
+    data.push(value);
+  }
+  if (!data.length) return null;
+  const raw = data.join("\n").trim();
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as AiStreamEvent;
+    return parsed && typeof parsed === "object" && "type" in parsed
+      ? parsed
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function streamAiChat(
   payload: {
@@ -296,20 +377,48 @@ export async function streamAiChat(
 ): Promise<void> {
   beginApiActivity();
   try {
-  const base =
-    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:9000/api";
-  const token = getAccessToken();
+  // Runtime base (honours the Settings / Capacitor override).
+  const base = getApiBaseUrl();
+  // With CapacitorHttp enabled, window.fetch is patched to the native bridge,
+  // which buffers the whole response (no SSE streaming) and ignores abort.
+  // Capacitor keeps the WebView's real fetch as CapacitorWebFetch.
+  const webFetch: typeof fetch =
+    (typeof window !== "undefined" &&
+      (window as unknown as { CapacitorWebFetch?: typeof fetch })
+        .CapacitorWebFetch) ||
+    fetch;
+  const body = JSON.stringify(payload);
+  const send = (token: string | undefined) =>
+    webFetch(`${base}/ai/chat/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body,
+      signal: handlers.signal,
+      credentials: "include",
+      cache: "no-store",
+    });
 
-  const res = await fetch(`${base}/ai/chat/stream`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(payload),
-    signal: handlers.signal,
-    credentials: "include",
-  });
+  let res = await send(getAccessToken());
+  if (res.status === 401) {
+    // Release the rejected response before retrying.
+    void res.body?.cancel().catch(() => undefined);
+    // Access token expired mid-session: refresh once (single-flight) and retry.
+    let fresh: string | undefined;
+    try {
+      fresh = await refreshSession();
+    } catch (error) {
+      throw new Error(
+        isAuthRejection(error)
+          ? "Your session has expired. Please sign in again."
+          : "Could not refresh your session. Check your connection and try again.",
+      );
+    }
+    res = await send(fresh);
+  }
 
   if (!res.ok) {
     let message = `Stream failed (${res.status})`;
@@ -326,63 +435,191 @@ export async function streamAiChat(
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
+  const signal = handlers.signal;
   let buffer = "";
+  let pendingLines: string[] = [];
+  let pendingDelta = "";
+  let streamedText = "";
+  let finished = false;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
-    const parts = buffer.split("\n\n");
-    buffer = parts.pop() || "";
-
-    for (const part of parts) {
-      const line = part
-        .split("\n")
-        .map((l) => l.trim())
-        .find((l) => l.startsWith("data:"));
-      if (!line) continue;
-      const raw = line.slice(5).trim();
-      if (!raw) continue;
-      let event: AiStreamEvent;
-      try {
-        event = JSON.parse(raw) as AiStreamEvent;
-      } catch {
-        continue;
-      }
-
-      if (event.type === "delta") {
-        await emitStreamingText(event.text, handlers.onEvent);
-        continue;
-      }
-
+  // A throwing UI handler must never kill the network stream: rendering is
+  // React's job (guarded by error boundaries); this loop only moves data.
+  const safeEmit = async (event: AiStreamEvent) => {
+    if (signal?.aborted) return;
+    try {
       await handlers.onEvent(event);
-      if (event.type === "error") {
-        throw new Error(event.message);
+    } catch (error) {
+      console.error("[ai-stream] event handler failed", event.type, error);
+    }
+  };
+
+  const flushDelta = async () => {
+    if (!pendingDelta) return;
+    const text = pendingDelta;
+    pendingDelta = "";
+    await emitStreamingText(text, safeEmit, signal);
+  };
+
+  const handleEvent = async (event: AiStreamEvent) => {
+    if (event.type === "delta") {
+      if (typeof event.text === "string" && event.text) {
+        pendingDelta += event.text;
+        streamedText += event.text;
+      }
+      return;
+    }
+    // Keep ordering: text received before a status/done lands first.
+    await flushDelta();
+    if (event.type === "done") {
+      finished = true;
+      await safeEmit(normalizeDoneEvent(event, streamedText));
+      return;
+    }
+    if (event.type === "error") {
+      finished = true;
+      await safeEmit(event);
+      throw new Error(event.message || "Advisor request failed");
+    }
+    await safeEmit(event);
+  };
+
+  const consumeLines = async (final: boolean) => {
+    // SSE allows \r\n, \n or \r line endings. A trailing lone \r stays in the
+    // buffer because its \n may arrive with the next network chunk.
+    let start = 0;
+    for (let i = 0; i < buffer.length; i += 1) {
+      const ch = buffer[i];
+      if (ch !== "\n" && ch !== "\r") continue;
+      if (ch === "\r" && i === buffer.length - 1 && !final) break;
+      const line = buffer.slice(start, i);
+      if (ch === "\r" && buffer[i + 1] === "\n") i += 1;
+      start = i + 1;
+      if (line === "") {
+        const event = parseSseBlock(pendingLines);
+        pendingLines = [];
+        if (event) await handleEvent(event);
+      } else {
+        pendingLines.push(line);
       }
     }
+    buffer = buffer.slice(start);
+    if (final) {
+      // Stream ended without a trailing blank line: dispatch what is left.
+      if (buffer) pendingLines.push(buffer);
+      buffer = "";
+      const event = parseSseBlock(pendingLines);
+      pendingLines = [];
+      if (event) await handleEvent(event);
+    }
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await readWithIdleTimeout(
+        reader,
+        STREAM_IDLE_TIMEOUT_MS,
+      );
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      await consumeLines(false);
+      // Coalesce every delta from this network chunk into one UI update.
+      await flushDelta();
+    }
+    buffer += decoder.decode();
+    await consumeLines(true);
+    await flushDelta();
+  } catch (error) {
+    // Text already shown stays on screen; the caller decides how to surface it.
+    void reader.cancel().catch(() => undefined);
+    throw error;
+  }
+
+  if (!finished && !signal?.aborted) {
+    throw new AiStreamInterruptedError(
+      "Network connection closed before the reply finished. The partial answer is kept — retry or continue.",
+    );
   }
   } finally {
     endApiActivity();
   }
 }
 
+function normalizeDoneEvent(
+  event: Extract<AiStreamEvent, { type: "done" }>,
+  streamedText: string,
+): Extract<AiStreamEvent, { type: "done" }> {
+  const truncated =
+    isTruncationHint(event) || isTruncationHint(event.message);
+  let message = event.message as AiMessage | undefined;
+  if (
+    !message ||
+    typeof message !== "object" ||
+    typeof message.id !== "string"
+  ) {
+    // Malformed / missing persisted message: keep what the user already saw.
+    message = {
+      id: `stream-done-${Date.now()}`,
+      role: "assistant",
+      content: streamedText,
+      created_at: new Date().toISOString(),
+    };
+  } else if (typeof message.content !== "string") {
+    message = { ...message, content: streamedText };
+  }
+  if (!message.created_at) {
+    message = { ...message, created_at: new Date().toISOString() };
+  }
+  if (truncated) {
+    message = { ...message, truncated: true } as AiMessage;
+  }
+  return {
+    ...event,
+    message,
+    proposals: Array.isArray(event.proposals) ? event.proposals : [],
+  };
+}
+
+async function readWithIdleTimeout(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  timeoutMs: number,
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(
+        new AiStreamInterruptedError(
+          "Network timeout: the advisor stopped responding. The partial answer is kept — retry or continue.",
+        ),
+      );
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([reader.read(), timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 async function emitStreamingText(
   text: string,
   onEvent: (event: AiStreamEvent) => void | Promise<void>,
+  signal?: AbortSignal,
 ) {
-  // Small chunks + short delay so replies feel continuous instead of batched.
+  // One UI update per network chunk keeps phones responsive. Large bursts
+  // (some providers deliver the whole reply at once) are split into a bounded
+  // number of frames so the reply still appears progressively.
   const characters = Array.from(text);
-  const chunkSize = 3;
-  const delayMs = 10;
+  const MAX_FRAMES = 24;
+  const chunkSize = Math.max(64, Math.ceil(characters.length / MAX_FRAMES));
 
   for (let index = 0; index < characters.length; index += chunkSize) {
+    if (signal?.aborted) return;
     await onEvent({
       type: "delta",
       text: characters.slice(index, index + chunkSize).join(""),
     });
-
     if (index + chunkSize < characters.length) {
-      await sleep(delayMs);
+      await sleep(16);
     }
   }
 }

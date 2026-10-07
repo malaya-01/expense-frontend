@@ -365,7 +365,7 @@ export function AppSidebar() {
     <>
       {!pinned ? (
         <div
-          className="fixed bottom-0 left-0 top-11 z-40 hidden w-2 md:block"
+          className="fixed bottom-0 left-0 top-[calc(2.75rem+env(safe-area-inset-top))] z-40 hidden w-2 md:block"
           onPointerEnter={() => dispatch(setSidebarPeeking(true))}
           aria-hidden
         />
@@ -379,8 +379,8 @@ export function AppSidebar() {
         className={cn(
           "fixed z-50 hidden flex-col overflow-hidden bg-[var(--ds-background-elevated)] transition-[transform,opacity,border-radius] duration-200 md:flex",
           pinned
-            ? "bottom-0 left-0 top-11 rounded-none [box-shadow:1px_0_0_0_color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]"
-            : "bottom-3 left-2 top-[3.25rem] rounded-[12px] border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]",
+            ? "bottom-0 left-0 top-[calc(2.75rem+env(safe-area-inset-top))] rounded-none [box-shadow:1px_0_0_0_color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]"
+            : "bottom-3 left-2 top-[calc(3.25rem+env(safe-area-inset-top))] rounded-[12px] border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]",
           !visible && "-translate-x-[110%] opacity-0",
           peeking &&
             !pinned &&

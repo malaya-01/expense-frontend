@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronDown,
   ChevronRight,
@@ -14,6 +14,7 @@ import { cn } from "@/lib/cn";
 import { listSpaces, type CollaborativeSpace } from "@/lib/api/spaces";
 import { useAuth } from "@/lib/auth-context";
 import { canCrud } from "@/lib/permissions";
+import { spaceHref } from "@/components/spaces/space-links";
 
 export function SpacesSidebarSection({
   onNavigate,
@@ -91,39 +92,17 @@ export function SpacesSidebarSection({
             />
             All spaces
           </Link>
-          {shown.map((space) => {
-            const href = `/spaces/${space.id}`;
-            const active = pathname === href || pathname.startsWith(`${href}/`);
-            return (
-              <Link
-                key={space.id}
-                href={href}
-                onClick={onNavigate}
-                title={space.name}
-                className={cn(
-                  "group flex min-h-8 items-center gap-2 rounded-[7px] px-2 text-[12px] ds-focus",
-                  "text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)]",
-                  active &&
-                    "bg-[var(--ds-gray-100)] font-medium text-[var(--ds-gray-1000)]",
-                )}
-              >
-                <span
-                  className="size-2 shrink-0 rounded-full"
-                  style={{
-                    background: space.color || "var(--ds-status-blue)",
-                  }}
-                />
-                <span className="min-w-0 flex-1 truncate">{space.name}</span>
-                {space.is_favorite ? (
-                  <Star
-                    size={11}
-                    className="shrink-0 text-[var(--ds-status-orange)]"
-                    fill="currentColor"
-                  />
-                ) : null}
-              </Link>
-            );
-          })}
+          <Suspense
+            fallback={
+              <SpaceLinks
+                spaces={shown}
+                activeSpaceId={null}
+                onNavigate={onNavigate}
+              />
+            }
+          >
+            <ActiveSpaceLinks spaces={shown} onNavigate={onNavigate} />
+          </Suspense>
           {!shown.length ? (
             <p className="px-2 py-1 text-[11px] text-[var(--ds-gray-700)]">
               No spaces yet
@@ -132,5 +111,83 @@ export function SpacesSidebarSection({
         </>
       ) : null}
     </div>
+  );
+}
+
+// Space pages live at /spaces/view?id=<id> (static-export friendly) or at the
+// legacy /spaces/<id>; read the active id from whichever form is current.
+// useSearchParams needs its own Suspense boundary so static prerendering of
+// every (app) page does not bail out.
+function ActiveSpaceLinks({
+  spaces,
+  onNavigate,
+}: {
+  spaces: CollaborativeSpace[];
+  onNavigate?: () => void;
+}) {
+  const pathname = usePathname().replace(/\/+$/, "");
+  const searchParams = useSearchParams();
+  let activeSpaceId: string | null = null;
+  if (pathname === "/spaces/view") {
+    activeSpaceId = searchParams.get("id");
+  } else {
+    const legacy = /^\/spaces\/([^/]+)$/.exec(pathname);
+    if (legacy && legacy[1] !== "invites") {
+      activeSpaceId = decodeURIComponent(legacy[1]);
+    }
+  }
+  return (
+    <SpaceLinks
+      spaces={spaces}
+      activeSpaceId={activeSpaceId}
+      onNavigate={onNavigate}
+    />
+  );
+}
+
+function SpaceLinks({
+  spaces,
+  activeSpaceId,
+  onNavigate,
+}: {
+  spaces: CollaborativeSpace[];
+  activeSpaceId: string | null;
+  onNavigate?: () => void;
+}) {
+  return (
+    <>
+      {spaces.map((space) => {
+        const active = activeSpaceId !== null && activeSpaceId === space.id;
+        return (
+          <Link
+            key={space.id}
+            href={spaceHref(space.id)}
+            onClick={onNavigate}
+            title={space.name}
+            className={cn(
+              "group flex min-h-8 items-center gap-2 rounded-[7px] px-2 text-[12px] ds-focus",
+              "text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)]",
+              active &&
+                "bg-[var(--ds-gray-100)] font-medium text-[var(--ds-gray-1000)]",
+            )}
+          >
+            <span
+              className="size-2 shrink-0 rounded-full"
+              style={{
+                background: space.color || "var(--ds-status-blue)",
+              }}
+            />
+            <span className="min-w-0 flex-1 truncate">{space.name}</span>
+            {space.is_favorite ? (
+              <Star
+                size={11}
+                className="shrink-0 text-[var(--ds-status-orange)]"
+                fill="currentColor"
+              />
+            ) : null}
+          </Link>
+        );
+      })}
+    </>
   );
 }

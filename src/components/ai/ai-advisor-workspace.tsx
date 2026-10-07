@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { PanelLeft } from "lucide-react";
 import { ConversationSidebar } from "@/components/ai/conversation-sidebar";
 import { ChatWorkspace } from "@/components/ai/chat-workspace";
+import { RenderBoundary } from "@/components/ai/render-boundary";
 import { ProposalConfirmModal } from "@/components/ai/proposal-confirm-modal";
 import { ProposalBatchReviewModal } from "@/components/ai/proposal-batch-review-modal";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/feedback";
 import { useAiAdvisorWorkspace } from "@/hooks/use-ai-advisor-workspace";
+import { CONTINUE_PROMPT } from "@/lib/ai/reply-cutoff";
 
 export function AiAdvisorWorkspace() {
   const router = useRouter();
@@ -111,7 +113,7 @@ export function AiAdvisorWorkspace() {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-transparent">
-      <div className="flex h-10 items-center px-2 md:hidden">
+      <div className="flex h-10 items-center px-2 lg:hidden">
         <button
           type="button"
           onClick={() => setMobileConversationsOpen(true)}
@@ -204,6 +206,34 @@ export function AiAdvisorWorkspace() {
           />
         </div>
 
+        <RenderBoundary
+          label="conversation"
+          resetKey={workspace.activeId}
+          fallback={(_error, reset) => (
+            <div className="flex min-w-0 flex-1 items-center justify-center p-6">
+              <div className="max-w-sm text-center">
+                <p className="text-sm font-medium text-[var(--ds-gray-1000)]">
+                  This conversation couldn’t be displayed.
+                </p>
+                <div className="mt-3 flex justify-center gap-2">
+                  <Button size="sm" variant="secondary" onClick={reset}>
+                    Try again
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      workspace.startNewChat();
+                      reset();
+                    }}
+                  >
+                    New chat
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        >
         <ChatWorkspace
           messages={workspace.messages}
           proposals={workspace.proposals}
@@ -235,7 +265,19 @@ export function AiAdvisorWorkspace() {
           onToggleWebSearch={() =>
             workspace.setWebSearchEnabled((enabled) => !enabled)
           }
+          onContinue={() => {
+            if (workspace.loading) return;
+            // onSend clears the composer synchronously; keep a draft the user
+            // was writing (but not the failed prompt it restores on errors).
+            const savedDraft = workspace.draft;
+            const keepDraft =
+              Boolean(savedDraft.trim()) &&
+              savedDraft.trim() !== (workspace.failedPrompt || "").trim();
+            void workspace.onSend(undefined, CONTINUE_PROMPT);
+            if (keepDraft) workspace.setDraft(savedDraft);
+          }}
         />
+        </RenderBoundary>
       </div>
 
       <Drawer

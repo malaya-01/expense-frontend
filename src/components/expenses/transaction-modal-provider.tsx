@@ -115,6 +115,9 @@ export function TransactionModalProvider({
       fromReceipt: true,
       defaults: next.defaults || prev?.defaults,
     }));
+    // Remount the form so it re-reads the receipt defaults. Image receipts
+    // already remount via the preview layout switch; PDFs keep the same tree.
+    setFormKey((key) => key + 1);
   }, []);
 
   const clearReceiptPreview = useCallback(() => {

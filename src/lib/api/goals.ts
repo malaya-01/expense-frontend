@@ -2,7 +2,7 @@ import { toDateOnly } from "@/lib/format";
 import type { CreateGoalInput, Goal } from "@/types";
 import { contributeGoalLocal, goalsRepo } from "@/lib/offline/repos";
 import { offlineDb } from "@/lib/offline/db";
-import { api, unwrap } from "./client";
+import { api, isRetryableWriteError, unwrap } from "./client";
 import { isOnline } from "@/lib/offline/network";
 
 function normalize(row: any): Goal {
@@ -74,8 +74,9 @@ export async function contributeToGoal(
         _sync_failed: false,
       } as any);
       return normalize(row);
-    } catch {
-      /* queue locally if the live call fails */
+    } catch (error) {
+      // Queue only when the server never got it; real errors go to the UI.
+      if (!isRetryableWriteError(error)) throw error;
     }
   }
   const row = await contributeGoalLocal(id, { amount });

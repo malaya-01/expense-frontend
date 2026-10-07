@@ -45,6 +45,12 @@ export type OutboxItem = {
   retry_count: number;
   next_retry_at: string | null;
   last_error: string | null;
+  /**
+   * Server rejected this op too many times: stays "failed" (visible in the
+   * sync UI) but is skipped by automatic runs. Manual "Sync now" retries it.
+   * Not indexed, so no schema bump is needed.
+   */
+  terminal?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -54,6 +60,8 @@ export type ConflictItem = {
   client_op_id: string;
   entity_type: SyncEntityType;
   entity_id: string;
+  /** Original outbox op, so "Keep local" can replay it (e.g. a delete). */
+  op?: OutboxOp;
   local_row: Record<string, unknown>;
   server_row: Record<string, unknown>;
   created_at: string;
@@ -148,6 +156,25 @@ export const ENTITY_TABLE: Record<
   ai_memory: "ai_memories",
   notification_preferences: "notification_preferences",
 };
+
+/**
+ * Local table holding the row an op affects. Child ops (contribution,
+ * payment, execute) map to their parent so its _pending flag is managed.
+ */
+export function tableForEntityType(
+  entityType: SyncEntityType,
+): EntityTableName | null {
+  switch (entityType) {
+    case "goal_contribute":
+      return "goals";
+    case "loan_payment":
+      return "loans";
+    case "recurring_execute":
+      return "recurring";
+    default:
+      return ENTITY_TABLE[entityType] ?? null;
+  }
+}
 
 export function newId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {

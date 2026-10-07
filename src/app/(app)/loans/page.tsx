@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import {
   CalendarDays,
   CreditCard,
@@ -46,6 +47,8 @@ import {
 } from "@/lib/api/loans";
 import { getErrorMessage } from "@/lib/api/client";
 import { formatCurrency, formatDate, todayISO } from "@/lib/format";
+import { convertAmount } from "@/lib/currency/currency.data";
+import { TRANSACTION_CREATED_EVENT } from "@/components/expenses/transaction-modal-provider";
 import type {
   CreateLoanInput,
   FinancialContainer,
@@ -67,6 +70,7 @@ const EMPTY_LOAN: CreateLoanInput = {
 };
 
 export default function LoansPage() {
+  const router = useRouter();
   const perms = useModulePermissions("loans");
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -94,26 +98,42 @@ export default function LoansPage() {
     "all" | "active" | "paused" | "closed" | "archived"
   >("all");
 
-  const refresh = useCallback(async () => {
-    if (!user?.id) return;
-    setLoading(true);
-    setError("");
-    try {
-      const [loanRows, accountRows] = await Promise.all([
-        listLoans(),
-        listAccounts(user.id),
-      ]);
-      setLoans(loanRows);
-      setAccounts(accountRows);
-    } catch (err) {
-      setError(getErrorMessage(err, "Could not load debts"));
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
+  const refresh = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!user?.id) return;
+      const silent = Boolean(options?.silent);
+      if (!silent) {
+        setLoading(true);
+        setError("");
+      }
+      try {
+        const [loanRows, accountRows] = await Promise.all([
+          listLoans(),
+          listAccounts(user.id),
+        ]);
+        setLoans(loanRows);
+        setAccounts(accountRows);
+      } catch (err) {
+        if (silent) return;
+        setError(getErrorMessage(err, "Could not load debts"));
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [user?.id],
+  );
 
   useEffect(() => {
     void refresh();
+    const onDataChanged = () => void refresh({ silent: true });
+    window.addEventListener("finos:data-updated", onDataChanged);
+    window.addEventListener("finos:sync-complete", onDataChanged);
+    window.addEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+    return () => {
+      window.removeEventListener("finos:data-updated", onDataChanged);
+      window.removeEventListener("finos:sync-complete", onDataChanged);
+      window.removeEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+    };
   }, [refresh]);
 
   const liabilities = accounts.filter((account) =>
@@ -123,22 +143,28 @@ export default function LoansPage() {
     (account) =>
       !["loan", "credit_card", "payable", "receivable"].includes(account.type),
   );
+  const currency = user?.currency || loans[0]?.currency || "USD";
   const summary = useMemo(() => {
     const active = loans.filter((loan) => loan.status === "active");
+    // Plans can be in different currencies — convert before summing.
+    const toBase = (amount: number, from?: string | null) =>
+      convertAmount(amount || 0, from || currency, currency);
     return {
       outstanding: active.reduce(
-        (sum, loan) => sum + loan.outstanding_balance,
+        (sum, loan) => sum + toBase(loan.outstanding_balance, loan.currency),
         0,
       ),
-      monthly: active.reduce((sum, loan) => sum + loan.monthly_payment, 0),
+      monthly: active.reduce(
+        (sum, loan) => sum + toBase(loan.monthly_payment, loan.currency),
+        0,
+      ),
       count: active.length,
       highestRate: active.reduce(
         (highest, loan) => Math.max(highest, loan.annual_interest_rate),
         0,
       ),
     };
-  }, [loans]);
-  const currency = user?.currency || loans[0]?.currency || "USD";
+  }, [loans, currency]);
 
   const visibleLoans = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -162,6 +188,7 @@ export default function LoansPage() {
     setEditing(null);
     setForm({
       ...EMPTY_LOAN,
+      start_date: todayISO(),
       container_id: liabilities.find(
         (account) => !loans.some((loan) => loan.container_id === account.id),
       )?.id || "",
@@ -188,6 +215,16 @@ export default function LoansPage() {
 
   async function saveLoan(event: FormEvent) {
     event.preventDefault();
+    if (saving) return;
+    if (!form.container_id) {
+      // The custom Select is a button, so native `required` never blocks submit.
+      showToast({
+        title: "Choose a liability container",
+        description: "Link the debt plan to a loan, credit card, or payable account.",
+        tone: "warning",
+      });
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -201,7 +238,13 @@ export default function LoansPage() {
       });
       await refresh();
     } catch (err) {
-      setError(getErrorMessage(err, "Could not save debt plan"));
+      const message = getErrorMessage(err, "Could not save debt plan");
+      setError(message);
+      showToast({
+        title: "Could not save debt plan",
+        description: message,
+        tone: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -214,7 +257,13 @@ export default function LoansPage() {
     try {
       setSchedule(await getLoanAmortization(loan.id));
     } catch (err) {
-      setError(getErrorMessage(err, "Could not generate amortization"));
+      const message = getErrorMessage(err, "Could not generate amortization");
+      setError(message);
+      showToast({
+        title: "Could not generate schedule",
+        description: message,
+        tone: "error",
+      });
     } finally {
       setScheduleLoading(false);
     }
@@ -367,7 +416,7 @@ export default function LoansPage() {
                 ? perms.create
                   ? openCreate
                   : undefined
-                : () => window.location.assign("/accounts")
+                : () => router.push("/accounts")
             }
           />
         </div>
@@ -598,9 +647,29 @@ export default function LoansPage() {
             <Button
               onClick={async () => {
                 if (!paymentLoan) return;
+                const amount = Number(payment.amount);
+                if (!Number.isFinite(amount) || amount <= 0) {
+                  showToast({
+                    title: "Enter a payment amount",
+                    description: "The amount must be greater than zero.",
+                    tone: "warning",
+                  });
+                  return;
+                }
+                if (amount > paymentLoan.outstanding_balance + 0.005) {
+                  showToast({
+                    title: "Payment exceeds the balance",
+                    description: `Outstanding is ${formatCurrency(
+                      paymentLoan.outstanding_balance,
+                      paymentLoan.currency || currency,
+                    )}.`,
+                    tone: "warning",
+                  });
+                  return;
+                }
                 setSaving(true);
                 try {
-                  await recordLoanPayment(paymentLoan.id, payment);
+                  await recordLoanPayment(paymentLoan.id, { ...payment, amount });
                   setPaymentLoan(null);
                   showToast({
                     title: "Debt payment posted",
@@ -610,7 +679,13 @@ export default function LoansPage() {
                   });
                   await refresh();
                 } catch (err) {
-                  setError(getErrorMessage(err, "Could not record payment"));
+                  const message = getErrorMessage(err, "Could not record payment");
+                  setError(message);
+                  showToast({
+                    title: "Could not record payment",
+                    description: message,
+                    tone: "error",
+                  });
                 } finally {
                   setSaving(false);
                 }
@@ -774,10 +849,18 @@ export default function LoansPage() {
         onClose={() => setArchiveTarget(null)}
         onConfirm={async () => {
           if (!archiveTarget) return;
-          await archiveLoan(archiveTarget.id);
-          setArchiveTarget(null);
-          showToast({ title: "Debt plan archived", tone: "success" });
-          await refresh();
+          try {
+            await archiveLoan(archiveTarget.id);
+            setArchiveTarget(null);
+            showToast({ title: "Debt plan archived", tone: "success" });
+            await refresh();
+          } catch (err) {
+            showToast({
+              title: "Could not archive debt plan",
+              description: getErrorMessage(err, "Please try again."),
+              tone: "error",
+            });
+          }
         }}
       />
     </div>

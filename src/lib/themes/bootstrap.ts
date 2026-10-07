@@ -1,17 +1,41 @@
 import { PRESET_THEMES } from "./presets";
-import { applyBrandAssets, applyThemeTokens } from "./apply";
+import { applyBrandAssets, applyThemeFonts, applyThemeTokens } from "./apply";
+import {
+  DEFAULT_THEME_FONTS,
+  FONT_OPTIONS,
+  fontStack,
+  themeFontVariables,
+  type FontId,
+} from "./fonts";
 import type { ThemeDefinition } from "./types";
 import { CUSTOM_THEMES_KEY, THEME_STORAGE_KEY } from "./types";
+import { PREFERENCES_STORAGE_KEY } from "@/lib/preferences/types";
 
-/** Apply saved theme before React hydrates to avoid flash and ensure persistence. */
+/**
+ * Apply the saved theme (colors + font pairing) and appearance preferences
+ * (density, reduced motion, text size) before React hydrates, so there is no
+ * flash of the default theme or font on load — online or offline.
+ */
 export function getThemeBootstrapScript(): string {
   const presetPayload = PRESET_THEMES.map((theme) => ({
     id: theme.id,
     tokens: theme.tokens,
+    fontVars: themeFontVariables(theme.fonts),
   }));
+  // Font table for custom themes saved with their own pairing.
+  const fontTable: Record<string, { s: string; f: string; r: string[] }> = {};
+  for (const id of Object.keys(FONT_OPTIONS) as FontId[]) {
+    fontTable[id] = {
+      s: fontStack(id),
+      f: FONT_OPTIONS[id].features,
+      r: FONT_OPTIONS[id].roles,
+    };
+  }
 
   return `(function(){try{
     var PRESETS=${JSON.stringify(presetPayload)};
+    var FONTS=${JSON.stringify(fontTable)};
+    var FD=${JSON.stringify(DEFAULT_THEME_FONTS)};
     var stored=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});
     var activeId=stored||${JSON.stringify(PRESET_THEMES[0].id)};
     var custom=JSON.parse(localStorage.getItem(${JSON.stringify(CUSTOM_THEMES_KEY)})||"[]");
@@ -43,6 +67,16 @@ export function getThemeBootstrapScript(): string {
   root.style.setProperty("--ds-focus-ring","0 0 0 2px "+tokens.focusRingInner+", 0 0 0 4px "+tokens.focusColor);
   root.style.setProperty("--header-border-bottom","0 1px 0 0 rgba(0, 0, 0, "+(tokens.headerBorderAlpha||"0.1")+")");
   root.dataset.theme=theme.id;
+  var fv=theme.fontVars;
+  if(!fv){
+    var tf=theme.fonts||{};
+    var ok=function(id,role){return !!FONTS[id]&&FONTS[id].r.indexOf(role)>=0;};
+    var fs=ok(tf.sans,"sans")?tf.sans:FD.sans;
+    var fm=ok(tf.mono,"mono")?tf.mono:FD.mono;
+    var fh=ok(tf.heading,"heading")?tf.heading:fs;
+    fv={"--font-app-sans":FONTS[fs].s,"--font-app-heading":FONTS[fh].s,"--font-geist-mono":FONTS[fm].s,"--font-app-features":FONTS[fs].f};
+  }
+  for(var k in fv){if(Object.prototype.hasOwnProperty.call(fv,k)){root.style.setProperty(k,fv[k]);}}
   function lin(v){v=v/255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4)}
   function lum(hex){
     hex=String(hex||"").replace("#","");
@@ -59,6 +93,15 @@ export function getThemeBootstrapScript(): string {
   root.style.setProperty("--ds-mesh-strength",isDark?"0.48":"0.16");
   root.style.setProperty("--brand-logo-plated",'url("'+(slug?"/brand/themes/"+slug+".png?v=4":(isDark?"/brand/logo-dark.png?v=4":"/brand/logo-light.png?v=4"))+'")');
   root.style.setProperty("--brand-logo-mark",'url("'+(isDark?"/brand/logo-mark-on-dark.png?v=4":"/brand/logo-mark-on-light.png?v=4")+'")');
+  try{
+    var p=JSON.parse(localStorage.getItem(${JSON.stringify(PREFERENCES_STORAGE_KEY)})||"null");
+    if(p&&typeof p==="object"){
+      root.dataset.density=p.density==="compact"?"compact":"comfortable";
+      if(p.reduce_motion===true){root.dataset.reduceMotion="true";}
+      var sc=Number(p.font_scale);
+      if(sc>=90&&sc<=120){root.style.setProperty("--app-font-scale",String(sc/100));}
+    }
+  }catch(e){}
   }catch(e){}})();`;
 }
 
@@ -91,6 +134,7 @@ export function applyStoredThemeFromBrowser() {
   const custom = customThemes.find((t) => t.id === activeThemeId);
   const theme = preset || custom || PRESET_THEMES[0];
   applyThemeTokens(theme.tokens);
+  applyThemeFonts(theme.fonts);
   applyBrandAssets(theme.tokens, theme.id);
   document.documentElement.dataset.theme = theme.id;
 }

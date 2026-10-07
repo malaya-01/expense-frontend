@@ -67,7 +67,7 @@ export function AppTopbar() {
   const PageIcon = page.icon;
 
   return (
-    <header className="fixed inset-x-0 top-0 z-[70] flex h-12 items-center gap-1 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-background-100)] px-2">
+    <header className="fixed inset-x-0 top-0 z-[70] flex h-[calc(3rem+env(safe-area-inset-top))] items-center pt-[env(safe-area-inset-top)] gap-1 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-background-100)] px-2">
       <button
         type="button"
         onClick={() => dispatch(setMobileNavOpen(true))}

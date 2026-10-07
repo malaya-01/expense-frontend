@@ -1,6 +1,7 @@
 import { markLogoSrc, platedLogoSrc } from "@/lib/brand";
 import type { ThemeDefinition, ThemeTokens } from "./types";
 import { luminance } from "./utils";
+import { resolveThemeFonts, themeFontVariables } from "./fonts";
 
 function shadowBorder(alpha: string, ring: string) {
   return `0 0 0 1px rgba(0, 0, 0, ${alpha}), 0 0 0 1px ${ring}`;
@@ -113,8 +114,24 @@ export function applyBrandAssets(
   );
 }
 
+/** Point the app font variables at the theme's pairing (see globals.css). */
+export function applyThemeFonts(
+  fonts: ThemeDefinition["fonts"],
+  root: HTMLElement = document.documentElement,
+) {
+  const vars = themeFontVariables(fonts);
+  for (const [name, value] of Object.entries(vars)) {
+    root.style.setProperty(name, value);
+  }
+  const resolved = resolveThemeFonts(fonts);
+  root.dataset.fontSans = resolved.sans;
+  root.dataset.fontHeading = resolved.heading;
+  root.dataset.fontMono = resolved.mono;
+}
+
 export function applyTheme(theme: ThemeDefinition) {
   applyThemeTokens(theme.tokens);
+  applyThemeFonts(theme.fonts);
   applyBrandAssets(theme.tokens, theme.id);
   document.documentElement.dataset.theme = theme.id;
 }

@@ -4,6 +4,7 @@ import authReducer from "./slices/authSlice";
 import themeReducer from "./slices/themeSlice";
 import uiReducer from "./slices/uiSlice";
 import notificationsReducer from "./slices/notificationsSlice";
+import preferencesReducer from "@/lib/preferences/slice";
 
 export function makeStore() {
   return configureStore({
@@ -12,6 +13,7 @@ export function makeStore() {
       theme: themeReducer,
       ui: uiReducer,
       notifications: notificationsReducer,
+      preferences: preferencesReducer,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().prepend(listenerMiddleware.middleware),

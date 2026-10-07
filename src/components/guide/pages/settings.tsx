@@ -61,8 +61,8 @@ export function SettingsGuide() {
             body: "Bring your own keys; OpenRouter recommended for many models.",
           },
           {
-            title: "Face login",
-            body: "Optional camera sign-in under Security. Closing the app does not sign you out — only Log out does.",
+            title: "Security & session",
+            body: "Change your password under Security. Closing the app does not sign you out — only Log out does.",
           },
           {
             title: "Offline & sync",

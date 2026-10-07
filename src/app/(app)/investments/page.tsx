@@ -15,6 +15,7 @@ import { ModuleHeader } from "@/components/ui/module-header";
 import { SummaryKpiCard } from "@/components/ui/summary-kpi-card";
 import { HoldingCard } from "@/components/investments/holding-card";
 import { HoldingFormModal } from "@/components/investments/holding-form-modal";
+import { TRANSACTION_CREATED_EVENT } from "@/components/expenses/transaction-modal-provider";
 import {
   createInvestment,
   deleteInvestment,
@@ -66,29 +67,45 @@ export default function InvestmentsPage() {
 
   const baseCurrency = user?.currency || summary.base_currency || "USD";
 
-  const refresh = useCallback(async () => {
-    if (!user?.id) return;
-    setLoading(true);
-    setError("");
-    try {
-      const [payload, accountRows] = await Promise.all([
-        listInvestments(),
-        listAccounts(user.id).catch(() => [] as FinancialContainer[]),
-      ]);
-      setHoldings(payload.holdings);
-      setSummary(payload.summary);
-      setContainers(accountRows);
-    } catch (err) {
-      setError(getErrorMessage(err, "Could not load investments"));
-      setHoldings([]);
-      setSummary(EMPTY_SUMMARY);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
+  const refresh = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!user?.id) return;
+      const silent = Boolean(options?.silent);
+      if (!silent) {
+        setLoading(true);
+        setError("");
+      }
+      try {
+        const [payload, accountRows] = await Promise.all([
+          listInvestments(),
+          listAccounts(user.id).catch(() => [] as FinancialContainer[]),
+        ]);
+        setHoldings(payload.holdings);
+        setSummary(payload.summary);
+        setContainers(accountRows);
+      } catch (err) {
+        if (silent) return;
+        setError(getErrorMessage(err, "Could not load investments"));
+        setHoldings([]);
+        setSummary(EMPTY_SUMMARY);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [user?.id],
+  );
 
   useEffect(() => {
-    refresh();
+    void refresh();
+    const onDataChanged = () => void refresh({ silent: true });
+    window.addEventListener("finos:data-updated", onDataChanged);
+    window.addEventListener("finos:sync-complete", onDataChanged);
+    window.addEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+    return () => {
+      window.removeEventListener("finos:data-updated", onDataChanged);
+      window.removeEventListener("finos:sync-complete", onDataChanged);
+      window.removeEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+    };
   }, [refresh]);
 
   const filterOptions = useMemo(() => {
@@ -145,7 +162,13 @@ export default function InvestmentsPage() {
       setEditing(null);
       await refresh();
     } catch (err) {
-      setError(getErrorMessage(err, "Could not save holding"));
+      const message = getErrorMessage(err, "Could not save holding");
+      setError(message);
+      showToast({
+        title: "Could not save holding",
+        description: message,
+        tone: "error",
+      });
     }
   }
 
@@ -333,7 +356,13 @@ export default function InvestmentsPage() {
               tone: "success",
             });
           } catch (err) {
-            setError(getErrorMessage(err, "Could not delete holding"));
+            const message = getErrorMessage(err, "Could not delete holding");
+            setError(message);
+            showToast({
+              title: "Could not delete holding",
+              description: message,
+              tone: "error",
+            });
           } finally {
             setDeleting(false);
           }

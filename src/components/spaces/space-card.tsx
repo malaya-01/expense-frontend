@@ -4,13 +4,14 @@ import Link from "next/link";
 import { Star, UsersRound } from "lucide-react";
 import { Badge } from "@/components/ui/feedback";
 import type { CollaborativeSpace } from "@/lib/api/spaces";
+import { spaceHref } from "@/components/spaces/space-links";
 
 export function SpaceCard({ space }: { space: CollaborativeSpace }) {
   const accent = space.color || "var(--ds-status-blue)";
   const members = space.member_count || 1;
 
   return (
-    <Link href={`/spaces/${space.id}`} className="block ds-focus rounded-[16px]">
+    <Link href={spaceHref(space.id)} className="block ds-focus rounded-[16px]">
       <article className="relative h-full min-w-0 overflow-hidden rounded-[16px] bg-[var(--ds-background-elevated)] transition-colors hover:bg-[color-mix(in_srgb,var(--ds-gray-1000)_3%,var(--ds-background-elevated))] ds-border">
         <div
           className="absolute inset-y-0 left-0 w-[3px]"

@@ -15,6 +15,7 @@ import { ModuleHeader } from "@/components/ui/module-header";
 import { SummaryKpiCard } from "@/components/ui/summary-kpi-card";
 import { BudgetCard } from "@/components/budgets/budget-card";
 import { BudgetFormModal } from "@/components/budgets/budget-form-modal";
+import { TRANSACTION_CREATED_EVENT } from "@/components/expenses/transaction-modal-provider";
 import {
   createBudget,
   deleteBudget,
@@ -25,6 +26,7 @@ import { listCategories } from "@/lib/api/categories";
 import { useAuth } from "@/lib/auth-context";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { formatCurrency } from "@/lib/format";
+import { convertAmount } from "@/lib/currency/currency.data";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
 import { CardGridSkeleton } from "@/components/ui/feedback";
@@ -51,9 +53,12 @@ export default function BudgetsPage() {
 
   const baseCurrency = user?.currency || "USD";
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const refresh = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = Boolean(options?.silent);
+    if (!silent) {
+      setLoading(true);
+      setError("");
+    }
     try {
       const [budgetRows, categoryRows] = await Promise.all([
         listBudgets(),
@@ -62,21 +67,39 @@ export default function BudgetsPage() {
       setBudgets(budgetRows);
       setCategories(categoryRows);
     } catch (err) {
+      if (silent) return;
       setError(getErrorMessage(err, "Could not load budgets"));
       setBudgets([]);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     if (!user?.id) return;
     void refresh();
+    const onDataChanged = () => void refresh({ silent: true });
+    window.addEventListener("finos:data-updated", onDataChanged);
+    window.addEventListener("finos:sync-complete", onDataChanged);
+    window.addEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+    return () => {
+      window.removeEventListener("finos:data-updated", onDataChanged);
+      window.removeEventListener("finos:sync-complete", onDataChanged);
+      window.removeEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+    };
   }, [user?.id, refresh]);
 
   const summary = useMemo(() => {
-    const totalLimit = budgets.reduce((s, b) => s + b.amount, 0);
-    const totalSpent = budgets.reduce((s, b) => s + b.spent, 0);
+    const toBase = (amount: number, currency?: string | null) =>
+      convertAmount(amount || 0, currency || baseCurrency, baseCurrency);
+    const totalLimit = budgets.reduce(
+      (s, b) => s + toBase(b.amount, b.currency),
+      0,
+    );
+    const totalSpent = budgets.reduce(
+      (s, b) => s + toBase(b.spent, b.currency),
+      0,
+    );
     const overCount = budgets.filter((b) => b.status === "over").length;
     const warningCount = budgets.filter((b) => b.status === "warning").length;
     return {
@@ -87,7 +110,7 @@ export default function BudgetsPage() {
       warningCount,
       onTrack: budgets.length - overCount - warningCount,
     };
-  }, [budgets]);
+  }, [budgets, baseCurrency]);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -127,7 +150,13 @@ export default function BudgetsPage() {
       setEditing(null);
       await refresh();
     } catch (err) {
-      setError(getErrorMessage(err, "Could not save budget"));
+      const message = getErrorMessage(err, "Could not save budget");
+      setError(message);
+      showToast({
+        title: "Could not save budget",
+        description: message,
+        tone: "error",
+      });
     }
   }
 
@@ -293,7 +322,13 @@ export default function BudgetsPage() {
               tone: "success",
             });
           } catch (err) {
-            setError(getErrorMessage(err, "Could not delete budget"));
+            const message = getErrorMessage(err, "Could not delete budget");
+            setError(message);
+            showToast({
+              title: "Could not delete budget",
+              description: message,
+              tone: "error",
+            });
           } finally {
             setDeleting(false);
           }

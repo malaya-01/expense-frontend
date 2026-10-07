@@ -32,6 +32,8 @@ import { matchExpenseSource } from "@/lib/receipts/match-container";
 import { VisionSourceBadge } from "@/components/receipts/vision-source-badge";
 import { ReceiptPreviewStage } from "@/components/receipts/receipt-preview-stage";
 import { useGlobalLoader } from "@/components/brand/global-loader";
+import { useAppSelector } from "@/lib/store/hooks";
+import { selectPreferences } from "@/lib/preferences/slice";
 import {
   readLastSourceContainerId,
   writeLastSourceContainerId,
@@ -80,17 +82,37 @@ type TransactionFormProps = {
   }) => void;
 };
 
-function emptyTransaction(defaults?: Partial<CreateTransactionInput>): CreateTransactionInput {
+/** Defaults from Settings > Transactions (new transactions only). */
+type PreferenceDefaults = {
+  type: TransactionType;
+  categoryId: string;
+  /** Last-used account (if remembered) or the default account. */
+  accountId: string;
+};
+
+function emptyTransaction(
+  defaults?: Partial<CreateTransactionInput>,
+  pref?: PreferenceDefaults,
+): CreateTransactionInput {
+  const type = defaults?.type ?? pref?.type ?? "expense";
   return {
-    type: defaults?.type ?? "expense",
+    type,
     amount: defaults?.amount ?? 0,
     description: defaults?.description ?? "",
     date: requireDateOnly(defaults?.date, todayISO()),
-    category_id: defaults?.category_id ?? "",
+    category_id:
+      defaults?.category_id ??
+      (pref && type === pref.type ? pref.categoryId : ""),
     source_container_id:
       defaults?.source_container_id ??
-      (defaults?.type === "income" ? "" : readLastSourceContainerId()),
-    destination_container_id: defaults?.destination_container_id ?? "",
+      (type === "income"
+        ? ""
+        : pref
+          ? pref.accountId
+          : readLastSourceContainerId()),
+    destination_container_id:
+      defaults?.destination_container_id ??
+      (type === "income" && pref ? pref.accountId : ""),
     merchant: defaults?.merchant ?? "",
     currency: defaults?.currency ?? "",
     exchange_rate: defaults?.exchange_rate ?? undefined,
@@ -163,6 +185,21 @@ export function TransactionForm({
   const [containers, setContainers] = useState<FinancialContainer[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const prefs = useAppSelector(selectPreferences);
+  const isCreate = mode !== "edit" && !initial;
+  // Resolved once per form mount (the modal remounts the form for each open).
+  const [prefDefaults] = useState<PreferenceDefaults | undefined>(() =>
+    isCreate
+      ? {
+          type: prefs.default_transaction_type,
+          categoryId: prefs.default_category_id || "",
+          accountId:
+            (prefs.remember_last_account ? readLastSourceContainerId() : "") ||
+            prefs.default_account_id ||
+            "",
+        }
+      : undefined,
+  );
   const [form, setForm] = useState<CreateTransactionInput>(() =>
     emptyTransaction({
       ...defaults,
@@ -186,8 +223,22 @@ export function TransactionForm({
       paid_at: initial?.paid_at ?? defaults?.paid_at,
       platform: initial?.platform ?? defaults?.platform,
       platform_txn_id: initial?.platform_txn_id ?? defaults?.platform_txn_id,
-    }),
+    }, prefDefaults),
   );
+  // Raw amount text so partial decimals like "0." / "0.05" survive typing;
+  // re-synced whenever the numeric amount is changed elsewhere (receipt fill, reset).
+  const [amountText, setAmountText] = useState(() =>
+    form.amount ? String(form.amount) : "",
+  );
+  useEffect(() => {
+    setAmountText((current) =>
+      (Number(current) || 0) === (Number(form.amount) || 0)
+        ? current
+        : form.amount
+          ? String(form.amount)
+          : "",
+    );
+  }, [form.amount]);
   const [time, setTime] = useState(
     () =>
       timeFromPaidAt(initial?.paid_at || defaults?.paid_at) || "",
@@ -240,6 +291,40 @@ export function TransactionForm({
       .then(setContainers)
       .catch(() => setContainers([]));
   }, []);
+
+  // Drop a preferred account / category that no longer exists.
+  useEffect(() => {
+    if (!prefDefaults || !containers.length) return;
+    const ids = new Set(containers.map((c) => c.id));
+    setForm((prev) => {
+      let next = prev;
+      if (
+        prev.source_container_id &&
+        prev.source_container_id === prefDefaults.accountId &&
+        !ids.has(prev.source_container_id)
+      ) {
+        next = { ...next, source_container_id: "" };
+      }
+      if (
+        prev.destination_container_id &&
+        prev.destination_container_id === prefDefaults.accountId &&
+        !ids.has(prev.destination_container_id)
+      ) {
+        next = { ...next, destination_container_id: "" };
+      }
+      return next;
+    });
+  }, [containers, prefDefaults]);
+
+  useEffect(() => {
+    if (!prefDefaults?.categoryId || !categories.length) return;
+    if (categories.some((c) => c.id === prefDefaults.categoryId)) return;
+    setForm((prev) =>
+      prev.category_id === prefDefaults.categoryId
+        ? { ...prev, category_id: "" }
+        : prev,
+    );
+  }, [categories, prefDefaults]);
 
   useEffect(() => {
     if (!containers.length || !receiptMatch) return;
@@ -360,13 +445,22 @@ export function TransactionForm({
   }
 
   function setType(type: TransactionType) {
+    const preferred = prefDefaults?.accountId || "";
     setForm((prev) => ({
       ...prev,
       type,
+      // New transactions: fill the side that becomes required with the
+      // preferred account (Settings > Transactions) when it is empty.
       source_container_id:
-        type === "income" ? "" : prev.source_container_id,
+        type === "income"
+          ? ""
+          : prev.source_container_id ||
+            (prev.destination_container_id === preferred ? "" : preferred),
       destination_container_id:
-        type === "expense" ? "" : prev.destination_container_id,
+        type === "expense"
+          ? ""
+          : prev.destination_container_id ||
+            (type === "income" ? preferred : ""),
       exchange_rate: undefined,
     }));
   }
@@ -413,6 +507,7 @@ export function TransactionForm({
 
     setLoading(true);
     onBusyChange?.(true);
+    const isEdit = mode === "edit" && Boolean(initial);
     try {
       const payload: CreateTransactionInput & {
         source_name?: string;
@@ -423,11 +518,16 @@ export function TransactionForm({
         amount: Number(form.amount),
         description: form.description.trim(),
         date: form.date,
-        category_id: form.category_id || undefined,
+        // In edit mode an explicit null clears a previously set optional
+        // field (the API accepts null on update); on create they are omitted.
+        category_id: (form.category_id ||
+          (isEdit ? null : undefined)) as CreateTransactionInput["category_id"],
         source_container_id: form.source_container_id || undefined,
         destination_container_id: form.destination_container_id || undefined,
-        merchant: form.merchant || undefined,
-        notes: form.notes || undefined,
+        merchant: (form.merchant ||
+          (isEdit ? null : undefined)) as CreateTransactionInput["merchant"],
+        notes: (form.notes ||
+          (isEdit ? null : undefined)) as CreateTransactionInput["notes"],
         // Match server: native currency comes from the primary container.
         currency: (
           (form.type === "expense" || form.type === "transfer"
@@ -625,6 +725,7 @@ export function TransactionForm({
           onRemove={() => {
             if (localPreview.url) URL.revokeObjectURL(localPreview.url);
             setLocalPreview(null);
+            setAttachedReceipt(null);
             setForm(emptyTransaction());
             setTime("");
             setShowReceiptFields(false);
@@ -824,8 +925,12 @@ export function TransactionForm({
             step="0.01"
             min="0"
             required
-            value={form.amount || ""}
-            onChange={(e) => update("amount", Number(e.target.value))}
+            value={amountText}
+            onChange={(e) => {
+              const raw = e.target.value;
+              setAmountText(raw);
+              update("amount", Number(raw) || 0);
+            }}
             placeholder="0.00"
           />
         </FieldCard>

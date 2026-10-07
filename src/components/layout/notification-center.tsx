@@ -21,6 +21,7 @@ import {
   selectVisibleNotifications,
   type Notice,
 } from "@/lib/store/slices/notificationsSlice";
+import { toAppSpaceHref } from "@/components/spaces/space-links";
 
 function iconFor(notice: Notice) {
   if (notice.kind === "goal") return Target;
@@ -105,7 +106,7 @@ export function NotificationCenter() {
                 type="button"
                 onClick={() => {
                   dispatch(markNoticeRead(notice.id));
-                  router.push(notice.href);
+                  router.push(toAppSpaceHref(notice.href));
                 }}
                 className="flex w-full items-start gap-3 rounded-[10px] px-3 py-3 text-left hover:bg-[var(--ds-background-100)] ds-focus"
               >

@@ -1,4 +1,10 @@
-import { api, unwrap } from "./client";
+import {
+  api,
+  getApiBaseUrl,
+  getRefreshToken,
+  isRetryableWriteError,
+  unwrap,
+} from "./client";
 import type { User } from "@/types";
 import { saveUserSettingsLocal } from "@/lib/offline/repos";
 import { isOnline } from "@/lib/offline/network";
@@ -10,6 +16,8 @@ export type UpdateProfileInput = {
   currency?: string;
   timezone?: string;
   locale?: string;
+  /** Merged into users.preferences server-side. */
+  preferences?: Record<string, unknown>;
 };
 
 /** Turn a stored avatar path into a browser-loadable URL. */
@@ -25,9 +33,8 @@ export function resolveAvatarUrl(
   ) {
     return avatarUrl;
   }
-  const apiBase =
-    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:9000/api";
-  const origin = apiBase.replace(/\/api\/?$/, "");
+  // Honour the runtime API override (Settings / Capacitor), not just the build env.
+  const origin = getApiBaseUrl().replace(/\/api\/?$/, "");
   return `${origin}${avatarUrl.startsWith("/") ? avatarUrl : `/${avatarUrl}`}`;
 }
 
@@ -69,8 +76,9 @@ export async function updateProfile(payload: UpdateProfileInput): Promise<User> 
         _pending: false,
       } as any);
       return user;
-    } catch {
-      /* fall through */
+    } catch (error) {
+      // Queue only when the server never got it; real errors go to the UI.
+      if (!isRetryableWriteError(error)) throw error;
     }
   }
   const local = await saveUserSettingsLocal(userId, payload as any);
@@ -135,4 +143,97 @@ export async function saveThemePreferences(payload: {
 }): Promise<ThemePreferencesPayload> {
   const res = await api.put("/user/theme-preferences", payload);
   return unwrap<ThemePreferencesPayload>(res);
+}
+
+/* ------------------------------ Preferences ------------------------------ */
+
+export type PreferencesPayload = {
+  preferences: Record<string, unknown>;
+  updated_at?: string;
+};
+
+export async function getPreferences(): Promise<PreferencesPayload> {
+  const res = await api.get("/user/preferences");
+  return unwrap<PreferencesPayload>(res);
+}
+
+/**
+ * Save preferences. Online: PATCH /user/preferences. Offline (or the request
+ * never reached the server): queued through the existing `user_settings`
+ * offline entity, which the sync engine pushes to PATCH /user/profile.
+ */
+export async function savePreferences(
+  userId: string,
+  preferences: Record<string, unknown>,
+): Promise<{ preferences: Record<string, unknown>; queued: boolean }> {
+  if (isOnline()) {
+    try {
+      const res = await api.patch("/user/preferences", preferences);
+      const data = unwrap<PreferencesPayload>(res);
+      return { preferences: data.preferences, queued: false };
+    } catch (error) {
+      if (!isRetryableWriteError(error)) throw error;
+    }
+  }
+  await saveUserSettingsLocal(userId, { preferences });
+  return { preferences, queued: true };
+}
+
+/* -------------------------------- Sessions ------------------------------- */
+
+export type UserSession = {
+  id: string;
+  user_agent: string | null;
+  ip_address: string | null;
+  created_at: string;
+  last_used_at: string;
+  expires_at: string;
+  current: boolean;
+};
+
+async function sha256Hex(value: string): Promise<string | null> {
+  try {
+    if (!globalThis.crypto?.subtle) return null;
+    const digest = await globalThis.crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(value),
+    );
+    return Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  } catch {
+    return null;
+  }
+}
+
+export async function listSessions(): Promise<UserSession[]> {
+  const token = getRefreshToken();
+  // Only the hash (as stored server-side) is sent, never the token itself.
+  const current = token ? await sha256Hex(token) : null;
+  const res = await api.get("/user/sessions", {
+    params: current ? { current } : undefined,
+  });
+  return unwrap<UserSession[]>(res);
+}
+
+export async function revokeSession(id: string): Promise<void> {
+  await api.delete(`/user/sessions/${encodeURIComponent(id)}`);
+}
+
+export async function revokeOtherSessions(): Promise<{ revoked: number }> {
+  const refreshToken = getRefreshToken();
+  const res = await api.post(
+    "/user/sessions/revoke-others",
+    refreshToken ? { refreshToken } : {},
+  );
+  return unwrap<{ revoked: number }>(res);
+}
+
+/* ---------------------------- Account deletion --------------------------- */
+
+export async function deleteAccount(payload: {
+  password: string;
+  confirmation: string;
+}): Promise<void> {
+  await api.post("/user/delete-account", payload);
 }

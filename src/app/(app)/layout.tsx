@@ -76,7 +76,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <AppSidebar />
           <main
             className={cn(
-              "h-[calc(100dvh-3rem)] translate-y-12 transition-[margin-left] duration-200 md:ml-[var(--app-sidebar-offset)]",
+              // Offset matches AppTopbar: 3rem + the top safe-area inset.
+              "h-[calc(100dvh-3rem-env(safe-area-inset-top))] translate-y-[calc(3rem+env(safe-area-inset-top))] transition-[margin-left] duration-200 md:ml-[var(--app-sidebar-offset)]",
               isFullBleedWorkspace
                 ? "overflow-hidden p-0 pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-0"
                 : "app-scrollbar overflow-x-hidden overflow-y-auto overscroll-contain scroll-pt-3 px-3 pt-5 pb-[calc(6.25rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 sm:pb-6 md:pb-10",

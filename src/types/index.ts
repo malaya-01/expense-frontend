@@ -14,6 +14,8 @@ export type User = {
   timezone?: string;
   locale?: string;
   avatar_url?: string | null;
+  /** App preferences (see src/lib/preferences/types.ts). */
+  preferences?: Record<string, unknown> | null;
   email_verified?: boolean;
   is_admin?: boolean;
   permissions?: string[];

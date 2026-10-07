@@ -4,16 +4,34 @@ import { memo } from "react";
 import {
   CircleAlert,
   Copy,
+  CornerDownRight,
   ExternalLink,
   Globe2,
   RefreshCw,
+  RotateCcw,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/ai/markdown-renderer";
+import { RenderBoundary } from "@/components/ai/render-boundary";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { cn } from "@/lib/cn";
+import type { ReplyCutoff } from "@/lib/ai/reply-cutoff";
 import type { AiActionProposal, AiCitation, AiMessage } from "@/types";
+
+function copyText(text: string) {
+  try {
+    void navigator.clipboard?.writeText(text).catch(() => undefined);
+  } catch {
+    /* clipboard unavailable (e.g. insecure WebView origin) */
+  }
+}
+
+const CUTOFF_COPY: Record<ReplyCutoff, string> = {
+  truncated: "This reply was cut short.",
+  interrupted: "This reply was interrupted.",
+  stopped: "You stopped this reply.",
+};
 
 export const AssistantMessage = memo(function AssistantMessage({
   message,
@@ -24,6 +42,10 @@ export const AssistantMessage = memo(function AssistantMessage({
   busyProposal,
   streaming,
   status,
+  cutoff,
+  continueDisabledReason,
+  onContinue,
+  onRetry,
 }: {
   message: AiMessage;
   proposals: AiActionProposal[];
@@ -33,6 +55,11 @@ export const AssistantMessage = memo(function AssistantMessage({
   busyProposal: string | null;
   streaming?: boolean;
   status?: string;
+  /** Set on the latest assistant reply when it ended early. */
+  cutoff?: ReplyCutoff | null;
+  continueDisabledReason?: string;
+  onContinue?: () => void;
+  onRetry?: () => void;
 }) {
   const perms = useModulePermissions("ai");
   const hasContent = Boolean(message.content?.trim());
@@ -50,7 +77,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   ].slice(0, 4);
 
   return (
-    <div className="flex gap-3 [content-visibility:auto]">
+    <div className="flex min-w-0 gap-3">
       <Avatar name="Opal Advisor" className="mt-0.5 shrink-0" />
       <div className="min-w-0 max-w-[min(680px,92%)] flex-1">
         <div className="mb-1.5 flex items-center gap-2">
@@ -65,13 +92,13 @@ export const AssistantMessage = memo(function AssistantMessage({
           </time>
         </div>
 
-        <div className="text-sm leading-6 text-[var(--ds-gray-1000)]">
+        <div className="min-w-0 break-words text-sm leading-6 text-[var(--ds-gray-1000)]">
           {message.attachments?.length ? (
             <div className="mb-3 flex flex-wrap gap-2">
               {message.attachments.map((file) => (
                 <span
                   key={`${file.name}-${file.mime_type}`}
-                  className="inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--ds-background-elevated)] px-2.5 py-1 text-[11px] shadow-[var(--ds-shadow-sm,0_1px_2px_rgba(0,0,0,0.06))]"
+                  className="inline-flex max-w-full items-center gap-1.5 truncate rounded-[8px] bg-[var(--ds-background-elevated)] px-2.5 py-1 text-[11px] shadow-[var(--ds-shadow-sm,0_1px_2px_rgba(0,0,0,0.06))]"
                 >
                   {file.name}
                 </span>
@@ -124,6 +151,46 @@ export const AssistantMessage = memo(function AssistantMessage({
               />
             ) : null}
           </div>
+
+          {!streaming && cutoff && (onContinue || onRetry) ? (
+            <div
+              className="mt-3 flex flex-wrap items-center gap-2 rounded-[12px] bg-[var(--ds-background-elevated)] px-3 py-2 shadow-[var(--ds-shadow-sm,0_1px_2px_rgba(0,0,0,0.06))]"
+              role="group"
+              aria-label="Reply ended early"
+            >
+              <p className="min-w-0 flex-1 text-[11px] text-[var(--ds-gray-800)]">
+                {CUTOFF_COPY[cutoff]}
+              </p>
+              <div className="flex shrink-0 flex-wrap gap-1.5">
+                {onRetry ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={!perms.create}
+                    onClick={onRetry}
+                  >
+                    <RotateCcw size={13} />
+                    Retry
+                  </Button>
+                ) : null}
+                {onContinue ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={!perms.create || Boolean(continueDisabledReason)}
+                    title={
+                      continueDisabledReason ||
+                      "Ask the advisor to continue this reply"
+                    }
+                    onClick={onContinue}
+                  >
+                    <CornerDownRight size={13} />
+                    Continue
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
           {webSources.length ? (
             <section className="mt-4">
@@ -230,7 +297,7 @@ export const AssistantMessage = memo(function AssistantMessage({
               type="button"
               className="rounded-[7px] p-1.5 hover:bg-[var(--ds-gray-100)] ds-focus"
               aria-label="Copy message"
-              onClick={() => void navigator.clipboard.writeText(message.content)}
+              onClick={() => copyText(message.content)}
             >
               <Copy size={13} />
             </button>
@@ -247,8 +314,8 @@ export const UserMessage = memo(function UserMessage({
   message: AiMessage;
 }) {
   return (
-    <div className="flex justify-end gap-3 [content-visibility:auto]">
-      <div className="max-w-[min(560px,85%)]">
+    <div className="flex min-w-0 justify-end gap-3 [contain-intrinsic-size:auto_72px] [content-visibility:auto]">
+      <div className="min-w-0 max-w-[min(560px,85%)]">
         <div className="rounded-[18px] rounded-br-[6px] bg-[var(--ds-focus-color)] px-4 py-2.5 text-sm leading-6 text-white shadow-[var(--ds-shadow-sm,0_1px_2px_rgba(0,0,0,0.12))]">
           {message.attachments?.length ? (
             <div className="mb-2 flex flex-wrap gap-2">
@@ -262,7 +329,9 @@ export const UserMessage = memo(function UserMessage({
               ))}
             </div>
           ) : null}
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+            {message.content}
+          </p>
         </div>
         <time className="mt-1 block text-right text-[10px] text-[var(--ds-gray-700)]">
           {new Date(message.created_at).toLocaleTimeString([], {
@@ -284,6 +353,10 @@ export const MessageBubble = memo(function MessageBubble({
   busyProposal,
   streaming,
   status,
+  cutoff,
+  continueDisabledReason,
+  onContinue,
+  onRetry,
 }: {
   message: AiMessage;
   proposals: AiActionProposal[];
@@ -293,26 +366,64 @@ export const MessageBubble = memo(function MessageBubble({
   busyProposal: string | null;
   streaming?: boolean;
   status?: string;
+  cutoff?: ReplyCutoff | null;
+  continueDisabledReason?: string;
+  onContinue?: () => void;
+  onRetry?: () => void;
 }) {
+  if (!message || typeof message !== "object") return null;
   if (message.role === "user") {
-    return <UserMessage message={message} />;
+    return (
+      <RenderBoundary
+        label="user message"
+        resetKey={message.content}
+        fallback={() => <MessageFallback content={message.content} />}
+      >
+        <UserMessage message={message} />
+      </RenderBoundary>
+    );
   }
   if (message.role === "system" || message.role === "tool") {
     return null;
   }
   return (
-    <AssistantMessage
-      message={message}
-      proposals={proposals}
-      onConfirm={onConfirm}
-      onReject={onReject}
-      onReviewBatch={onReviewBatch}
-      busyProposal={busyProposal}
-      streaming={streaming}
-      status={status}
-    />
+    <RenderBoundary
+      label="assistant message"
+      resetKey={`${streaming ? "s" : "f"}:${message.content?.length ?? 0}:${proposals.length}`}
+      fallback={() => <MessageFallback content={message.content} />}
+    >
+      <AssistantMessage
+        message={message}
+        proposals={proposals}
+        onConfirm={onConfirm}
+        onReject={onReject}
+        onReviewBatch={onReviewBatch}
+        busyProposal={busyProposal}
+        streaming={streaming}
+        status={status}
+        cutoff={cutoff}
+        continueDisabledReason={continueDisabledReason}
+        onContinue={onContinue}
+        onRetry={onRetry}
+      />
+    </RenderBoundary>
   );
 });
+
+function MessageFallback({ content }: { content?: string }) {
+  return (
+    <div className="min-w-0 rounded-[12px] bg-[var(--ds-background-elevated)] px-3 py-2 text-sm">
+      <p className="text-[11px] text-[var(--ds-gray-700)]">
+        This message couldn’t be displayed with formatting.
+      </p>
+      {content ? (
+        <div className="mt-1 whitespace-pre-wrap break-words leading-6 [overflow-wrap:anywhere]">
+          {content}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function ThinkingDots({ label }: { label: string }) {
   return (

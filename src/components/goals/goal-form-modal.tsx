@@ -41,10 +41,16 @@ export function GoalFormModal({
     container_id: "",
     notes: "",
   });
+  // Raw text per numeric field so partial decimals like "0." survive typing.
+  const [targetText, setTargetText] = useState("");
+  const [currentText, setCurrentText] = useState("");
 
   useEffect(() => {
     if (!open) return;
     if (initial) {
+      const saved = initial.stored_current_amount ?? initial.current_amount;
+      setTargetText(initial.target_amount ? String(initial.target_amount) : "");
+      setCurrentText(saved ? String(saved) : "");
       setForm({
         name: initial.name,
         goal_type: initial.goal_type,
@@ -56,6 +62,8 @@ export function GoalFormModal({
         notes: initial.notes || "",
       });
     } else {
+      setTargetText("");
+      setCurrentText("");
       setForm({
         name: "",
         goal_type: "emergency_fund",
@@ -74,7 +82,12 @@ export function GoalFormModal({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (saving) return;
-    if (!form.name.trim() || !form.target_amount || form.target_amount <= 0) {
+    const targetAmount = Number(targetText);
+    if (
+      !form.name.trim() ||
+      !Number.isFinite(targetAmount) ||
+      targetAmount <= 0
+    ) {
       return;
     }
     setSaving(true);
@@ -82,10 +95,10 @@ export function GoalFormModal({
       await onSubmit({
         name: form.name.trim(),
         goal_type: form.goal_type || "other",
-        target_amount: Number(form.target_amount),
+        target_amount: targetAmount,
         current_amount: form.container_id
           ? undefined
-          : Number(form.current_amount) || 0,
+          : Number(currentText) || 0,
         currency: (form.currency || defaultCurrency).toUpperCase(),
         target_date: form.target_date || undefined,
         container_id: form.container_id || undefined,
@@ -177,13 +190,15 @@ export function GoalFormModal({
               step="0.01"
               min="0.01"
               required
-              value={form.target_amount || ""}
-              onChange={(e) =>
+              value={targetText}
+              onChange={(e) => {
+                const raw = e.target.value;
+                setTargetText(raw);
                 setForm((f) => ({
                   ...f,
-                  target_amount: Number(e.target.value),
-                }))
-              }
+                  target_amount: Number(raw) || 0,
+                }));
+              }}
             />
           </div>
           <div>
@@ -228,13 +243,15 @@ export function GoalFormModal({
               type="number"
               step="0.01"
               min="0"
-              value={form.current_amount || ""}
-              onChange={(e) =>
+              value={currentText}
+              onChange={(e) => {
+                const raw = e.target.value;
+                setCurrentText(raw);
                 setForm((f) => ({
                   ...f,
-                  current_amount: Number(e.target.value),
-                }))
-              }
+                  current_amount: Number(raw) || 0,
+                }));
+              }}
             />
           </div>
         ) : null}

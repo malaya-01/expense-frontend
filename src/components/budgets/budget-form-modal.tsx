@@ -39,9 +39,12 @@ export function BudgetFormModal({
     currency: defaultCurrency,
     notes: "",
   });
+  // Raw text for the limit so partial decimals like "0." / "0.0" survive typing.
+  const [amountText, setAmountText] = useState("");
 
   useEffect(() => {
     if (!open) return;
+    setAmountText(initial?.amount ? String(initial.amount) : "");
     if (initial) {
       setForm({
         name: initial.name,
@@ -68,16 +71,20 @@ export function BudgetFormModal({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (saving) return;
-    if (!form.name.trim() || !form.amount || form.amount <= 0) return;
+    const amount = Number(amountText);
+    if (!form.name.trim() || !Number.isFinite(amount) || amount <= 0) return;
     setSaving(true);
     try {
       await onSubmit({
         name: form.name.trim(),
-        amount: Number(form.amount),
+        amount,
         period_type: form.period_type || "monthly",
-        category_id: form.category_id || undefined,
+        // When editing, an explicit null clears a previously chosen category
+        // (the API accepts null on update); omit it on create.
+        category_id: (form.category_id ||
+          (initial ? null : undefined)) as CreateBudgetInput["category_id"],
         currency: (form.currency || defaultCurrency).toUpperCase(),
-        notes: form.notes || undefined,
+        notes: form.notes || (initial ? "" : undefined),
       });
     } finally {
       setSaving(false);
@@ -122,10 +129,12 @@ export function BudgetFormModal({
               step="0.01"
               min="0.01"
               required
-              value={form.amount || ""}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, amount: Number(e.target.value) }))
-              }
+              value={amountText}
+              onChange={(e) => {
+                const raw = e.target.value;
+                setAmountText(raw);
+                setForm((f) => ({ ...f, amount: Number(raw) || 0 }));
+              }}
               placeholder="0.00"
             />
           </div>

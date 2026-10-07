@@ -17,9 +17,9 @@ export function RecurringCard({
 }: {
   schedule: RecurringSchedule;
   currency: string;
-  onPost?: () => void;
-  onPause?: () => void;
-  onResume?: () => void;
+  onPost?: () => void | Promise<void>;
+  onPause?: () => void | Promise<void>;
+  onResume?: () => void | Promise<void>;
   onArchive?: () => void;
 }) {
   const due =

@@ -16,6 +16,18 @@ import type {
   InvestmentHolding,
 } from "@/types";
 
+type NumericText = {
+  quantity: string;
+  avg_cost: string;
+  current_price: string;
+};
+
+const EMPTY_NUMERIC_TEXT: NumericText = {
+  quantity: "",
+  avg_cost: "",
+  current_price: "",
+};
+
 export function HoldingFormModal({
   open,
   onClose,
@@ -42,9 +54,25 @@ export function HoldingFormModal({
     container_id: "",
     notes: "",
   });
+  // Raw text per numeric field so partial decimals like "0." / "0.05" survive typing.
+  const [numText, setNumText] = useState<NumericText>(EMPTY_NUMERIC_TEXT);
+
+  function setNumeric(key: keyof NumericText, raw: string) {
+    setNumText((t) => ({ ...t, [key]: raw }));
+    setForm((f) => ({ ...f, [key]: Number(raw) || 0 }));
+  }
 
   useEffect(() => {
     if (!open) return;
+    setNumText(
+      initial
+        ? {
+            quantity: String(initial.quantity ?? ""),
+            avg_cost: String(initial.avg_cost ?? ""),
+            current_price: String(initial.current_price ?? ""),
+          }
+        : EMPTY_NUMERIC_TEXT,
+    );
     if (initial) {
       setForm({
         name: initial.name,
@@ -83,9 +111,9 @@ export function HoldingFormModal({
         name: form.name.trim(),
         symbol: form.symbol?.trim() || undefined,
         asset_type: form.asset_type || "other",
-        quantity: Number(form.quantity) || 0,
-        avg_cost: Number(form.avg_cost) || 0,
-        current_price: Number(form.current_price) || 0,
+        quantity: Number(numText.quantity) || 0,
+        avg_cost: Number(numText.avg_cost) || 0,
+        current_price: Number(numText.current_price) || 0,
         currency: (form.currency || defaultCurrency).toUpperCase(),
         container_id: form.container_id || null,
         notes: form.notes || undefined,
@@ -169,10 +197,8 @@ export function HoldingFormModal({
               step="any"
               min="0"
               required
-              value={form.quantity || ""}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, quantity: Number(e.target.value) }))
-              }
+              value={numText.quantity}
+              onChange={(e) => setNumeric("quantity", e.target.value)}
             />
           </div>
           <div>
@@ -183,10 +209,8 @@ export function HoldingFormModal({
               step="any"
               min="0"
               required
-              value={form.avg_cost || ""}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, avg_cost: Number(e.target.value) }))
-              }
+              value={numText.avg_cost}
+              onChange={(e) => setNumeric("avg_cost", e.target.value)}
             />
           </div>
           <div>
@@ -197,13 +221,8 @@ export function HoldingFormModal({
               step="any"
               min="0"
               required
-              value={form.current_price || ""}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  current_price: Number(e.target.value),
-                }))
-              }
+              value={numText.current_price}
+              onChange={(e) => setNumeric("current_price", e.target.value)}
             />
           </div>
         </div>

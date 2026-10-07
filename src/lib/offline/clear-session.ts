@@ -1,4 +1,8 @@
-import { API_BASE_STORAGE_KEY, clearTokens } from "@/lib/api/client";
+import {
+  API_BASE_STORAGE_KEY,
+  clearTokens,
+  revokeServerSession,
+} from "@/lib/api/client";
 import { USER_STORAGE_KEY } from "@/lib/store/slices/authSlice";
 import { DISMISSED_NOTIFICATIONS_KEY } from "@/lib/store/slices/notificationsSlice";
 import { getMeta, offlineDb, setMeta } from "./db";
@@ -31,10 +35,12 @@ function wipeAuthCookies() {
 
 function wipeAccountStorage() {
   if (typeof window === "undefined") return;
+  // Custom themes are NOT kept: themes/sync.ts seeds a new account's backend
+  // from local theme state, which would leak this user's themes to the next.
+  // (The logout listener resets the active theme to a preset.)
   const keep = new Set([
     API_BASE_STORAGE_KEY,
     "expense-tracker:active-theme-id",
-    "expense-tracker:custom-themes",
     "finos:sidebar-pinned",
     "finos:sidebar-width",
   ]);
@@ -62,6 +68,9 @@ function wipeAccountStorage() {
 }
 
 export async function clearOfflineTables(): Promise<void> {
+  // Bump the sync epoch first so a run in flight cannot write into the
+  // tables after they are cleared.
+  resetOfflineSyncRuntime();
   await Promise.all(offlineDb.tables.map((table) => table.clear()));
   resetOfflineSyncRuntime();
 }
@@ -77,13 +86,27 @@ async function clearOfflineWorkspace(userId?: string | null): Promise<void> {
   } catch {
     /* ignore */
   }
+  try {
+    // Separate "finos-spaces-outbox" IndexedDB — drafts must not be flushed
+    // under the next account.
+    const { clearSpaceDrafts } = await import("@/lib/spaces/offline-outbox");
+    await clearSpaceDrafts();
+  } catch {
+    /* ignore */
+  }
   activeUserId = null;
 }
 
-/** Wipe tokens, cookies, IndexedDB, and account backups for this device. */
+/**
+ * Explicit sign-out: revoke the server session, then wipe tokens, cookies,
+ * IndexedDB (incl. the spaces drafts DB), and account backups for this device.
+ * Session expiry must NOT call this — it would drop unsynced work.
+ */
 export async function clearAccountLocalData(
   userId?: string | null,
 ): Promise<void> {
+  // Needs the refresh token, so it must run before clearTokens().
+  await revokeServerSession(5_000);
   const uid =
     userId ||
     activeUserId ||

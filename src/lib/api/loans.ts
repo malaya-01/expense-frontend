@@ -3,7 +3,7 @@ import type {
   Loan,
   LoanAmortizationRow,
 } from "@/types";
-import { api, unwrap } from "./client";
+import { api, isRetryableWriteError, unwrap } from "./client";
 import { loanPaymentLocal, loansRepo } from "@/lib/offline/repos";
 import { isOnline } from "@/lib/offline/network";
 
@@ -40,8 +40,9 @@ export async function recordLoanPayment(
     try {
       const response = await api.post(`/loans/${id}/payments`, input);
       return unwrap<{ loan: Loan }>(response);
-    } catch {
-      /* queue offline */
+    } catch (error) {
+      // Queue only when the server never got it; real errors go to the UI.
+      if (!isRetryableWriteError(error)) throw error;
     }
   }
   await loanPaymentLocal(id, input);

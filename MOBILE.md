@@ -57,11 +57,39 @@ After installing the APK: if login still fails, open **Settings → Offline & Sy
 ```bash
 cd expense-frontend
 npm install
-npm run mobile:android
+npm run mobile:android   # build:mobile (static export -> out/) + cap sync android
 npm run cap:open
 ```
 
 In Android Studio: Run on emulator/device.
+
+Android Studio only packages what is already in `android/app/src/main/assets/public`.
+After **any** web change, run `npm run mobile:android` (or `npm run build:mobile`
+followed by `npm run cap:sync`) **before** pressing Run / Build in Android Studio,
+otherwise the APK ships the previous web build.
+
+### Release signing
+
+Release builds are signed only when `android/keystore.properties` exists
+(it, `*.jks` and `*.keystore` are gitignored — never commit them):
+
+```properties
+# android/keystore.properties
+storeFile=release.jks          # path relative to android/
+storePassword=********
+keyAlias=opal
+keyPassword=********
+```
+
+Create a keystore once (keep it and its passwords safe; losing it means you can
+no longer update the Play Store listing):
+
+```bash
+keytool -genkeypair -v -keystore android/release.jks -alias opal -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Then `cd android && ./gradlew assembleRelease` (or `bundleRelease`). Without
+`keystore.properties` the release variant still builds, just unsigned.
 
 ### Scripts
 
@@ -72,16 +100,45 @@ In Android Studio: Run on emulator/device.
 | `npm run cap:open` | Open Android Studio |
 | `npm run mobile:android` | Export + sync |
 
-### Cleartext / LAN API
+### Cleartext / local API (debug only)
 
-Debug builds allow cleartext HTTP via `network_security_config.xml` and `usesCleartextTraffic`. Production should use HTTPS.
+Release builds are HTTPS-only: `android/app/src/main/res/xml/network_security_config.xml`
+disallows cleartext and the manifest no longer sets `usesCleartextTraffic`.
 
-### Dynamic routes note
+Debug builds use `android/app/src/debug/res/xml/network_security_config.xml`,
+which allows cleartext **only** to `10.0.2.2` (emulator → host machine),
+`localhost` and `127.0.0.1`. To test a physical device against a LAN IP, add
+that IP to the debug file (don't add it to `main`).
 
-Static export includes placeholder params for `/expenses/[id]`, `/spaces/[spaceId]`, and invite tokens. Prefer in-app navigation from lists. Deep-linking arbitrary IDs into a cold start may miss a static HTML file — open the app then navigate.
+To point a debug build at a local backend:
+
+1. Build with the emulator URL baked in, e.g.
+   `npx cross-env MOBILE=1 NEXT_PUBLIC_API_BASE_URL=http://10.0.2.2:9000/api next build`,
+   then `npx cross-env CAP_DEV=1 npx cap sync android` (`CAP_DEV=1` also turns on
+   Capacitor's `server.cleartext` / `android.allowMixedContent`, which stay off
+   in normal syncs), **or**
+2. In an existing debug install open **Settings → Offline & Sync**, set the API
+   base URL to `http://10.0.2.2:9000/api`, then **Save & test connection**.
+   (Loopback URLs such as `localhost` are cleared automatically on device.)
+
+Run a plain `npm run mobile:android` again before making a release build so the
+production config is synced.
+
+### Routes in the static export
+
+Capacitor serves the root `index.html` for any path without a file extension,
+and the static export cannot pre-render arbitrary IDs. So:
+
+- Pages that need an ID use query params on a single static page:
+  `/spaces/view?id=<spaceId>`, `/spaces/invites/accept?token=<token>`,
+  `/expenses/edit?id=<transactionId>`. The old `/spaces/<id>`,
+  `/spaces/invites/<token>` and `/expenses/<id>` URLs still work on the web only.
+- When the app starts or reloads on a non-root path, the root page forwards to
+  that route client-side (with a short loop guard), so reloads keep the current
+  page instead of jumping to the dashboard.
 
 ## Smoke test checklist
 
 1. Web: create a transaction offline → reconnect → appears on server / second browser after pull.
 2. Edit the same transaction on two clients → conflict appears → Keep local / Keep remote resolves.
-3. Android emulator: sign in against `http://10.0.2.2:9000/api`, create an account offline (airplane mode), go online, confirm sync indicator clears pending count.
+3. Android emulator (debug build): sign in against `http://10.0.2.2:9000/api`, create an account offline (airplane mode), go online, confirm sync indicator clears pending count.

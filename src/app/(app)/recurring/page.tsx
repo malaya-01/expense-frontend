@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/page-header";
 import { ModuleHeader } from "@/components/ui/module-header";
 import { SummaryKpiCard } from "@/components/ui/summary-kpi-card";
 import { RecurringCard } from "@/components/recurring/recurring-card";
+import { TRANSACTION_CREATED_EVENT } from "@/components/expenses/transaction-modal-provider";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Label } from "@/components/ui/label";
@@ -89,28 +90,44 @@ export default function RecurringPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  const refresh = useCallback(async () => {
-    if (!user?.id) return;
-    setLoading(true);
-    setError("");
-    try {
-      const [scheduleRows, accountRows, categoryRows] = await Promise.all([
-        listRecurringSchedules(),
-        listAccounts(user.id),
-        listCategories(),
-      ]);
-      setSchedules(scheduleRows);
-      setAccounts(accountRows);
-      setCategories(categoryRows);
-    } catch (err) {
-      setError(getErrorMessage(err, "Could not load recurring schedules"));
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
+  const refresh = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!user?.id) return;
+      const silent = Boolean(options?.silent);
+      if (!silent) {
+        setLoading(true);
+        setError("");
+      }
+      try {
+        const [scheduleRows, accountRows, categoryRows] = await Promise.all([
+          listRecurringSchedules(),
+          listAccounts(user.id),
+          listCategories(),
+        ]);
+        setSchedules(scheduleRows);
+        setAccounts(accountRows);
+        setCategories(categoryRows);
+      } catch (err) {
+        if (silent) return;
+        setError(getErrorMessage(err, "Could not load recurring schedules"));
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [user?.id],
+  );
 
   useEffect(() => {
     void refresh();
+    const onDataChanged = () => void refresh({ silent: true });
+    window.addEventListener("finos:data-updated", onDataChanged);
+    window.addEventListener("finos:sync-complete", onDataChanged);
+    window.addEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+    return () => {
+      window.removeEventListener("finos:data-updated", onDataChanged);
+      window.removeEventListener("finos:sync-complete", onDataChanged);
+      window.removeEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+    };
   }, [refresh]);
 
   const metrics = useMemo(() => {
@@ -147,8 +164,38 @@ export default function RecurringPage() {
     resetKey: `${search}|${statusFilter}`,
   });
 
+  function validateSchedule(): string | null {
+    const type = form.transaction_type;
+    if (!Number.isFinite(Number(form.amount)) || Number(form.amount) <= 0) {
+      return "Enter an amount greater than zero.";
+    }
+    if (type !== "income" && !form.source_container_id) {
+      return "Choose the source container money leaves from.";
+    }
+    if (type !== "expense" && !form.destination_container_id) {
+      return "Choose the destination container money arrives in.";
+    }
+    if (
+      type === "transfer" &&
+      form.source_container_id === form.destination_container_id
+    ) {
+      return "Source and destination must be different containers.";
+    }
+    return null;
+  }
+
   async function create(event: FormEvent) {
     event.preventDefault();
+    if (saving) return;
+    const invalid = validateSchedule();
+    if (invalid) {
+      showToast({
+        title: "Check the schedule",
+        description: invalid,
+        tone: "warning",
+      });
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -170,7 +217,13 @@ export default function RecurringPage() {
       });
       await refresh();
     } catch (err) {
-      setError(getErrorMessage(err, "Could not create schedule"));
+      const message = getErrorMessage(err, "Could not create schedule");
+      setError(message);
+      showToast({
+        title: "Could not create schedule",
+        description: message,
+        tone: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -195,18 +248,45 @@ export default function RecurringPage() {
       });
       await refresh();
     } catch (err) {
-      setError(getErrorMessage(err, "Execution could not run"));
+      const message = getErrorMessage(err, "Execution could not run");
+      setError(message);
+      showToast({
+        title: "Could not post transaction",
+        description: message,
+        tone: "error",
+      });
     }
   }
 
-  async function handlePause(schedule: RecurringSchedule) {
-    await updateRecurringSchedule(schedule.id, { status: "paused" });
-    await refresh();
+  async function setScheduleStatus(
+    schedule: RecurringSchedule,
+    status: "paused" | "active",
+  ) {
+    try {
+      await updateRecurringSchedule(schedule.id, { status });
+      showToast({
+        title: status === "paused" ? "Schedule paused" : "Schedule resumed",
+        tone: "success",
+      });
+      await refresh();
+    } catch (err) {
+      showToast({
+        title:
+          status === "paused"
+            ? "Could not pause schedule"
+            : "Could not resume schedule",
+        description: getErrorMessage(err, "Please try again."),
+        tone: "error",
+      });
+    }
   }
 
-  async function handleResume(schedule: RecurringSchedule) {
-    await updateRecurringSchedule(schedule.id, { status: "active" });
-    await refresh();
+  function handlePause(schedule: RecurringSchedule) {
+    return setScheduleStatus(schedule, "paused");
+  }
+
+  function handleResume(schedule: RecurringSchedule) {
+    return setScheduleStatus(schedule, "active");
   }
 
   return (
@@ -309,14 +389,12 @@ export default function RecurringPage() {
               key={schedule.id}
               schedule={schedule}
               currency={user?.currency || "USD"}
-              onPost={
-                perms.update ? () => void handlePost(schedule) : undefined
-              }
+              onPost={perms.update ? () => handlePost(schedule) : undefined}
               onPause={
-                perms.update ? () => void handlePause(schedule) : undefined
+                perms.update ? () => handlePause(schedule) : undefined
               }
               onResume={
-                perms.update ? () => void handleResume(schedule) : undefined
+                perms.update ? () => handleResume(schedule) : undefined
               }
               onArchive={
                 perms.delete ? () => setArchiveTarget(schedule) : undefined
@@ -585,10 +663,18 @@ export default function RecurringPage() {
         onClose={() => setArchiveTarget(null)}
         onConfirm={async () => {
           if (!archiveTarget) return;
-          await archiveRecurringSchedule(archiveTarget.id);
-          setArchiveTarget(null);
-          showToast({ title: "Schedule archived", tone: "success" });
-          await refresh();
+          try {
+            await archiveRecurringSchedule(archiveTarget.id);
+            setArchiveTarget(null);
+            showToast({ title: "Schedule archived", tone: "success" });
+            await refresh();
+          } catch (err) {
+            showToast({
+              title: "Could not archive schedule",
+              description: getErrorMessage(err, "Please try again."),
+              tone: "error",
+            });
+          }
         }}
       />
     </div>

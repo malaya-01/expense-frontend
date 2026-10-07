@@ -39,6 +39,7 @@ export function resolveTheme(
             gray1000: custom.tokens.gray1000,
             gray900: custom.tokens.gray900,
             focusColor: custom.tokens.focusColor,
+            fonts: custom.fonts,
           },
           custom.id,
         ).tokens,
@@ -108,6 +109,7 @@ const themeSlice = createSlice({
             gray1000: source.tokens.gray1000,
             gray900: source.tokens.gray900,
             focusColor: source.tokens.focusColor,
+            fonts: source.fonts,
           }),
         };
       },

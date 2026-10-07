@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { formatDateTime } from "@/lib/format";
 import {
   CloudOff,
   RefreshCw,
@@ -126,7 +127,7 @@ export function SyncStatusButton() {
         <li>
           Last sync:{" "}
           {status.lastSyncAt
-            ? new Date(status.lastSyncAt).toLocaleString()
+            ? formatDateTime(status.lastSyncAt)
             : "Never"}
         </li>
         {status.lastError ? (

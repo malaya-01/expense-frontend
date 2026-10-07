@@ -12,7 +12,6 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { AppearanceSection } from "@/components/settings/theme-settings";
 import { AiProvidersSection } from "@/components/settings/ai-providers-section";
 import { SyncSettingsSection } from "@/components/settings/sync-settings-section";
-import { FaceLoginSettings } from "@/components/settings/face-login-section";
 import { ReportScheduleSection } from "@/components/settings/report-schedule-section";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -34,6 +33,7 @@ import { getErrorMessage } from "@/lib/api/client";
 import { openCommandPalette } from "@/components/layout/command-palette";
 import { getClientPlatform } from "@/lib/runtime-platform";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
+import { saveTextFile } from "@/components/native/save-file";
 
 const SECTIONS = [
   {
@@ -250,19 +250,17 @@ function SettingsPageInner() {
         investments,
         categories,
       };
-      const url = URL.createObjectURL(
-        new Blob([JSON.stringify(payload, null, 2)], {
-          type: "application/json",
-        }),
+      const saved = await saveTextFile(
+        `${APP_SLUG}-backup-${new Date().toISOString().slice(0, 10)}.json`,
+        JSON.stringify(payload, null, 2),
+        "application/json",
       );
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `${APP_SLUG}-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      anchor.click();
-      URL.revokeObjectURL(url);
       showToast({
         title: "Backup exported",
-        description: `Your ${APP_NAME} data was downloaded as JSON.`,
+        description:
+          saved.kind === "native"
+            ? `Saved to ${saved.path}.`
+            : `Your ${APP_NAME} data was downloaded as JSON.`,
         tone: "success",
       });
     } catch {
@@ -408,7 +406,6 @@ function SettingsPageInner() {
 
           {section === "security" ? (
             <div className="space-y-3 sm:space-y-4">
-              <FaceLoginSettings />
               <Card>
                 <CardHeader>
                   <h2 className="font-heading text-base font-semibold">
@@ -575,8 +572,6 @@ function SettingsPageInner() {
                 <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
                   Signed in as {user?.email || "—"}. Leaving the app does not
                   sign you out. Log out is the only way to end this session.
-                  Face login, if you set it up under Security, stays on this
-                  device until you turn it off.
                 </p>
               </CardHeader>
               <CardBody className="space-y-3">

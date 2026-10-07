@@ -4,7 +4,7 @@
  */
 
 import axios from "axios";
-import { api, unwrap } from "@/lib/api/client";
+import { api, isRetryableWriteError, unwrap } from "@/lib/api/client";
 import type { OutboxItem, SyncEntityType } from "./db";
 
 const TRANSACTION_WRITE_KEYS = [
@@ -29,12 +29,24 @@ const TRANSACTION_WRITE_KEYS = [
   "receipt_id",
 ] as const;
 
-function isBlank(value: unknown): boolean {
-  return value === undefined || value === null || value === "";
-}
+/** Optional FK / id fields where "" must be sent as null (clear), not "". */
+const NULLABLE_ID_KEYS = new Set<string>([
+  "category_id",
+  "source_container_id",
+  "destination_container_id",
+  "receipt_id",
+]);
 
-function cleanPayload(payload: Record<string, unknown>) {
+/** Update DTOs that accept `status` (pause / resume / close). */
+const STATUS_WRITABLE_TYPES = new Set<SyncEntityType>(["loan", "recurring"]);
+
+function cleanPayload(payload: Record<string, unknown>, type: SyncEntityType) {
   const {
+    status,
+    // Display-only joins added by the API facades (not in any backend DTO;
+    // forbidNonWhitelisted would 400 the whole request).
+    container_name: _cnm,
+    category_color: _cc,
     id: _id,
     _pending: _p,
     _sync_failed: _f,
@@ -55,11 +67,15 @@ function cleanPayload(payload: Record<string, unknown>) {
     spent: _spent,
     remaining: _rem,
     percent: _pct,
-    status: _st,
     progress_source: _ps,
     monthly_surplus: _ms,
     ...rest
   } = payload;
+  // Goal/budget facades add a computed status ("on_track") — strip it there.
+  // Loan / recurring updates need it for pause / resume / close.
+  if (STATUS_WRITABLE_TYPES.has(type) && status !== undefined) {
+    return { ...rest, status };
+  }
   return rest;
 }
 
@@ -69,17 +85,19 @@ function sanitizeTransactionPayload(
   const clean: Record<string, unknown> = {};
   for (const key of TRANSACTION_WRITE_KEYS) {
     const value = payload[key];
-    if (isBlank(value)) continue;
-    clean[key] = value;
+    // Only "not provided" is skipped; null clears an optional field.
+    if (value === undefined) continue;
+    clean[key] = value === "" && NULLABLE_ID_KEYS.has(key) ? null : value;
   }
   return clean;
 }
 
+/**
+ * Safe to keep the write locally and retry later: the server never processed
+ * it (no response / gateway / rate limit). Real 4xx/5xx answers are thrown.
+ */
 export function isTransientWriteError(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
-  if (!error.response) return true;
-  const status = error.response.status;
-  return status === 408 || status === 429 || status >= 500;
+  return isRetryableWriteError(error);
 }
 
 export function isNotFoundError(error: unknown): boolean {
@@ -89,13 +107,13 @@ export function isNotFoundError(error: unknown): boolean {
 export async function pushOutboxItemViaRest(
   item: OutboxItem,
 ): Promise<Record<string, unknown> | null> {
-  const raw = cleanPayload(item.payload || {});
+  const id = item.entity_id;
+  const type = item.entity_type as SyncEntityType;
+  const raw = cleanPayload(item.payload || {}, type);
   // Existing CRUD APIs on older deploys ignore/reject client ids — omit on create.
   const { id: _omitId, ...withoutId } = raw as Record<string, unknown> & {
     id?: string;
   };
-  const id = item.entity_id;
-  const type = item.entity_type as SyncEntityType;
   const payload =
     type === "transaction"
       ? sanitizeTransactionPayload(raw)
@@ -221,7 +239,11 @@ export async function pushOutboxItemViaRest(
   throw new Error(`Unsupported op ${item.op} for ${type}`);
 }
 
-export async function hydrateViaRestLists(): Promise<void> {
+export async function hydrateViaRestLists(options?: {
+  /** Return false to drop results (e.g. sign-out cleared the DB meanwhile). */
+  isCurrent?: () => boolean;
+}): Promise<void> {
+  const isCurrent = options?.isCurrent ?? (() => true);
   const { offlineDb } = await import("./db");
   const { getActiveOfflineUserId } = await import("./clear-session");
   const { getHydrateGeneration, runHydrate } = await import("./hydrate-cache");
@@ -242,7 +264,7 @@ export async function hydrateViaRestLists(): Promise<void> {
       runHydrate(table, async () => {
         const gen = getHydrateGeneration(table);
         const res = await api.get(path);
-        if (getHydrateGeneration(table) !== gen) return;
+        if (getHydrateGeneration(table) !== gen || !isCurrent()) return;
         const data = unwrap<any>(res);
         let rows: any[] = [];
         if (Array.isArray(data)) rows = data;
@@ -264,16 +286,9 @@ export async function hydrateViaRestLists(): Promise<void> {
           if (!row?.id) return [];
           const id = String(row.id);
           const local = existingById.get(id);
+          // Only unsynced local work wins. A newer local updated_at on a
+          // synced row is just clock skew — the server copy is authoritative.
           if (local?._pending || local?._sync_failed || local?.deleted_at) {
-            return [];
-          }
-          const remoteUpdated = Date.parse(String(row.updated_at || ""));
-          const localUpdated = Date.parse(String(local?.updated_at || ""));
-          if (
-            Number.isFinite(remoteUpdated) &&
-            Number.isFinite(localUpdated) &&
-            localUpdated > remoteUpdated
-          ) {
             return [];
           }
           return [
@@ -286,7 +301,7 @@ export async function hydrateViaRestLists(): Promise<void> {
             },
           ];
         });
-        if (next.length) await store.bulkPut(next);
+        if (next.length && isCurrent()) await store.bulkPut(next);
       }).catch(() => undefined),
     ),
   );

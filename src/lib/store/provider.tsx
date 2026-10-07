@@ -1,22 +1,32 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { Provider } from "react-redux";
 import { makeStore, type AppStore } from "./index";
 import { bootstrapAppState } from "./listeners";
 import {
   ensureNativeApiBase,
   ensureSession,
+  getAccessToken,
   registerAuthFailureHandler,
 } from "@/lib/api/client";
-import { logout } from "./slices/authSlice";
+import { sessionExpired } from "./slices/authSlice";
 import { setAppStore } from "./store-ref";
 import { closeTopOverlay } from "@/lib/native/overlay-back";
 import {
+  backFallbackPath,
   hasInAppHistory,
   installHistoryDepthTracker,
-  isDashboardAnchor,
+  isExitAnchor,
 } from "@/lib/native/back-history";
+
+/**
+ * Client-side navigation for the native back handler. On Android a full page
+ * load to any path serves the root index.html (which redirects), so prefer
+ * the Next router and only fall back to location.replace.
+ */
+let replaceRoute: ((href: string) => void) | null = null;
 
 async function markNativeAppChrome() {
   try {
@@ -44,8 +54,10 @@ async function registerAndroidBackHandler() {
         return;
       }
 
-      if (!isDashboardAnchor()) {
-        window.location.replace("/dashboard");
+      if (!isExitAnchor()) {
+        const target = backFallbackPath(Boolean(getAccessToken()));
+        if (replaceRoute) replaceRoute(target);
+        else window.location.replace(target);
         return;
       }
 
@@ -57,6 +69,7 @@ async function registerAndroidBackHandler() {
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const storeRef = useRef<AppStore | null>(null);
   if (!storeRef.current) {
     storeRef.current = makeStore();
@@ -80,14 +93,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       bootstrapAppState(store.dispatch);
     })();
 
+    // Refresh rejected: drop credentials only — keep the offline outbox.
     registerAuthFailureHandler(() => {
-      store.dispatch(logout());
+      store.dispatch(sessionExpired());
     });
     return () => {
       cancelled = true;
       registerAuthFailureHandler(null);
     };
   }, []);
+
+  useEffect(() => {
+    replaceRoute = (href) => router.replace(href);
+    return () => {
+      replaceRoute = null;
+    };
+  }, [router]);
 
   return <Provider store={storeRef.current}>{children}</Provider>;
 }

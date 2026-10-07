@@ -54,11 +54,22 @@ export async function syncThemeFromBackend(dispatch: AppDispatch, getState: () =
   }
 }
 
+/** Drop a queued theme PUT (sign-out / session expiry). */
+export function cancelPendingThemeSave() {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+}
+
 /** Debounced push of the active theme to the backend. */
 export function scheduleThemeSaveToBackend(getState: () => RootState) {
   if (!getAccessToken() || !isOnline()) return;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
+    saveTimer = null;
+    // Signed out while the timer was pending — don't PUT without a session.
+    if (!getAccessToken()) return;
     const state = getState().theme;
     void saveThemePreferences({
       active_theme_id: state.activeThemeId,

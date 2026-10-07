@@ -43,6 +43,7 @@ import {
   type AiAtToolDef,
   type AiSlashCommandDef,
 } from "@/lib/ai/command-catalog";
+import { detectReplyCutoff } from "@/lib/ai/reply-cutoff";
 import type {
   AiActionProposal,
   AiAttachment,
@@ -76,6 +77,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
   onDragState,
   onToggleVoice,
   onToggleWebSearch,
+  onContinue,
 }: {
   messages: AiMessage[];
   proposals: AiActionProposal[];
@@ -101,6 +103,8 @@ export const ChatWorkspace = memo(function ChatWorkspace({
   onDragState: (active: boolean) => void;
   onToggleVoice: () => void;
   onToggleWebSearch: () => void;
+  /** Ask the advisor to continue a reply that ended early. */
+  onContinue?: () => void;
 }) {
   const { user } = useAuth();
   const perms = useModulePermissions("ai");
@@ -124,6 +128,30 @@ export const ChatWorkspace = memo(function ChatWorkspace({
       ),
     [attachments],
   );
+  // Latest assistant reply that ended early (limit hit / connection lost /
+  // stopped) gets inline Continue (+ Retry when interrupted) actions.
+  const lastMessage = messages[messages.length - 1];
+  const lastCutoff = useMemo(
+    () =>
+      !loading && !streamingId && lastMessage?.role === "assistant"
+        ? detectReplyCutoff(lastMessage)
+        : null,
+    [lastMessage, loading, streamingId],
+  );
+  const retryPrompt = useMemo(() => {
+    if (lastCutoff !== "interrupted") return "";
+    for (let index = messages.length - 2; index >= 0; index -= 1) {
+      if (messages[index]?.role === "user") return messages[index].content;
+    }
+    return "";
+  }, [lastCutoff, messages]);
+  const onRetryLast = useCallback(() => {
+    if (retryPrompt) onSend(undefined, retryPrompt);
+  }, [onSend, retryPrompt]);
+  const continueDisabledReason = attachments.length
+    ? "Remove composer attachments to continue this reply"
+    : undefined;
+
   const canSend =
     perms.create &&
     !loading &&
@@ -272,9 +300,9 @@ export const ChatWorkspace = memo(function ChatWorkspace({
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-6"
+        className="app-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-8 sm:py-6"
       >
-        <div className="mx-auto flex min-h-full w-full max-w-[720px] flex-col">
+        <div className="mx-auto flex min-h-full w-full min-w-0 max-w-[720px] flex-col">
           {!hasConversation ? (
             <div className="my-auto shrink-0 pb-8 pt-4">
               <h1 className="text-[1.75rem] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[2rem]">
@@ -295,22 +323,35 @@ export const ChatWorkspace = memo(function ChatWorkspace({
               </p>
             </div>
           ) : (
-            <div className="space-y-6 pb-6 pt-2">
-              {messages.map((message) => (
-                <MessageBubble
-                  key={message.id}
-                  message={message}
-                  streaming={message.id === streamingId}
-                  status={message.id === streamingId ? status : undefined}
-                  proposals={proposals.filter((p) =>
-                    (message.proposal_ids || []).includes(p.id),
-                  )}
-                  onConfirm={onConfirm}
-                  onReject={onReject}
-                  onReviewBatch={onReviewBatch}
-                  busyProposal={busyProposal}
-                />
-              ))}
+            <div className="min-w-0 space-y-6 pb-6 pt-2">
+              {messages.map((message, index) => {
+                if (!message) return null;
+                const isLastCutoff =
+                  Boolean(lastCutoff) && message === lastMessage;
+                return (
+                  <MessageBubble
+                    key={message.id || `message-${index}`}
+                    message={message}
+                    streaming={message.id === streamingId}
+                    status={message.id === streamingId ? status : undefined}
+                    proposals={proposals.filter((p) =>
+                      (message.proposal_ids || []).includes(p.id),
+                    )}
+                    onConfirm={onConfirm}
+                    onReject={onReject}
+                    onReviewBatch={onReviewBatch}
+                    busyProposal={busyProposal}
+                    cutoff={isLastCutoff ? lastCutoff : null}
+                    continueDisabledReason={
+                      isLastCutoff ? continueDisabledReason : undefined
+                    }
+                    onContinue={isLastCutoff ? onContinue : undefined}
+                    onRetry={
+                      isLastCutoff && retryPrompt ? onRetryLast : undefined
+                    }
+                  />
+                );
+              })}
               {loading && !streamingId ? (
                 <TypingIndicator label={status || "Thinking…"} />
               ) : null}

@@ -16,6 +16,7 @@ import { SummaryKpiCard } from "@/components/ui/summary-kpi-card";
 import { GoalCard } from "@/components/goals/goal-card";
 import { GoalFormModal } from "@/components/goals/goal-form-modal";
 import { ContributeModal } from "@/components/goals/contribute-modal";
+import { TRANSACTION_CREATED_EVENT } from "@/components/expenses/transaction-modal-provider";
 import {
   contributeToGoal,
   createGoal,
@@ -28,6 +29,7 @@ import { useAuth } from "@/lib/auth-context";
 import { APP_NAME } from "@/lib/brand";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { formatCurrency } from "@/lib/format";
+import { convertAmount } from "@/lib/currency/currency.data";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
 import { CardGridSkeleton } from "@/components/ui/feedback";
@@ -60,39 +62,63 @@ export default function GoalsPage() {
 
   const baseCurrency = user?.currency || "USD";
 
-  const refresh = useCallback(async () => {
-    if (!user?.id) return;
-    setLoading(true);
-    setError("");
-    try {
-      const [goalRows, accountRows] = await Promise.all([
-        listGoals(),
-        listAccounts(user.id).catch(() => [] as FinancialContainer[]),
-      ]);
-      setGoals(goalRows);
-      setContainers(accountRows);
-    } catch (err) {
-      setError(getErrorMessage(err, "Could not load goals"));
-      setGoals([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
+  const refresh = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!user?.id) return;
+      const silent = Boolean(options?.silent);
+      if (!silent) {
+        setLoading(true);
+        setError("");
+      }
+      try {
+        const [goalRows, accountRows] = await Promise.all([
+          listGoals(),
+          listAccounts(user.id).catch(() => [] as FinancialContainer[]),
+        ]);
+        setGoals(goalRows);
+        setContainers(accountRows);
+      } catch (err) {
+        if (silent) return;
+        setError(getErrorMessage(err, "Could not load goals"));
+        setGoals([]);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [user?.id],
+  );
 
   useEffect(() => {
-    refresh();
+    void refresh();
+    const onDataChanged = () => void refresh({ silent: true });
+    window.addEventListener("finos:data-updated", onDataChanged);
+    window.addEventListener("finos:sync-complete", onDataChanged);
+    window.addEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+    return () => {
+      window.removeEventListener("finos:data-updated", onDataChanged);
+      window.removeEventListener("finos:sync-complete", onDataChanged);
+      window.removeEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+    };
   }, [refresh]);
 
   const summary = useMemo(() => {
-    const target = goals.reduce((s, g) => s + g.target_amount, 0);
-    const saved = goals.reduce((s, g) => s + g.current_amount, 0);
+    const toBase = (amount: number, currency?: string | null) =>
+      convertAmount(amount || 0, currency || baseCurrency, baseCurrency);
+    const target = goals.reduce(
+      (s, g) => s + toBase(g.target_amount, g.currency),
+      0,
+    );
+    const saved = goals.reduce(
+      (s, g) => s + toBase(g.current_amount, g.currency),
+      0,
+    );
     const achieved = goals.filter((g) => g.status === "achieved").length;
     const behind = goals.filter(
       (g) => g.status === "behind" || g.status === "at_risk",
     ).length;
     const surplus = goals[0]?.monthly_surplus ?? 0;
     return { target, saved, achieved, behind, surplus };
-  }, [goals]);
+  }, [goals, baseCurrency]);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -125,7 +151,8 @@ export default function GoalsPage() {
         target_amount: input.target_amount,
         currency: input.currency,
         target_date: input.target_date || null,
-        notes: input.notes,
+        // "" clears previously saved notes on update (the API stores it as null).
+        notes: input.notes || "",
         container_id: input.container_id || null,
       };
       if (!input.container_id) {
@@ -148,7 +175,13 @@ export default function GoalsPage() {
       setEditing(null);
       await refresh();
     } catch (err) {
-      setError(getErrorMessage(err, "Could not save goal"));
+      const message = getErrorMessage(err, "Could not save goal");
+      setError(message);
+      showToast({
+        title: "Could not save goal",
+        description: message,
+        tone: "error",
+      });
     }
   }
 
@@ -337,7 +370,13 @@ export default function GoalsPage() {
               tone: "success",
             });
           } catch (err) {
-            setError(getErrorMessage(err, "Could not delete goal"));
+            const message = getErrorMessage(err, "Could not delete goal");
+            setError(message);
+            showToast({
+              title: "Could not delete goal",
+              description: message,
+              tone: "error",
+            });
           } finally {
             setDeleting(false);
           }

@@ -37,13 +37,36 @@ const authSlice = createSlice({
       state.ready = true;
     },
     setSession(state, action: PayloadAction<User>) {
-      state.user = {
-        ...action.payload,
-        is_admin: isTruthyAdmin(
-          action.payload.is_admin ??
-            (action.payload as { isAdmin?: unknown }).isAdmin,
-        ),
-      };
+      const incoming = action.payload;
+      const previous =
+        state.user && incoming?.id && state.user.id === incoming.id
+          ? state.user
+          : null;
+      const incomingAdminRaw =
+        incoming.is_admin ?? (incoming as { isAdmin?: unknown }).isAdmin;
+      if (previous) {
+        // Same account (e.g. profile edit): merge so a partial payload
+        // without permissions / is_admin does not strip them.
+        const merged = { ...previous };
+        for (const [key, value] of Object.entries(incoming)) {
+          if (value !== undefined) {
+            (merged as Record<string, unknown>)[key] = value;
+          }
+        }
+        merged.is_admin =
+          incomingAdminRaw === undefined || incomingAdminRaw === null
+            ? isTruthyAdmin(previous.is_admin)
+            : isTruthyAdmin(incomingAdminRaw);
+        merged.permissions = Array.isArray(incoming.permissions)
+          ? incoming.permissions
+          : previous.permissions;
+        state.user = merged;
+      } else {
+        state.user = {
+          ...incoming,
+          is_admin: isTruthyAdmin(incomingAdminRaw),
+        };
+      }
       state.hasAccessToken = true;
     },
     updatePermissions(
@@ -62,15 +85,29 @@ const authSlice = createSlice({
         permissions: nextPermissions,
       };
     },
+    /** Explicit user sign-out (local data is wiped by useAuth().logout). */
     logout(state) {
+      state.user = null;
+      state.hasAccessToken = false;
+    },
+    /**
+     * Refresh token rejected. Drop credentials only — keep the offline
+     * outbox / durable backup so unsynced work survives re-login.
+     */
+    sessionExpired(state) {
       state.user = null;
       state.hasAccessToken = false;
     },
   },
 });
 
-export const { hydrateAuth, setSession, updatePermissions, logout } =
-  authSlice.actions;
+export const {
+  hydrateAuth,
+  setSession,
+  updatePermissions,
+  logout,
+  sessionExpired,
+} = authSlice.actions;
 export default authSlice.reducer;
 
 export function selectIsAuthenticated(state: { auth: AuthState }) {

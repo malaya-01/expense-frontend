@@ -12,7 +12,6 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     "@capacitor/core",
     "@capacitor-mlkit/barcode-scanning",
-    "@vladmandic/face-api",
   ],
   ...(isMobile
     ? {

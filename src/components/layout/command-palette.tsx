@@ -41,6 +41,7 @@ import { listBudgets } from "@/lib/api/budgets";
 import { listGoals } from "@/lib/api/goals";
 import { listInvestments } from "@/lib/api/investments";
 import { listSpaces } from "@/lib/api/spaces";
+import { spaceHref } from "@/components/spaces/space-links";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { getAppStore } from "@/lib/store/store-ref";
 import {
@@ -142,6 +143,12 @@ export function CommandPalette() {
     return () => window.removeEventListener("keydown", onGlobalKey);
   }, [canCreateTx, dispatch, openTransactionModal]);
 
+  // Rebuild the search index on every open so new accounts, spaces and
+  // transactions show up instead of the first snapshot.
+  useEffect(() => {
+    if (!open) setIndexLoaded(false);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     previousFocus.current =
@@ -238,7 +245,7 @@ export function CommandPalette() {
           subtitle: `Space · ${space.role || "member"} · ${space.member_count || 1} members`,
           keywords: `collaborative space shared workspace trip family ${space.slug || ""}`,
           icon: UsersRound,
-          run: () => router.push(`/spaces/${space.id}`),
+          run: () => router.push(spaceHref(space.id)),
         })),
       ];
       setRecordItems(records);

@@ -37,7 +37,7 @@ export function ConfirmDialog({
           <Button
             variant={destructive ? "danger" : "primary"}
             loading={busy}
-            onClick={() => void onConfirm()}
+            onClick={() => onConfirm()}
           >
             {confirmLabel}
           </Button>

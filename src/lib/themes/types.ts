@@ -1,3 +1,7 @@
+import type { ThemeFonts } from "./fonts";
+
+export type { ThemeFonts } from "./fonts";
+
 export type ThemeTokens = {
   background100: string;
   background200: string;
@@ -25,6 +29,8 @@ export type ThemeDefinition = {
   name: string;
   description?: string;
   tokens: ThemeTokens;
+  /** Font pairing; missing on older custom themes (defaults apply). */
+  fonts?: ThemeFonts;
   builtin?: boolean;
 };
 
@@ -35,6 +41,7 @@ export type CustomThemeInput = {
   gray1000: string;
   gray900: string;
   focusColor: string;
+  fonts?: ThemeFonts;
 };
 
 export const THEME_STORAGE_KEY = "expense-tracker:active-theme-id";

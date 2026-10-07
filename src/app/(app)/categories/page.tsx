@@ -22,6 +22,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CategoryCard } from "@/components/categories/category-card";
+import { TRANSACTION_CREATED_EVENT } from "@/components/expenses/transaction-modal-provider";
 import {
   createCategory,
   deleteCategory,
@@ -91,23 +92,39 @@ export default function CategoriesPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Once the user picks an icon (or edits an existing category) stop
+  // auto-suggesting one from the name on every keystroke.
+  const [iconTouched, setIconTouched] = useState(false);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const refresh = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = Boolean(options?.silent);
+    if (!silent) {
+      setLoading(true);
+      setError("");
+    }
     try {
       const data = await listCategories();
       setCategories(data);
     } catch (err) {
+      if (silent) return;
       setError(getErrorMessage(err, "Could not load categories"));
       setCategories([]);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     void refresh();
+    const onDataChanged = () => void refresh({ silent: true });
+    window.addEventListener("finos:data-updated", onDataChanged);
+    window.addEventListener("finos:sync-complete", onDataChanged);
+    window.addEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+    return () => {
+      window.removeEventListener("finos:data-updated", onDataChanged);
+      window.removeEventListener("finos:sync-complete", onDataChanged);
+      window.removeEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+    };
   }, [refresh]);
 
   const stats = useMemo(() => {
@@ -155,11 +172,13 @@ export default function CategoriesPage() {
   function openCreate() {
     setEditing(null);
     setForm(emptyForm);
+    setIconTouched(false);
     setModalOpen(true);
   }
 
   function openEdit(category: Category) {
     setEditing(category);
+    setIconTouched(true);
     setForm({
       name: category.name,
       description: category.description || "",
@@ -178,9 +197,11 @@ export default function CategoriesPage() {
     setForm((f) => ({
       ...f,
       name,
-      icon: trimmed
-        ? suggestCategoryIconHeuristic(trimmed, f.description || "")
-        : "tags",
+      icon: iconTouched
+        ? f.icon
+        : trimmed
+          ? suggestCategoryIconHeuristic(trimmed, f.description || "")
+          : "tags",
     }));
   }
 
@@ -189,15 +210,20 @@ export default function CategoriesPage() {
     setSaving(true);
     setError("");
     try {
+      // When editing, an explicit null clears a previously set budget (the
+      // API accepts null on update); on create the fields are simply omitted.
+      const cleared = editing ? null : undefined;
       const payload: CreateCategoryInput = {
         name: form.name.trim(),
-        description: form.description?.trim() || undefined,
+        description: form.description?.trim() || (editing ? "" : undefined),
         color: form.color,
         icon: normalizeCategoryIcon(form.icon),
-        budget_amount: form.budget_amount
+        budget_amount: (form.budget_amount
           ? Number(form.budget_amount)
-          : undefined,
-        budget_period: form.budget_amount ? form.budget_period : undefined,
+          : cleared) as CreateCategoryInput["budget_amount"],
+        budget_period: (form.budget_amount
+          ? form.budget_period
+          : cleared) as CreateCategoryInput["budget_period"],
       };
       if (editing) {
         await updateCategory(editing.id, payload);
@@ -212,7 +238,13 @@ export default function CategoriesPage() {
       setModalOpen(false);
       await refresh();
     } catch (err) {
-      setError(getErrorMessage(err, "Could not save category"));
+      const message = getErrorMessage(err, "Could not save category");
+      setError(message);
+      showToast({
+        title: "Could not save category",
+        description: message,
+        tone: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -424,6 +456,7 @@ export default function CategoriesPage() {
                 showIcon={Boolean(form.name.trim())}
                 onNameChange={onNameChange}
                 onIconChange={(icon) => {
+                  setIconTouched(true);
                   setForm((f) => ({ ...f, icon }));
                 }}
               />
@@ -537,7 +570,13 @@ export default function CategoriesPage() {
               tone: "success",
             });
           } catch (err) {
-            setError(getErrorMessage(err, "Could not delete category"));
+            const message = getErrorMessage(err, "Could not delete category");
+            setError(message);
+            showToast({
+              title: "Could not delete category",
+              description: message,
+              tone: "error",
+            });
           } finally {
             setDeleting(false);
           }

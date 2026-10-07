@@ -50,7 +50,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useInfiniteList } from "@/hooks/use-infinite-list";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatInstantDate } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
 import { CardGridSkeleton, PageSkeleton } from "@/components/ui/feedback";
@@ -93,33 +93,42 @@ export default function AccountsPage() {
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState<GroupFilter>("all");
 
-  const refresh = useCallback(async () => {
-    if (!user?.id) return;
-    setLoading(true);
-    setError("");
-    try {
-      const [accounts, txns] = await Promise.all([
-        listAccounts(user.id),
-        listTransactions().catch(() => [] as LedgerTransaction[]),
-      ]);
-      setContainers(accounts);
-      setTransactions(txns);
-    } catch (err) {
-      setError(getErrorMessage(err, "Could not load accounts"));
-      setContainers([]);
-      setTransactions([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
+  const refresh = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!user?.id) return;
+      const silent = Boolean(options?.silent);
+      if (!silent) {
+        setLoading(true);
+        setError("");
+      }
+      try {
+        const [accounts, txns] = await Promise.all([
+          listAccounts(user.id),
+          listTransactions().catch(() => [] as LedgerTransaction[]),
+        ]);
+        setContainers(accounts);
+        setTransactions(txns);
+      } catch (err) {
+        if (silent) return;
+        setError(getErrorMessage(err, "Could not load accounts"));
+        setContainers([]);
+        setTransactions([]);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [user?.id],
+  );
 
   useEffect(() => {
     void refresh();
-    const onSync = () => void refresh();
+    const onSync = () => void refresh({ silent: true });
     window.addEventListener("finos:sync-complete", onSync);
+    window.addEventListener("finos:data-updated", onSync);
     window.addEventListener(TRANSACTION_CREATED_EVENT, onSync);
     return () => {
       window.removeEventListener("finos:sync-complete", onSync);
+      window.removeEventListener("finos:data-updated", onSync);
       window.removeEventListener(TRANSACTION_CREATED_EVENT, onSync);
     };
   }, [refresh]);
@@ -198,7 +207,7 @@ export default function AccountsPage() {
   const updatedLabel = latestUpdate
     ? new Date(latestUpdate).toDateString() === new Date().toDateString()
       ? "Today"
-      : new Date(latestUpdate).toLocaleDateString()
+      : formatInstantDate(latestUpdate)
     : "—";
 
   function openCreate() {
@@ -228,7 +237,13 @@ export default function AccountsPage() {
       });
       await refresh();
     } catch (err) {
-      setError(getErrorMessage(err, "Could not save container"));
+      const message = getErrorMessage(err, "Could not save container");
+      setError(message);
+      showToast({
+        title: "Could not save account",
+        description: message,
+        tone: "error",
+      });
     }
   }
 
@@ -356,8 +371,11 @@ export default function AccountsPage() {
             value: String(liabilityCount),
           }}
           footerRight={{
-            label: "Due soon",
-            value: formatCurrency(0, baseCurrency),
+            label: "Debt ratio",
+            value:
+              summary.totalAssets > 0
+                ? `${((summary.totalLiabilities / summary.totalAssets) * 100).toFixed(1)}%`
+                : "—",
           }}
         />
       </div>
@@ -505,7 +523,13 @@ export default function AccountsPage() {
               tone: "success",
             });
           } catch (err) {
-            setError(getErrorMessage(err, "Could not archive container"));
+            const message = getErrorMessage(err, "Could not archive container");
+            setError(message);
+            showToast({
+              title: "Could not archive account",
+              description: message,
+              tone: "error",
+            });
           } finally {
             setDeleting(false);
           }

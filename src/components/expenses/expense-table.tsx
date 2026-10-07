@@ -154,7 +154,7 @@ export function TransactionTable({
           );
         })}
       </div>
-      <div className="hidden overflow-hidden rounded-[16px] bg-[var(--ds-background-elevated)] ds-border md:block">
+      <div className="hidden overflow-x-auto rounded-[16px] bg-[var(--ds-background-elevated)] ds-border md:block">
       <table className="w-full min-w-[720px] border-collapse text-left">
         <thead>
           <tr className="border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] bg-[var(--ds-background-100)] text-[11px] uppercase tracking-[0.08em] text-[var(--ds-gray-700)]">
@@ -217,6 +217,8 @@ export function TransactionTable({
                 onClick={() => onOpen?.(tx)}
                 onKeyDown={(event) => {
                   if (!onOpen) return;
+                  // Ignore keys bubbling from nested controls (action menu, links).
+                  if (event.target !== event.currentTarget) return;
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
                     onOpen(tx);

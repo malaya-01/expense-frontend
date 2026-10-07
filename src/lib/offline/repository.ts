@@ -80,16 +80,9 @@ export function createRepository<T extends SyncedRecord>(
     const next = remote.flatMap((row) => {
       const id = String((row as SyncedRecord).id);
       const local = existingById.get(id);
+      // Only unsynced local work wins; a newer local updated_at on a synced
+      // row is clock skew and must not hide the server copy.
       if (local?._pending || local?._sync_failed || local?.deleted_at) {
-        return [];
-      }
-      const remoteUpdated = Date.parse(String((row as SyncedRecord).updated_at || ""));
-      const localUpdated = Date.parse(String(local?.updated_at || ""));
-      if (
-        Number.isFinite(remoteUpdated) &&
-        Number.isFinite(localUpdated) &&
-        localUpdated > remoteUpdated
-      ) {
         return [];
       }
       return [
@@ -237,6 +230,8 @@ export function createRepository<T extends SyncedRecord>(
         invalidateHydrate(config.table);
         return synced;
       } catch (error) {
+        // Only queue when the server never processed the request; any real
+        // 4xx/5xx answer is surfaced to the UI.
         if (!isTransientWriteError(error)) throw error;
         await persistPending(local, "create", { ...payload, id }, 1);
         return local;
@@ -249,8 +244,13 @@ export function createRepository<T extends SyncedRecord>(
 
   async function update(
     id: string,
-    payload: Record<string, unknown>,
+    rawPayload: Record<string, unknown>,
   ): Promise<T> {
+    // undefined = "not provided": must not wipe existing local fields.
+    // (null is kept — it explicitly clears an optional field.)
+    const payload = Object.fromEntries(
+      Object.entries(rawPayload).filter(([, value]) => value !== undefined),
+    );
     const existing = (await offlineDb.table(config.table).get(id)) as
       | T
       | undefined;

@@ -1,4 +1,5 @@
 import type { CustomThemeInput, ThemeDefinition, ThemeTokens } from "./types";
+import { resolveThemeFonts } from "./fonts";
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -189,6 +190,7 @@ export function createCustomTheme(input: CustomThemeInput, id?: string): ThemeDe
     name: input.name.trim() || "Custom theme",
     description: "Your custom palette",
     tokens,
+    fonts: resolveThemeFonts(input.fonts),
     builtin: false,
   };
 }

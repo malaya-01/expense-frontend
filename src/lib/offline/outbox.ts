@@ -45,6 +45,9 @@ export async function enqueueOutbox(input: {
   return { ...row, id };
 }
 
+/** After this many server-side rejections an op stops auto-retrying. */
+export const MAX_AUTO_RETRIES = 8;
+
 export async function listPendingOutbox(limit = 25): Promise<OutboxItem[]> {
   const now = Date.now();
   const rows = await offlineDb.outbox
@@ -53,6 +56,7 @@ export async function listPendingOutbox(limit = 25): Promise<OutboxItem[]> {
     .sortBy("created_at");
   return rows
     .filter((row) => {
+      if (row.terminal) return false;
       if (!row.next_retry_at) return true;
       return new Date(row.next_retry_at).getTime() <= now;
     })
@@ -112,6 +116,12 @@ export async function markOutboxFailed(
   id: number,
   error: string,
   retryCount: number,
+  options?: {
+    /** Fresh idempotency key so a retry is not answered from the op log. */
+    newClientOpId?: string;
+    /** Stop auto-retrying (kept "failed" and visible; manual sync retries). */
+    terminal?: boolean;
+  },
 ): Promise<void> {
   const delay = RETRY_MS[Math.min(retryCount, RETRY_MS.length - 1)];
   await offlineDb.outbox.update(id, {
@@ -120,8 +130,27 @@ export async function markOutboxFailed(
     last_error: error,
     next_retry_at: new Date(Date.now() + delay).toISOString(),
     updated_at: new Date().toISOString(),
+    ...(options?.newClientOpId ? { client_op_id: options.newClientOpId } : {}),
+    ...(options?.terminal ? { terminal: true } : {}),
   });
   scheduleDurableBackup();
+}
+
+/** Earliest time an auto-retryable op becomes due (ms epoch), or null. */
+export async function nextOutboxRetryAt(): Promise<number | null> {
+  const rows = await offlineDb.outbox
+    .where("status")
+    .anyOf(["pending", "failed"])
+    .toArray();
+  let earliest: number | null = null;
+  const now = Date.now();
+  for (const row of rows) {
+    if (row.terminal) continue;
+    const parsed = row.next_retry_at ? Date.parse(row.next_retry_at) : now;
+    const at = Number.isFinite(parsed) ? parsed : now;
+    if (earliest == null || at < earliest) earliest = at;
+  }
+  return earliest;
 }
 
 /** Re-queue all failed/pending immediately (manual Sync now). */
@@ -136,6 +165,7 @@ export async function requeueAllFailed(): Promise<void> {
     await offlineDb.outbox.update(row.id, {
       status: "pending",
       next_retry_at: null,
+      terminal: false,
       updated_at: now,
     });
   }

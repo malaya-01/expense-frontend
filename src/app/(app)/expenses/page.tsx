@@ -11,6 +11,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { Alert, Badge, Skeleton } from "@/components/ui/feedback";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useAppSelector } from "@/lib/store/hooks";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel";
 import { TransactionTable } from "@/components/expenses/expense-table";
 import { TransactionDetailModal } from "@/components/expenses/transaction-detail-modal";
@@ -70,6 +71,9 @@ export default function ExpensesPage() {
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const confirmBeforeDelete = useAppSelector(
+    (state) => state.preferences.values.confirm_before_delete,
+  );
   const [typeFilter, setTypeFilter] = useState("all");
   const [accountFilter, setAccountFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -107,9 +111,17 @@ export default function ExpensesPage() {
   }, [user?.id, refresh]);
 
   useEffect(() => {
-    window.addEventListener(TRANSACTION_CREATED_EVENT, refresh);
-    return () => window.removeEventListener(TRANSACTION_CREATED_EVENT, refresh);
-  }, [refresh]);
+    if (!user?.id) return;
+    const onDataChanged = () => void refresh();
+    window.addEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+    window.addEventListener("finos:data-updated", onDataChanged);
+    window.addEventListener("finos:sync-complete", onDataChanged);
+    return () => {
+      window.removeEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+      window.removeEventListener("finos:data-updated", onDataChanged);
+      window.removeEventListener("finos:sync-complete", onDataChanged);
+    };
+  }, [user?.id, refresh]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -239,6 +251,36 @@ export default function ExpensesPage() {
     setCurrencyFilter("all");
     setDateFrom("");
     setDateTo("");
+  }
+
+  async function performDelete(id: string) {
+    setDeleting(true);
+    try {
+      await deleteTransaction(id);
+      setDeleteId(null);
+      await refresh();
+      showToast({
+        title: "Transaction deleted",
+        description: "Account balances were reversed.",
+        tone: "success",
+      });
+    } catch (err) {
+      const message = getErrorMessage(err, "Could not delete transaction");
+      setError(message);
+      showToast({
+        title: "Could not delete transaction",
+        description: message,
+        tone: "error",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  /** Settings > Transactions > "Confirm before deleting" decides the dialog. */
+  function requestDelete(id: string) {
+    if (confirmBeforeDelete) setDeleteId(id);
+    else void performDelete(id);
   }
 
   return (
@@ -457,7 +499,7 @@ export default function ExpensesPage() {
         />
       ) : null}
 
-      {loading ? (
+      {loading && transactions.length === 0 ? (
         <div className="space-y-2 rounded-[16px] bg-[var(--ds-background-elevated)] p-4 ds-border">
           {[0, 1, 2, 3, 4].map((item) => (
             <Skeleton key={item} className="h-14 w-full" />
@@ -495,7 +537,7 @@ export default function ExpensesPage() {
           baseCurrency={baseCurrency}
           onOpen={setSelected}
           onEdit={perms.update ? openEditTransactionModal : undefined}
-          onDelete={perms.delete ? setDeleteId : undefined}
+          onDelete={perms.delete ? requestDelete : undefined}
           sortKey={sortKey}
           sortDir={sortDir}
           onSort={toggleSort}
@@ -516,7 +558,7 @@ export default function ExpensesPage() {
           perms.delete
             ? (id) => {
                 setSelected(null);
-                setDeleteId(id);
+                requestDelete(id);
               }
             : undefined
         }
@@ -530,22 +572,7 @@ export default function ExpensesPage() {
         busy={deleting}
         onClose={() => setDeleteId(null)}
         onConfirm={async () => {
-          if (!deleteId) return;
-          setDeleting(true);
-          try {
-            await deleteTransaction(deleteId);
-            setDeleteId(null);
-            await refresh();
-            showToast({
-              title: "Transaction deleted",
-              description: "Account balances were reversed.",
-              tone: "success",
-            });
-          } catch (err) {
-            setError(getErrorMessage(err, "Could not delete transaction"));
-          } finally {
-            setDeleting(false);
-          }
+          if (deleteId) await performDelete(deleteId);
         }}
       />
     </div>

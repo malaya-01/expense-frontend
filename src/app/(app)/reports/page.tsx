@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Download, RefreshCw } from "lucide-react";
 import { EmptyState } from "@/components/ui/page-header";
 import { ModuleHeader } from "@/components/ui/module-header";
@@ -21,8 +22,11 @@ import { assetTypeLabel } from "@/lib/investments/meta";
 import type { FinancialContainer, LedgerTransaction, ReportOverview } from "@/types";
 import { Alert, CardGridSkeleton } from "@/components/ui/feedback";
 import { useToast } from "@/components/ui/toast";
+import { TRANSACTION_CREATED_EVENT } from "@/components/expenses/transaction-modal-provider";
+import { saveTextFile } from "@/components/native/save-file";
 
 export default function ReportsPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const { showToast } = useToast();
   const [months, setMonths] = useState(6);
@@ -32,50 +36,82 @@ export default function ReportsPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const refresh = useCallback(async () => {
-    if (!user?.id) return;
-    setLoading(true);
-    setError("");
-    try {
-      const [data, ledger, containers] = await Promise.all([
-        getReportOverview(months),
-        listTransactions(),
-        listAccounts(user.id),
-      ]);
-      setReport(data);
-      setTransactions(ledger);
-      setAccounts(containers);
-    } catch (err) {
-      setError(getErrorMessage(err, "Could not load reports"));
-      setReport(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [months, user?.id]);
+  // Latest-request guard: switching the window quickly must not let a slower,
+  // older response overwrite the report for the currently selected window.
+  const requestRef = useRef(0);
+
+  const refresh = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!user?.id) return;
+      const requestId = ++requestRef.current;
+      const silent = Boolean(options?.silent);
+      if (!silent) {
+        setLoading(true);
+        setError("");
+      }
+      try {
+        const [data, ledger, containers] = await Promise.all([
+          getReportOverview(months),
+          listTransactions(),
+          listAccounts(user.id),
+        ]);
+        if (requestId !== requestRef.current) return;
+        setReport(data);
+        setTransactions(ledger);
+        setAccounts(containers);
+        if (silent) setError("");
+      } catch (err) {
+        if (requestId !== requestRef.current || silent) return;
+        setError(getErrorMessage(err, "Could not load reports"));
+        setReport(null);
+      } finally {
+        if (requestId === requestRef.current) setLoading(false);
+      }
+    },
+    [months, user?.id],
+  );
 
   useEffect(() => {
     if (!user?.id) return;
-    refresh();
+    void refresh();
+    const onDataChanged = () => void refresh({ silent: true });
+    window.addEventListener("finos:data-updated", onDataChanged);
+    window.addEventListener("finos:sync-complete", onDataChanged);
+    window.addEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+    return () => {
+      window.removeEventListener("finos:data-updated", onDataChanged);
+      window.removeEventListener("finos:sync-complete", onDataChanged);
+      window.removeEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
+    };
   }, [user?.id, refresh]);
 
   const currency = report?.base_currency || user?.currency || "USD";
 
-  function download(content: string, type: string, extension: string) {
-    const url = URL.createObjectURL(new Blob([content], { type }));
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `opal-report-${months}-months-${new Date().toISOString().slice(0, 10)}.${extension}`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-    showToast({
-      title: `${extension.toUpperCase()} report exported`,
-      tone: "success",
-    });
+  async function download(content: string, type: string, extension: string) {
+    try {
+      const saved = await saveTextFile(
+        `opal-report-${months}-months-${new Date().toISOString().slice(0, 10)}.${extension}`,
+        content,
+        type,
+      );
+      showToast({
+        title: `${extension.toUpperCase()} report exported`,
+        description:
+          saved.kind === "native" ? `Saved to ${saved.path}.` : undefined,
+        tone: "success",
+      });
+    } catch (err) {
+      showToast({
+        title: "Export failed",
+        description: getErrorMessage(err, "The report could not be saved."),
+        tone: "error",
+      });
+    }
   }
 
   function exportJson() {
     if (!report) return;
-    download(
+    return download(
       JSON.stringify(report, null, 2),
       "application/json",
       "json",
@@ -108,7 +144,7 @@ export default function ReportsPage() {
           .join(","),
       )
       .join("\n");
-    download(csv, "text/csv;charset=utf-8", "csv");
+    return download(csv, "text/csv;charset=utf-8", "csv");
   }
 
   return (
@@ -130,7 +166,7 @@ export default function ReportsPage() {
             </Select>
             <Button
               variant="secondary"
-              onClick={refresh}
+              onClick={() => refresh()}
               loading={loading}
               aria-label="Refresh reports"
               className="px-2.5 sm:px-3"
@@ -179,7 +215,7 @@ export default function ReportsPage() {
             description="Add accounts and transactions to unlock cash flow and spending reports."
             actionLabel="Go to accounts"
             onAction={() => {
-              window.location.href = "/accounts";
+              router.push("/accounts");
             }}
           />
         </div>

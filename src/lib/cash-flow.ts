@@ -1,4 +1,13 @@
-import { parseCalendarDate, toDateOnly } from "@/lib/format";
+import {
+  formatMonthYear,
+  getFormatSettings,
+  formatShortDate,
+  formatWeekdayDate,
+  getWeekStart,
+  parseCalendarDate,
+  startOfWeek,
+  toDateOnly,
+} from "@/lib/format";
 import type { LedgerTransaction } from "@/types";
 
 export type CashFlowRange = "7d" | "30d" | "month" | "3m" | "6m" | "12m";
@@ -101,31 +110,27 @@ function bucketBounds(
       key: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}`,
       start,
       end,
-      label: start.toLocaleString("en-US", { month: "short", year: "numeric" }),
-      shortLabel: start.toLocaleString("en-US", { month: "short" }),
+      label: formatMonthYear(start),
+      shortLabel: start.toLocaleString(getFormatSettings().locale, { month: "short" }),
     };
   }
   if (granularity === "week") {
-    const weekday = date.getDay();
-    const start = addDays(date, -((weekday + 6) % 7));
+    // Weeks begin on the user's first day of week (Settings > Regional).
+    const start = startOfWeek(date, getWeekStart());
     const end = addDays(start, 6);
     return {
       key: iso(start),
       start,
       end,
-      label: `${start.toLocaleString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleString("en-US", { month: "short", day: "numeric" })}`,
-      shortLabel: start.toLocaleString("en-US", { month: "short", day: "numeric" }),
+      label: `${formatShortDate(start)} – ${formatShortDate(end)}`,
+      shortLabel: formatShortDate(start),
     };
   }
   return {
     key: iso(date),
     start: date,
     end: date,
-    label: date.toLocaleString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    }),
+    label: formatWeekdayDate(date),
     shortLabel: String(date.getDate()),
   };
 }

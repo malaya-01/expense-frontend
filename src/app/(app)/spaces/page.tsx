@@ -1,6 +1,14 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   Star,
@@ -24,7 +32,9 @@ import { useAuth } from "@/lib/auth-context";
 import { useInfiniteList } from "@/hooks/use-infinite-list";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
 
-export default function SpacesIndexPage() {
+function SpacesIndexContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const perms = useModulePermissions("spaces");
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -56,14 +66,13 @@ export default function SpacesIndexPage() {
   }, [refresh]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (
-      perms.create &&
-      new URLSearchParams(window.location.search).get("create") === "1"
-    ) {
+    // React to ?create=1 even when already on /spaces (sidebar / command
+    // palette), then drop the flag so the next request changes the URL again.
+    if (perms.create && searchParams.get("create") === "1") {
       setOpen(true);
+      router.replace("/spaces");
     }
-  }, [perms.create]);
+  }, [perms.create, router, searchParams]);
 
   const summary = useMemo(() => {
     const favorites = spaces.filter((s) => s.is_favorite).length;
@@ -254,5 +263,13 @@ export default function SpacesIndexPage() {
         </form>
       </Modal>
     </div>
+  );
+}
+
+export default function SpacesIndexPage() {
+  return (
+    <Suspense fallback={null}>
+      <SpacesIndexContent />
+    </Suspense>
   );
 }

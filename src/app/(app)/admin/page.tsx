@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -79,6 +79,10 @@ export default function AdminPage() {
   const [draft, setDraft] = useState<Record<string, DraftEffect>>({});
   const [saving, setSaving] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  // Latest-request guard: a slow response for a previously selected user must
+  // never overwrite the detail/draft of the user currently selected.
+  const detailRequestRef = useRef(0);
+  const selectedIdRef = useRef<string | null>(null);
 
   const loadUsers = useCallback(
     async (query?: string) => {
@@ -114,10 +118,17 @@ export default function AdminPage() {
 
   const loadDetail = useCallback(
     async (userId: string) => {
+      const requestId = ++detailRequestRef.current;
+      selectedIdRef.current = userId;
       setLoadingDetail(true);
       setSelectedId(userId);
+      // Clear the previous user's detail so its draft can't be saved against
+      // the newly selected user while the new detail loads.
+      setDetail(null);
+      setDraft({});
       try {
         const data = await fetchUserPermissions(userId);
+        if (requestId !== detailRequestRef.current) return;
         setDetail(data);
         const next: Record<string, DraftEffect> = {};
         for (const row of data.permissions) {
@@ -125,13 +136,14 @@ export default function AdminPage() {
         }
         setDraft(next);
       } catch (err) {
+        if (requestId !== detailRequestRef.current) return;
         showToast({
           title: "Failed to load permissions",
           description: getErrorMessage(err, "Could not load user permissions"),
           tone: "error",
         });
       } finally {
-        setLoadingDetail(false);
+        if (requestId === detailRequestRef.current) setLoadingDetail(false);
       }
     },
     [showToast],
@@ -188,15 +200,18 @@ export default function AdminPage() {
 
   async function onSave() {
     if (!selectedId || !dirtyOverrides.length) return;
+    const targetId = selectedId;
     setSaving(true);
     try {
-      const data = await updateUserPermissions(selectedId, dirtyOverrides);
-      setDetail(data);
-      const next: Record<string, DraftEffect> = {};
-      for (const row of data.permissions) {
-        next[row.code] = modeFromRow(row);
+      const data = await updateUserPermissions(targetId, dirtyOverrides);
+      if (selectedIdRef.current === targetId) {
+        setDetail(data);
+        const next: Record<string, DraftEffect> = {};
+        for (const row of data.permissions) {
+          next[row.code] = modeFromRow(row);
+        }
+        setDraft(next);
       }
-      setDraft(next);
       showToast({
         title: "Permissions updated",
         description: `Saved ${dirtyOverrides.length} override(s).`,
@@ -224,10 +239,11 @@ export default function AdminPage() {
       });
       return;
     }
+    const targetId = selectedId;
     setSaving(true);
     try {
-      const data = await setUserAdminFlag(selectedId, next);
-      setDetail(data);
+      const data = await setUserAdminFlag(targetId, next);
+      if (selectedIdRef.current === targetId) setDetail(data);
       void loadUsers(q);
       showToast({
         title: next ? "Super-admin granted" : "Super-admin removed",

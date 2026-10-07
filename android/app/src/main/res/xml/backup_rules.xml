@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and lower (android:fullBackupContent). -->
 <full-backup-content>
     <!-- SharedPreferences hold Capacitor Preferences (durable unsynced backup). -->
     <include domain="sharedpref" path="." />
+    <!-- Capacitor Preferences' default group stores the auth/refresh tokens;
+         never copy them to cloud backup. -->
+    <exclude domain="sharedpref" path="CapacitorStorage.xml" />
     <exclude domain="root" path="." />
 </full-backup-content>

@@ -13,10 +13,12 @@ import { setActiveOfflineUserId } from "@/lib/offline/clear-session";
 import {
   hydrateAuth,
   logout,
+  sessionExpired,
   setSession,
   updatePermissions,
   USER_STORAGE_KEY,
 } from "./slices/authSlice";
+import { DEFAULT_THEME_ID, PRESET_THEMES } from "@/lib/themes/presets";
 import {
   createTheme,
   deleteTheme,
@@ -27,6 +29,7 @@ import {
   updateTheme,
 } from "./slices/themeSlice";
 import {
+  cancelPendingThemeSave,
   scheduleThemeSaveToBackend,
   syncThemeFromBackend,
 } from "@/lib/themes/sync";
@@ -52,12 +55,20 @@ import {
   persistDismissedNotifications,
 } from "./slices/notificationsSlice";
 import type { AppDispatch, RootState } from "./index";
+import {
+  bootstrapPreferences,
+  registerPreferenceListeners,
+} from "@/lib/preferences/listeners";
 
 export const listenerMiddleware = createListenerMiddleware();
 const startAppListening = listenerMiddleware.startListening.withTypes<
   RootState,
   AppDispatch
 >();
+
+function isPresetThemeId(id: string | null | undefined): boolean {
+  return Boolean(id) && PRESET_THEMES.some((theme) => theme.id === id);
+}
 
 function syncSidebarOffset(pinned: boolean, width: number) {
   if (typeof document === "undefined") return;
@@ -68,6 +79,10 @@ function syncSidebarOffset(pinned: boolean, width: number) {
 }
 
 export function bootstrapAppState(dispatch: AppDispatch) {
+  // Cached app preferences first: the auth hydrate below triggers a server
+  // sync that must see any offline (pending) preference edits.
+  bootstrapPreferences(dispatch);
+
   const token = getAccessToken();
   let storedUser = null;
   try {
@@ -108,22 +123,53 @@ export function bootstrapAppState(dispatch: AppDispatch) {
   }
 }
 
+/**
+ * Explicit sign-out. useAuth().logout already awaited clearAccountLocalData()
+ * (server revoke, Dexie, outbox, durable backup, spaces drafts) before
+ * dispatching, so this only resets in-memory state.
+ */
 startAppListening({
   actionCreator: logout,
   effect: (_action, api) => {
     clearTokens();
     localStorage.removeItem(USER_STORAGE_KEY);
     api.dispatch(resetSidebarTransient());
-    void import("@/lib/offline/clear-session").then(({ clearAccountLocalData }) =>
-      clearAccountLocalData(),
+    cancelPendingThemeSave();
+    // Don't let this account's custom themes seed the next user's backend.
+    const { activeThemeId } = api.getState().theme;
+    api.dispatch(
+      hydrateTheme({
+        activeThemeId: isPresetThemeId(activeThemeId)
+          ? activeThemeId
+          : DEFAULT_THEME_ID,
+        customThemes: [],
+      }),
     );
+  },
+});
+
+/**
+ * Refresh token rejected: clear credentials only. The offline outbox and
+ * durable backup are kept so unsynced work is pushed after re-login
+ * (switchOfflineUser wipes it if a different account signs in).
+ */
+startAppListening({
+  actionCreator: sessionExpired,
+  effect: (_action, api) => {
+    clearTokens();
+    localStorage.removeItem(USER_STORAGE_KEY);
+    api.dispatch(resetSidebarTransient());
+    cancelPendingThemeSave();
   },
 });
 
 startAppListening({
   actionCreator: setSession,
-  effect: (action, api) => {
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(action.payload));
+  effect: (_action, api) => {
+    // Persist the merged user (reducer keeps permissions / is_admin on
+    // partial same-account payloads), not the raw action payload.
+    const user = api.getState().auth.user;
+    if (user) localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
     api.dispatch(resetSidebarTransient());
     void syncThemeFromBackend(api.dispatch, api.getState);
   },
@@ -206,3 +252,5 @@ startAppListening({
     api.dispatch(dismissToast(toast.id));
   },
 });
+
+registerPreferenceListeners(startAppListening);

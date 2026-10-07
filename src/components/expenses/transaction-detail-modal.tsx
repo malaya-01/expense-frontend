@@ -17,7 +17,12 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/ui/status-dot";
 import { Badge } from "@/components/ui/feedback";
-import { formatCurrency, formatDate, formatRelativeDate } from "@/lib/format";
+import {
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  formatRelativeDate,
+} from "@/lib/format";
 import type { LedgerTransaction } from "@/types";
 import {
   isReceiptImage,
@@ -214,7 +219,7 @@ export function TransactionDetailModal({
             <Row
               icon={CalendarDays}
               label="Paid at"
-              value={new Date(tx.paid_at).toLocaleString()}
+              value={formatDateTime(tx.paid_at)}
             />
           ) : null}
           <Row

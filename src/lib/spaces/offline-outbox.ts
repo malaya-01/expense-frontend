@@ -15,6 +15,8 @@ import {
 const DB_NAME = "finos-spaces-outbox";
 const STORE = "drafts";
 const DB_VERSION = 1;
+/** A row left in "syncing" longer than this was abandoned (crash / killed tab). */
+const STALE_SYNCING_MS = 5 * 60_000;
 
 export type SpaceDraft = {
   id?: number;
@@ -25,6 +27,7 @@ export type SpaceDraft = {
   created_at: string;
   status: "pending" | "syncing" | "synced" | "failed";
   last_error?: string | null;
+  syncing_at?: string | null;
 };
 
 function openDb(): Promise<IDBDatabase> {
@@ -52,16 +55,36 @@ function withStore<T>(
   return openDb().then(
     (db) =>
       new Promise<T>((resolve, reject) => {
-        const tx = db.transaction(STORE, mode);
-        const store = tx.objectStore(STORE);
-        const result = fn(store);
-        if (!result) {
-          tx.oncomplete = () => resolve(undefined as T);
-          tx.onerror = () => reject(tx.error);
+        let tx: IDBTransaction;
+        try {
+          tx = db.transaction(STORE, mode);
+        } catch (error) {
+          db.close();
+          reject(error);
           return;
         }
-        result.onsuccess = () => resolve(result.result as T);
-        result.onerror = () => reject(result.error);
+        const store = tx.objectStore(STORE);
+        const result = fn(store);
+        let value: T = undefined as T;
+        if (result) {
+          result.onsuccess = () => {
+            value = result.result as T;
+          };
+        }
+        // Resolve on commit and always close the connection so
+        // clearSpaceDrafts / version changes are never blocked.
+        tx.oncomplete = () => {
+          db.close();
+          resolve(value);
+        };
+        tx.onerror = () => {
+          db.close();
+          reject(tx.error || result?.error);
+        };
+        tx.onabort = () => {
+          db.close();
+          reject(tx.error || new Error("Outbox transaction aborted"));
+        };
       }),
   );
 }
@@ -97,6 +120,19 @@ export async function listSpaceDrafts(): Promise<SpaceDraft[]> {
   }
 }
 
+/** Wipe all local drafts (explicit sign-out / account switch). */
+export async function clearSpaceDrafts(): Promise<void> {
+  if (typeof indexedDB === "undefined") return;
+  await withStore("readwrite", (store) => store.clear());
+}
+
+function isFreshSyncing(draft: SpaceDraft, now = Date.now()): boolean {
+  if (draft.status !== "syncing") return false;
+  const at = Date.parse(String(draft.syncing_at || ""));
+  // Legacy rows without a timestamp are treated as stale.
+  return Number.isFinite(at) && now - at < STALE_SYNCING_MS;
+}
+
 async function applyDraft(draft: SpaceDraft) {
   if (draft.entity_type === "space_expense") {
     await createSpaceExpense(draft.space_id, draft.payload);
@@ -109,36 +145,49 @@ async function applyDraft(draft: SpaceDraft) {
   throw new Error(`Unsupported entity_type: ${draft.entity_type}`);
 }
 
-export async function flushSpaceOutbox(): Promise<{ synced: number; failed: number }> {
+async function runFlush(): Promise<{ synced: number; failed: number }> {
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     return { synced: 0, failed: 0 };
   }
-  const drafts = await listSpaceDrafts();
+  const now = Date.now();
+  // Skip rows another tab is actively syncing; stale "syncing" rows (older
+  // than STALE_SYNCING_MS) are retried like pending ones.
+  const drafts = (await listSpaceDrafts()).filter((d) => !isFreshSyncing(d, now));
   let synced = 0;
   let failed = 0;
   const syncedClientOps: string[] = [];
 
   for (const draft of drafts) {
-    if (!draft.id) continue;
+    if (draft.id == null) continue;
+    const draftId = draft.id;
     try {
       await withStore("readwrite", (store) =>
-        store.put({ ...draft, status: "syncing", last_error: null }),
+        store.put({
+          ...draft,
+          status: "syncing",
+          last_error: null,
+          syncing_at: new Date().toISOString(),
+        }),
       );
       await applyDraft(draft);
-      await withStore("readwrite", (store) =>
-        store.put({ ...draft, status: "synced", last_error: null }),
-      );
+      // Done — drop the row instead of keeping "synced" rows forever.
+      await withStore("readwrite", (store) => store.delete(draftId));
       synced += 1;
       syncedClientOps.push(draft.client_op_id);
     } catch (err: any) {
       failed += 1;
-      await withStore("readwrite", (store) =>
-        store.put({
-          ...draft,
-          status: "failed",
-          last_error: err?.message || "Sync failed",
-        }),
-      );
+      try {
+        await withStore("readwrite", (store) =>
+          store.put({
+            ...draft,
+            status: "failed",
+            syncing_at: null,
+            last_error: err?.message || "Sync failed",
+          }),
+        );
+      } catch {
+        /* DB cleared (sign-out) while flushing */
+      }
     }
   }
 
@@ -158,6 +207,18 @@ export async function flushSpaceOutbox(): Promise<{ synced: number; failed: numb
   }
 
   return { synced, failed };
+}
+
+let flushInFlight: Promise<{ synced: number; failed: number }> | null = null;
+
+/** Single flight: concurrent callers share one pass over the drafts. */
+export function flushSpaceOutbox(): Promise<{ synced: number; failed: number }> {
+  if (!flushInFlight) {
+    flushInFlight = runFlush().finally(() => {
+      flushInFlight = null;
+    });
+  }
+  return flushInFlight;
 }
 
 let flushBound = false;

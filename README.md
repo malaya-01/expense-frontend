@@ -11,6 +11,12 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). The API defaults to `http://localhost:9000/api` via `NEXT_PUBLIC_API_BASE_URL`.
 
+## Android app
+
+`npm run mobile:android` builds the static export (`MOBILE=1`) and syncs it into
+the Capacitor project. See `MOBILE.md` for routing constraints, local-API
+(debug-only cleartext) setup and release signing.
+
 ## Features
 
 - Auth: sign in, sign up, forgot password

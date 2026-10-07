@@ -8,7 +8,10 @@ import { MetricCard } from "@/components/dashboard/metric-card";
 import { ModuleHeader } from "@/components/ui/module-header";
 import { EmptyState } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
+import {
+  TRANSACTION_CREATED_EVENT,
+  useTransactionModal,
+} from "@/components/expenses/transaction-modal-provider";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { StatusDot } from "@/components/ui/status-dot";
 import { ReceiptThumb } from "@/components/receipts/receipt-thumb";
@@ -88,10 +91,12 @@ export default function DashboardPage() {
     const onRefresh = () => void load(false);
     window.addEventListener("finos:sync-complete", onRefresh);
     window.addEventListener("finos:data-updated", onRefresh);
+    window.addEventListener(TRANSACTION_CREATED_EVENT, onRefresh);
     return () => {
       alive = false;
       window.removeEventListener("finos:sync-complete", onRefresh);
       window.removeEventListener("finos:data-updated", onRefresh);
+      window.removeEventListener(TRANSACTION_CREATED_EVENT, onRefresh);
     };
   }, [ready, user?.id]);
 

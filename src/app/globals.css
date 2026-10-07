@@ -1,8 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --font-app-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-geist-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /*
+   * Theme font indirection. next/font (src/app/layout.tsx) defines the
+   * --font-face-* variables on <html>; the active theme (themes/apply.ts and
+   * the pre-paint bootstrap script) re-points these at its own pairing.
+   * Defaults below match the default theme (Nocturne).
+   */
+  --font-app-sans: var(--font-face-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-app-heading: var(--font-face-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: var(--font-face-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-app-features: "liga", "ss01", "cv11";
+  /* Text size preference (0.9–1.2); scales rem-based type and spacing. */
+  --app-font-scale: 1;
 
   /* Core surfaces — Nocturne (receipt navy) */
   --ds-background-100: #0c0d12;
@@ -120,7 +130,7 @@
   --color-danger: var(--ds-status-red);
   --color-success: var(--ds-status-green);
   --font-sans: var(--font-app-sans);
-  --font-heading: var(--font-app-sans);
+  --font-heading: var(--font-app-heading);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -190,6 +200,7 @@ textarea:disabled {
 
 html {
   height: 100%;
+  font-size: calc(100% * var(--app-font-scale, 1));
   scroll-behavior: smooth;
   background-color: var(--ds-background-100);
 }
@@ -236,9 +247,11 @@ body {
   background-attachment: fixed;
   color: var(--ds-gray-1000);
   font-family: var(--font-app-sans), ui-sans-serif, system-ui, sans-serif;
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 400;
-  font-feature-settings: "liga", "ss01", "cv11";
+  font-feature-settings: var(--font-app-features, "liga");
+  /* Money everywhere: digits line up in columns and do not jitter. */
+  font-variant-numeric: tabular-nums;
   letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
@@ -307,7 +320,7 @@ html[data-theme-scheme="light"] body {
 }
 
 .font-heading {
-  font-family: var(--font-heading), var(--font-app-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-app-heading), var(--font-app-sans), ui-sans-serif, system-ui, sans-serif;
   letter-spacing: -0.025em;
 }
 
@@ -1073,4 +1086,33 @@ html[data-theme-scheme="dark"] .receipt-read-backdrop {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---- User appearance preferences (Settings > Appearance) ---------------- */
+
+/* Compact density: tighten the Tailwind spacing scale (padding, gaps, sizes). */
+html[data-density="compact"] {
+  --spacing: 0.225rem;
+}
+
+/* In-app "Reduce motion" mirrors the prefers-reduced-motion rules above. */
+html[data-reduce-motion="true"] {
+  scroll-behavior: auto;
+}
+
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Numeric text always uses tabular figures, whichever theme font is active. */
+.font-mono,
+code,
+kbd,
+samp {
+  font-variant-numeric: tabular-nums;
 }

@@ -6,10 +6,6 @@ import axios, {
 import type { ApiResponse } from "@/types";
 import { beginApiActivity, endApiActivity } from "@/lib/api/activity";
 import { getClientPlatform } from "@/lib/runtime-platform";
-import {
-  hydrateFaceLoginProfile,
-  syncFaceLoginRefresh,
-} from "@/lib/face-login/profile";
 
 const ACCESS_COOKIE = "access_token";
 const REFRESH_COOKIE = "refresh_token";
@@ -56,6 +52,26 @@ export function isLocalhostApiUrl(url = getApiBaseUrl()): boolean {
 }
 
 /**
+ * True only for loopback hosts, which can never reach the dev machine from a
+ * phone. 10.0.2.2 (emulator → host) and private LAN IPs are deliberate dev
+ * overrides and must be kept.
+ */
+function isDeviceLoopbackUrl(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return (
+      host === "localhost" ||
+      host.endsWith(".localhost") ||
+      /^127(\.\d{1,3}){3}$/.test(host) ||
+      host === "[::1]" ||
+      host === "::1"
+    );
+  } catch {
+    return /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(url);
+  }
+}
+
+/**
  * Capacitor cannot reach host-machine localhost. If a stale Settings override
  * still points there, clear it so the baked production API URL is used.
  */
@@ -66,7 +82,8 @@ export function ensureNativeApiBase(): void {
       Capacitor?: { isNativePlatform?: () => boolean };
     }).Capacitor;
     if (!bridge?.isNativePlatform?.()) return;
-    if (!isLocalhostApiUrl()) return;
+    const override = localStorage.getItem(API_BASE_STORAGE_KEY)?.trim();
+    if (!override || !isDeviceLoopbackUrl(override)) return;
     localStorage.removeItem(API_BASE_STORAGE_KEY);
     try {
       api.defaults.baseURL = DEFAULT_API_BASE.replace(/\/$/, "");
@@ -185,20 +202,17 @@ export function getAccessToken(): string | undefined {
 }
 
 export function getRefreshToken(): string | undefined {
-  // Memory, then this tab, then durable storage. Capacitor must persist the
-  // refresh token — HttpOnly cookies often do not survive WebView process death.
+  // Shared durable storage first so a rotation done by another tab is picked
+  // up (the backend revokes the old token on rotation). Then memory / this tab.
+  // Capacitor must persist the refresh token — HttpOnly cookies often do not
+  // survive WebView process death.
   return (
+    readLocal(REFRESH_STORAGE_KEY) ||
     memoryRefresh ||
     readSession(REFRESH_SESSION_KEY) ||
-    readLocal(REFRESH_STORAGE_KEY) ||
     readCookie(REFRESH_COOKIE) ||
     readCookie("refreshToken")
   );
-}
-
-function syncFaceLoginVault(accessToken: string, refreshToken?: string) {
-  if (!refreshToken) return;
-  void syncFaceLoginRefresh(accessToken, refreshToken);
 }
 
 export function setTokens(accessToken: string, refreshToken?: string) {
@@ -213,7 +227,6 @@ export function setTokens(accessToken: string, refreshToken?: string) {
     writeSession(REFRESH_SESSION_KEY, refreshToken);
     writeLocal(REFRESH_STORAGE_KEY, refreshToken);
     void persistNativeKey(REFRESH_STORAGE_KEY, refreshToken);
-    syncFaceLoginVault(accessToken, refreshToken);
   }
 }
 
@@ -262,26 +275,109 @@ async function postRefresh(
     { withCredentials: true, timeout: 90_000 },
   );
   if (res.data?.status === "Error" || !res.data?.data?.accessToken) {
-    throw new Error(res.data?.message || "Refresh failed");
+    throw new RefreshRejectedError(res.data?.message || "Refresh failed");
   }
   return res.data.data;
 }
 
-/** Refresh access token using stored refresh token (and/or HttpOnly cookie). */
-export async function refreshSession(): Promise<string> {
+/** The server answered the refresh call and said no (not a network blip). */
+class RefreshRejectedError extends Error {}
+
+/**
+ * True when the refresh token itself was rejected (401/403 or an explicit
+ * error body). Network errors, timeouts, 429 and 5xx are NOT auth failures —
+ * the session may still be valid once the server is reachable again.
+ */
+export function isAuthRejection(error: unknown): boolean {
+  if (error instanceof RefreshRejectedError) return true;
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    return status === 401 || status === 403;
+  }
+  return false;
+}
+
+async function doRefresh(): Promise<string> {
   const tokens = await postRefresh(getRefreshToken());
   setTokens(tokens.accessToken, tokens.refreshToken);
   return tokens.accessToken;
 }
 
-/** Restore a session from the refresh token saved with face login. */
-export async function restoreSessionFromRefreshToken(
-  refreshToken: string,
-): Promise<string> {
-  memoryRefresh = refreshToken;
-  const tokens = await postRefresh(refreshToken);
-  setTokens(tokens.accessToken, tokens.refreshToken || refreshToken);
-  return tokens.accessToken;
+type LockManagerLike = {
+  request: <T>(name: string, callback: () => Promise<T>) => Promise<T>;
+};
+
+/**
+ * Cross-tab single flight: the backend rotates refresh tokens, so two tabs
+ * refreshing with the same token would revoke each other's session.
+ */
+async function refreshWithLock(): Promise<string> {
+  const locks =
+    typeof navigator !== "undefined"
+      ? (navigator as Navigator & { locks?: LockManagerLike }).locks
+      : undefined;
+  if (!locks?.request) return doRefresh();
+  const refreshBefore = getRefreshToken();
+  const accessBefore = getAccessToken();
+  return locks.request("finos:auth-refresh", async () => {
+    // Another tab may have rotated the tokens while we waited for the lock.
+    const access = getAccessToken();
+    const rotatedElsewhere =
+      getRefreshToken() !== refreshBefore || access !== accessBefore;
+    if (rotatedElsewhere && access && !isJwtExpired(access, 5_000)) {
+      return access;
+    }
+    return doRefresh();
+  });
+}
+
+let refreshInFlight: Promise<string> | null = null;
+
+/**
+ * Refresh access token using stored refresh token (and/or HttpOnly cookie).
+ * Single flight: concurrent callers share one network refresh.
+ */
+export function refreshSession(): Promise<string> {
+  if (!refreshInFlight) {
+    refreshInFlight = refreshWithLock().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
+/**
+ * Best-effort server-side revoke of the refresh token (explicit logout).
+ * Must run BEFORE tokens are cleared locally. Never throws.
+ */
+export async function revokeServerSession(timeoutMs = 8_000): Promise<void> {
+  if (typeof window === "undefined") return;
+  const refreshToken = getRefreshToken();
+  try {
+    await axios.post(
+      `${getApiBaseUrl()}/auth/logout`,
+      refreshToken ? { refreshToken } : {},
+      { withCredentials: true, timeout: timeoutMs },
+    );
+  } catch {
+    /* offline / old backend — local logout still proceeds */
+  }
+}
+
+/**
+ * Device keys left behind by the removed biometric sign-in feature (they held
+ * a biometric template and a refresh token). Purged on startup.
+ */
+const RETIRED_DEVICE_KEYS = ["finos:face_login", "finos:face_unlock_enrolled"];
+let retiredKeysPurged = false;
+
+async function purgeRetiredDeviceKeys(): Promise<void> {
+  if (retiredKeysPurged || typeof window === "undefined") return;
+  retiredKeysPurged = true;
+  for (const key of RETIRED_DEVICE_KEYS) {
+    clearLocal(key);
+    await persistNativeKey(key, null);
+  }
 }
 
 /**
@@ -290,7 +386,7 @@ export async function restoreSessionFromRefreshToken(
  * Only an explicit logout clears the session.
  */
 export async function ensureSession(): Promise<boolean> {
-  await hydrateFaceLoginProfile();
+  await purgeRetiredDeviceKeys();
   await hydrateNativeAuthTokens();
   const access = getAccessToken();
   const refresh = getRefreshToken();
@@ -303,7 +399,7 @@ export async function ensureSession(): Promise<boolean> {
     await refreshSession();
     return true;
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
+    if (isAuthRejection(error)) {
       clearTokens();
       return false;
     }
@@ -317,8 +413,16 @@ let authFailureHandler: AuthFailureHandler = null;
 
 type TrackedRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
+  _rateLimitRetried?: boolean;
   _activityTracked?: boolean;
 };
+
+/** Seconds from a Retry-After header (delta form), capped for UX. */
+function retryAfterMs(value: unknown): number {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds <= 0) return 1_000;
+  return Math.min(seconds * 1_000, 5_000);
+}
 
 function finishApiRequest(config?: TrackedRequestConfig) {
   if (!config?._activityTracked) return;
@@ -328,6 +432,60 @@ function finishApiRequest(config?: TrackedRequestConfig) {
 
 export function registerAuthFailureHandler(handler: AuthFailureHandler) {
   authFailureHandler = handler;
+}
+
+/**
+ * sessionStorage flags set before full-page auth redirects. On Android,
+ * Capacitor serves the root index.html for every path and the root page
+ * redirects, dropping the query string — pages should read these keys as a
+ * fallback (and remove them once consumed).
+ */
+export const SESSION_EXPIRED_FLAG_KEY = "finos:session-expired";
+export const CHECK_EMAIL_STORAGE_KEY = "finos:check-email";
+
+/** Unauthenticated auth endpoints: a 401 here means bad input, not expiry. */
+const AUTH_ENDPOINT_RE =
+  /\/auth\/(login|register|verify-otp|reset-password|generate-otp|verify-email|resend-verification|refresh-token|logout)(?:[/?#]|$)/;
+
+export function isAuthEndpoint(url: string | undefined): boolean {
+  return AUTH_ENDPOINT_RE.test(String(url || ""));
+}
+
+/** No HTTP response at all (offline, DNS, CORS, timeout, connection reset). */
+export function isNetworkError(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  if (error.code === "ERR_CANCELED") return false;
+  return !error.response;
+}
+
+/**
+ * Safe to queue a write for later: the request never reached the app
+ * (no response, or a gateway/rate-limit status that means "not processed").
+ * Any other 4xx/5xx is a real answer and must surface to the UI.
+ */
+export function isRetryableWriteError(error: unknown): boolean {
+  if (isNetworkError(error)) return true;
+  if (!axios.isAxiosError(error)) return false;
+  const status = error.response?.status;
+  return (
+    status === 408 ||
+    status === 429 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504
+  );
+}
+
+function sentBearer(config: TrackedRequestConfig): string | undefined {
+  const headers = config.headers as
+    | { get?: (name: string) => unknown; Authorization?: unknown }
+    | undefined;
+  const raw =
+    (typeof headers?.get === "function"
+      ? headers.get("Authorization")
+      : headers?.Authorization) || "";
+  const value = String(raw);
+  return value.startsWith("Bearer ") ? value.slice(7) : undefined;
 }
 
 function createClient(): AxiosInstance {
@@ -375,10 +533,35 @@ function createClient(): AxiosInstance {
       const errMessage =
         (error.response?.data as { message?: string } | undefined)?.message ||
         "";
+      const authEndpoint = isAuthEndpoint(original?.url);
+
+      // Rate limited: retry a read once after the server's Retry-After.
+      // Writes are not retried here (the offline outbox owns those).
+      if (
+        error.response?.status === 429 &&
+        original &&
+        !original._rateLimitRetried &&
+        String(original.method || "get").toLowerCase() === "get"
+      ) {
+        original._rateLimitRetried = true;
+        const headers = error.response.headers || {};
+        await new Promise((resolve) =>
+          setTimeout(
+            resolve,
+            retryAfterMs(
+              headers["retry-after"] ?? headers["retry-after-default"],
+            ),
+          ),
+        );
+        return instance(original);
+      }
+
       if (
         error.response?.status === 403 &&
         String(errMessage).includes("EMAIL_NOT_VERIFIED") &&
-        typeof window !== "undefined"
+        typeof window !== "undefined" &&
+        // Sign-in / register pages handle this themselves (they know the email).
+        !authEndpoint
       ) {
         clearTokens();
         authFailureHandler?.();
@@ -390,6 +573,7 @@ function createClient(): AxiosInstance {
           /* ignore */
         }
         localStorage.removeItem("expense-tracker:user");
+        if (email) writeSession(CHECK_EMAIL_STORAGE_KEY, email);
         const q = email ? `?email=${encodeURIComponent(email)}` : "";
         window.location.assign(`/check-email${q}`);
         return Promise.reject(error);
@@ -399,7 +583,7 @@ function createClient(): AxiosInstance {
         error.response?.status !== 401 ||
         !original ||
         original._retry ||
-        String(original.url || "").includes("/auth/refresh-token")
+        authEndpoint
       ) {
         return Promise.reject(error);
       }
@@ -407,20 +591,42 @@ function createClient(): AxiosInstance {
       original._retry = true;
       beginApiActivity();
       try {
-        const accessToken = await refreshSession();
-        if (!(original.headers instanceof axios.AxiosHeaders)) {
-          original.headers = new axios.AxiosHeaders(original.headers);
+        const retryWith = (accessToken: string) => {
+          if (!(original.headers instanceof axios.AxiosHeaders)) {
+            original.headers = new axios.AxiosHeaders(original.headers);
+          }
+          original.headers.set("Authorization", `Bearer ${accessToken}`);
+          return instance(original);
+        };
+
+        // Another request (or tab) already refreshed since this one was sent.
+        const current = getAccessToken();
+        if (
+          current &&
+          current !== sentBearer(original) &&
+          !isJwtExpired(current, 0)
+        ) {
+          return retryWith(current);
         }
-        original.headers.set("Authorization", `Bearer ${accessToken}`);
-        return instance(original);
-      } catch {
-        clearTokens();
-        authFailureHandler?.();
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("expense-tracker:user");
-          window.location.assign("/signin?session=expired");
+
+        let accessToken: string;
+        try {
+          accessToken = await refreshSession();
+        } catch (refreshError) {
+          if (!isAuthRejection(refreshError)) {
+            // Offline / 429 / 5xx: keep the session, just fail this request.
+            return Promise.reject(error);
+          }
+          clearTokens();
+          authFailureHandler?.();
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("expense-tracker:user");
+            writeSession(SESSION_EXPIRED_FLAG_KEY, "1");
+            window.location.assign("/signin?session=expired");
+          }
+          return Promise.reject(error);
         }
-        return Promise.reject(error);
+        return retryWith(accessToken);
       } finally {
         endApiActivity();
       }
