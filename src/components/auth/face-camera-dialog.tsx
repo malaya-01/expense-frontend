@@ -1,14 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ScanFace } from "lucide-react";
-import { Modal } from "@/components/ui/modal";
-import { Button } from "@/components/ui/button";
+import { createPortal } from "react-dom";
+import { ShieldCheck, X } from "lucide-react";
+import { FaceHalo } from "@/components/auth/face-halo";
 import {
-  FACE_MATCH_DISTANCE,
   assessFace,
   averageDescriptors,
-  descriptorDistance,
   descriptorsAgree,
   loadFaceEngine,
   readFaceFromVideo,
@@ -16,7 +14,6 @@ import {
 } from "@/lib/face-login/engine";
 
 const ENROLL_SAMPLES = 3;
-/** Save anyway after this many clear frames so a steady face cannot sit forever. */
 const ENROLL_FORCE_AT = 5;
 const VERIFY_HITS = 2;
 
@@ -25,21 +22,28 @@ export type FaceEnrollment = {
   preview: string;
 };
 
+type Stage = "intro" | "scan" | "done";
+
 function stopStream(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => track.stop());
 }
 
 function snapshot(video: HTMLVideoElement): string {
   const canvas = document.createElement("canvas");
-  const scale = 160 / (video.videoWidth || 160);
-  canvas.width = 160;
-  canvas.height = Math.max(1, Math.round((video.videoHeight || 160) * scale));
+  const side = 320;
+  canvas.width = side;
+  canvas.height = side;
   const ctx = canvas.getContext("2d");
   if (!ctx) return "";
-  ctx.translate(canvas.width, 0);
+  const vw = video.videoWidth || side;
+  const vh = video.videoHeight || side;
+  const crop = Math.min(vw, vh);
+  const sx = (vw - crop) / 2;
+  const sy = (vh - crop) / 2;
+  ctx.translate(side, 0);
   ctx.scale(-1, 1);
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.72);
+  ctx.drawImage(video, sx, sy, crop, crop, 0, 0, side, side);
+  return canvas.toDataURL("image/jpeg", 0.82);
 }
 
 async function openCamera(): Promise<MediaStream> {
@@ -48,8 +52,8 @@ async function openCamera(): Promise<MediaStream> {
       audio: false,
       video: {
         facingMode: "user",
-        width: { ideal: 640 },
-        height: { ideal: 480 },
+        width: { ideal: 720 },
+        height: { ideal: 720 },
       },
     },
     { audio: false, video: true },
@@ -70,7 +74,7 @@ async function openCamera(): Promise<MediaStream> {
 function cameraErrorMessage(error: unknown): string {
   const name = error instanceof DOMException ? error.name : "";
   if (name === "NotAllowedError" || name === "SecurityError") {
-    return "Allow camera access, then try again. Face login uses this device’s camera.";
+    return "Allow camera access, then try again.";
   }
   if (name === "NotFoundError" || name === "OverconstrainedError") {
     return "No camera was found on this device.";
@@ -82,38 +86,38 @@ function cameraErrorMessage(error: unknown): string {
 export function FaceCameraDialog({
   open,
   mode,
-  savedDescriptor,
   onClose,
   onEnrolled,
   onVerified,
 }: {
   open: boolean;
   mode: "enroll" | "verify";
-  savedDescriptor?: number[];
   onClose: () => void;
-  onEnrolled?: (result: FaceEnrollment) => void;
-  onVerified?: () => void;
+  onEnrolled?: (result: FaceEnrollment) => void | Promise<void>;
+  onVerified?: (descriptor: number[]) => void | Promise<void>;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const runRef = useRef(0);
   const samplesRef = useRef<Float32Array[]>([]);
-  const hitsRef = useRef(0);
   const missesRef = useRef(0);
   const doneRef = useRef(false);
   const modeRef = useRef(mode);
-  const descriptorRef = useRef(savedDescriptor);
   const onEnrolledRef = useRef(onEnrolled);
   const onVerifiedRef = useRef(onVerified);
   modeRef.current = mode;
-  descriptorRef.current = savedDescriptor;
   onEnrolledRef.current = onEnrolled;
   onVerifiedRef.current = onVerified;
 
-  const [hint, setHint] = useState("Starting the camera…");
-  const [progress, setProgress] = useState(0);
+  const [stage, setStage] = useState<Stage>(mode === "enroll" ? "intro" : "scan");
+  const [hint, setHint] = useState("Look at the camera");
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [preview, setPreview] = useState("");
+  const [pending, setPending] = useState<FaceEnrollment | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [confident, setConfident] = useState(false);
 
   const release = useCallback(() => {
     runRef.current += 1;
@@ -124,21 +128,41 @@ export function FaceCameraDialog({
   }, []);
 
   useEffect(() => {
-    if (open) return;
-    release();
-  }, [open, release]);
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      release();
+      return;
+    }
+    setStage(mode === "enroll" ? "intro" : "scan");
+    setError("");
+    setPreview("");
+    setPending(null);
+    setHint("Look at the camera");
+    setSaving(false);
+    setConfident(false);
+  }, [open, mode, release]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
 
   const attachVideo = useCallback(
     (node: HTMLVideoElement | null) => {
       videoRef.current = node;
-      if (!open || !node) return;
+      if (!open || stage !== "scan" || !node) return;
       const runId = runRef.current + 1;
       runRef.current = runId;
       samplesRef.current = [];
-      hitsRef.current = 0;
       missesRef.current = 0;
       doneRef.current = false;
-      setProgress(0);
       setError("");
       setHint("Starting the camera…");
 
@@ -160,7 +184,7 @@ export function FaceCameraDialog({
           if (runRef.current !== runId) return;
           setHint(
             modeRef.current === "enroll"
-              ? "Look at the camera"
+              ? "Hold still"
               : "Look at the camera to sign in",
           );
 
@@ -196,7 +220,7 @@ export function FaceCameraDialog({
         }
       })();
     },
-    [open, attempt],
+    [open, stage, attempt],
   );
 
   async function scanFrame(video: HTMLVideoElement, runId: number) {
@@ -206,9 +230,7 @@ export function FaceCameraDialog({
       missesRef.current += 1;
       if (missesRef.current > 3) {
         samplesRef.current = [];
-        hitsRef.current = 0;
-        setProgress(0);
-        setHint("Look at the camera");
+        setHint("Center your face in the circle");
       }
       return;
     }
@@ -217,8 +239,6 @@ export function FaceCameraDialog({
       missesRef.current += 1;
       if (missesRef.current > 2) {
         samplesRef.current = [];
-        hitsRef.current = 0;
-        setProgress(0);
       }
       setHint(quality.hint);
       return;
@@ -239,7 +259,7 @@ export function FaceCameraDialog({
     const next = samplesRef.current.concat(sample.descriptor);
     samplesRef.current = next.length > ENROLL_FORCE_AT ? next.slice(-ENROLL_FORCE_AT) : next;
     const count = samplesRef.current.length;
-    setProgress(Math.min(count / ENROLL_SAMPLES, 1));
+    setConfident(true);
     if (count < ENROLL_SAMPLES) {
       setHint(`Hold still (${count} of ${ENROLL_SAMPLES})`);
       return;
@@ -253,102 +273,199 @@ export function FaceCameraDialog({
     doneRef.current = true;
     if (runRef.current !== runId) return;
     const chosen = stable ? averageDescriptors(recent) : sample.descriptor;
-    setHint("Face saved");
-    setProgress(1);
-    onEnrolledRef.current?.({
-      descriptor: Array.from(chosen),
-      preview: snapshot(video),
-    });
+    const still = snapshot(video);
+    release();
+    setPreview(still);
+    setPending({ descriptor: Array.from(chosen), preview: still });
+    setStage("done");
   }
 
   function acceptVerifySample(sample: FaceSample, runId: number) {
-    const saved = descriptorRef.current;
-    if (!saved?.length) {
-      setError("Face login is not set up on this device.");
-      doneRef.current = true;
+    const next = samplesRef.current.concat(sample.descriptor);
+    samplesRef.current = next.length > 4 ? next.slice(-4) : next;
+    setConfident(true);
+    setHint("Hold still");
+    const recent = samplesRef.current.slice(-VERIFY_HITS);
+    if (samplesRef.current.length < VERIFY_HITS) return;
+    if (!descriptorsAgree(recent, 0.45) && samplesRef.current.length < 4) {
       return;
     }
-    const distance = descriptorDistance(sample.descriptor, saved);
-    if (distance <= FACE_MATCH_DISTANCE) {
-      hitsRef.current += 1;
-      setProgress(hitsRef.current / VERIFY_HITS);
-      setHint("Hold still");
-      if (hitsRef.current >= VERIFY_HITS) {
-        doneRef.current = true;
-        if (runRef.current !== runId) return;
-        setHint("Face matched");
-        onVerifiedRef.current?.();
-      }
-      return;
-    }
-    hitsRef.current = 0;
-    setProgress(0);
-    setHint(
-      distance > 0.72
-        ? "That face doesn’t match the saved one"
-        : "Hold still and face the camera",
-    );
+    doneRef.current = true;
+    if (runRef.current !== runId) return;
+    const descriptor = Array.from(averageDescriptors(recent));
+    release();
+    void onVerifiedRef.current?.(descriptor);
   }
 
-  const target = mode === "enroll" ? "Save face" : "Sign in with face";
-  const ring = Math.round(progress * 100);
+  async function confirmEnrollment() {
+    if (!pending) return;
+    setSaving(true);
+    setError("");
+    try {
+      await onEnrolledRef.current?.(pending);
+    } catch (saveError) {
+      setError(cameraErrorMessage(saveError));
+    } finally {
+      setSaving(false);
+    }
+  }
 
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={mode === "enroll" ? "Set up face login" : "Face login"}
-      footer={
-        error ? (
-          <>
-            <Button variant="ghost" onClick={onClose}>
-              Close
-            </Button>
-            <Button
+  if (!open || !mounted) return null;
+
+  const scanning = stage === "scan";
+  const haloTone = stage === "done" ? "green" : "rainbow";
+
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex flex-col bg-black text-white">
+      <div className="flex items-center px-4 pb-2 pt-[max(12px,env(safe-area-inset-top))]">
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex size-10 items-center justify-center rounded-full text-white/90"
+          aria-label="Close"
+        >
+          <X size={22} />
+        </button>
+      </div>
+
+      {stage === "intro" ? (
+        <div className="flex min-h-0 flex-1 flex-col px-8 pb-[max(24px,env(safe-area-inset-bottom))]">
+          <h2 className="text-center text-[28px] font-semibold tracking-[-0.03em]">
+            Enrol face
+          </h2>
+          <p className="mx-auto mt-3 max-w-[340px] text-center text-[15px] leading-6 text-white/70">
+            For best results, hold the device 20 cm to 50 cm from your face in
+            an environment that is neither too bright nor too dim.
+          </p>
+          <div className="flex flex-1 items-center justify-center">
+            <div className="relative size-[280px]">
+              <FaceHalo tone="rainbow" />
+              <div
+                className="absolute left-1/2 top-1/2 size-[148px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+                style={{
+                  background:
+                    "radial-gradient(circle at 38% 32%, #b8ffe4 0%, #67d7ff 28%, #6a7bff 58%, #c46bff 100%)",
+                }}
+              >
+                <svg viewBox="0 0 100 100" className="h-full w-full">
+                  <circle cx="34" cy="42" r="3.2" fill="#24143f" />
+                  <circle cx="66" cy="42" r="3.2" fill="#24143f" />
+                  <path
+                    d="M50 46 v12"
+                    stroke="#24143f"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M36 64 Q50 76 64 64"
+                    stroke="#24143f"
+                    strokeWidth="2.6"
+                    fill="none"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
+            </div>
+          </div>
+          <p className="mx-auto mb-5 max-w-[360px] text-center text-[13px] leading-5 text-white/55">
+            By tapping Continue, you agree that a face template is encrypted
+            and stored with your account so you can sign in on the web and the
+            phone.
+          </p>
+          <button
+            type="button"
+            onClick={() => setStage("scan")}
+            className="mx-auto mb-2 h-12 w-full max-w-[420px] rounded-full bg-[#2f6bff] text-[17px] font-medium text-white"
+          >
+            Continue
+          </button>
+        </div>
+      ) : null}
+
+      {scanning ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center px-6 pb-[max(24px,env(safe-area-inset-bottom))]">
+          <h2 className="text-center text-[26px] font-semibold tracking-[-0.03em]">
+            {mode === "enroll" ? "Enrol face" : "Face login"}
+          </h2>
+          <p className="mt-2 max-w-[320px] text-center text-[14px] leading-5 text-white/70">
+            {error || hint}
+          </p>
+          <div className="flex flex-1 items-center justify-center">
+            <div className="relative size-[300px]">
+              <FaceHalo tone={confident ? "green" : "rainbow"} />
+              <div className="absolute left-1/2 top-1/2 size-[210px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full bg-black">
+                <video
+                  key={attempt}
+                  ref={attachVideo}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="h-full w-full object-cover"
+                  style={{ transform: "scaleX(-1)" }}
+                />
+              </div>
+            </div>
+          </div>
+          {error ? (
+            <button
+              type="button"
               onClick={() => {
                 release();
                 setAttempt((value) => value + 1);
               }}
+              className="mb-2 h-12 w-full max-w-[420px] rounded-full bg-[#2f6bff] text-[17px] font-medium"
             >
               Try again
-            </Button>
-          </>
-        ) : (
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-        )
-      }
-    >
-      <div className="space-y-4">
-        <div className="relative mx-auto aspect-[3/4] w-full max-w-[280px] overflow-hidden rounded-[28px] bg-black">
-          <video
-            ref={attachVideo}
-            autoPlay
-            muted
-            playsInline
-            className="h-full w-full object-cover"
-            style={{ transform: "scaleX(-1)" }}
-          />
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div
-              className="h-[70%] w-[74%] rounded-[999px] border-2 transition-colors"
-              style={{
-                borderColor: progress > 0 ? "rgb(52, 211, 153)" : "rgba(255,255,255,0.85)",
-                boxShadow: `inset 0 0 0 ${Math.max(2, ring / 12)}px rgba(52, 211, 153, ${progress})`,
-              }}
-            />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {stage === "done" ? (
+        <div className="flex min-h-0 flex-1 flex-col px-8 pb-[max(24px,env(safe-area-inset-bottom))]">
+          <h2 className="mx-auto max-w-[360px] text-center text-[26px] font-semibold leading-8 tracking-[-0.03em]">
+            All set! You can now sign in with your face.
+          </h2>
+          <div className="flex flex-1 items-center justify-center">
+            <div className="relative size-[300px]">
+              <FaceHalo tone={haloTone} />
+              <div className="absolute left-1/2 top-1/2 size-[210px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full bg-black">
+                {preview ? (
+                  <img src={preview} alt="" className="h-full w-full object-cover" />
+                ) : null}
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <svg viewBox="0 0 80 80" className="size-24 drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)]">
+                    <path
+                      d="M18 42 L34 58 L64 24"
+                      fill="none"
+                      stroke="#3dff6a"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              </div>
+            </div>
           </div>
+          <p className="mb-5 flex items-center justify-center gap-2 text-center text-[13px] text-white/70">
+            <ShieldCheck size={16} className="text-[#7aa2ff]" />
+            Facial data is encrypted when stored.
+          </p>
+          {error ? (
+            <p className="mb-3 text-center text-[13px] text-[#ff8d8d]">{error}</p>
+          ) : null}
+          <button
+            type="button"
+            disabled={saving || !pending}
+            onClick={() => void confirmEnrollment()}
+            className="mx-auto mb-2 h-12 w-full max-w-[420px] rounded-full bg-[#2f6bff] text-[17px] font-medium text-white disabled:opacity-60"
+          >
+            {saving ? "Saving…" : "Done"}
+          </button>
         </div>
-        <div className="flex items-start gap-2 text-sm leading-5 text-[var(--ds-gray-900)]">
-          <ScanFace size={18} className="mt-0.5 shrink-0" aria-hidden />
-          <p>{error || hint}</p>
-        </div>
-        <p className="text-xs leading-5 text-[var(--ds-gray-700)]">
-          {target}. A clear, centered face is saved on this device only. Closing
-          the app does not sign you out.
-        </p>
-      </div>
-    </Modal>
+      ) : null}
+    </div>,
+    document.body,
   );
 }

@@ -11,24 +11,18 @@ import { Label } from "@/components/ui/label";
 import { Card, CardBody } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { loginUser } from "@/lib/api/auth";
+import { faceLoginAvailable, loginWithFace } from "@/lib/api/face-login";
 import { getCurrentUser } from "@/lib/api/user";
 import {
   getErrorMessage,
   getAccessToken,
   getLockUntil,
-  restoreSessionFromRefreshToken,
 } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import { useGlobalLoader } from "@/components/brand/global-loader";
 import { userIdFromToken } from "@/lib/jwt";
 import { FaceCameraDialog } from "@/components/auth/face-camera-dialog";
-import {
-  clearFaceLoginProfile,
-  hydrateFaceLoginProfile,
-  readFaceLoginProfileSync,
-  type FaceLoginProfile,
-} from "@/lib/face-login/profile";
 
 function SignInForm() {
   const router = useRouter();
@@ -42,20 +36,19 @@ function SignInForm() {
   const [faceLoading, setFaceLoading] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [hasSession, setHasSession] = useState(false);
-  const [faceProfile, setFaceProfile] = useState<FaceLoginProfile | null>(null);
+  const [faceAvailable, setFaceAvailable] = useState(false);
   const sessionToastShown = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
-    void hydrateFaceLoginProfile().then(() => {
-      if (cancelled) return;
-      setHasSession(Boolean(getAccessToken()));
-      const profile = readFaceLoginProfileSync();
-      setFaceProfile(profile);
-      if (profile?.email) {
-        setEmail((current) => current || profile.email);
-      }
-    });
+    setHasSession(Boolean(getAccessToken()));
+    void faceLoginAvailable()
+      .then((status) => {
+        if (!cancelled) setFaceAvailable(Boolean(status.enabled));
+      })
+      .catch(() => {
+        if (!cancelled) setFaceAvailable(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -126,21 +119,17 @@ function SignInForm() {
     }
   }
 
-  async function onFaceVerified() {
-    const profile = readFaceLoginProfileSync();
-    if (!profile) return;
+  async function onFaceVerified(descriptor: number[]) {
     setCameraOpen(false);
     setFaceLoading(true);
     showPageLoader("Signing in");
     try {
-      await restoreSessionFromRefreshToken(profile.refreshToken);
+      const tokens = await loginWithFace(descriptor);
       const user = await getCurrentUser();
-      if (user.id !== profile.userId) {
-        await clearFaceLoginProfile();
-        setFaceProfile(null);
-        throw new Error("Face login is tied to a different account on this device.");
-      }
-      await setSession(user);
+      await setSession({
+        ...user,
+        id: user.id || tokens.user?.id || "",
+      });
       showToast({
         title: "Signed in",
         description: `Welcome back${user.full_name ? `, ${user.full_name}` : ""}.`,
@@ -148,28 +137,16 @@ function SignInForm() {
       });
       router.replace("/dashboard");
     } catch (err) {
-      const message = getErrorMessage(err, "Face login failed");
-      const expired =
-        message.toLowerCase().includes("refresh") ||
-        message.toLowerCase().includes("session") ||
-        (typeof err === "object" &&
-          err !== null &&
-          "response" in err &&
-          (err as { response?: { status?: number } }).response?.status === 401);
-      if (expired) {
-        await clearFaceLoginProfile();
-        setFaceProfile(null);
-        showToast({
-          title: "Saved session expired",
-          description: "Sign in with your password, then turn face login on again in Settings.",
-          tone: "warning",
-        });
-        return;
-      }
+      const message = getErrorMessage(err, "Face not recognized");
+      const lockedUntil = getLockUntil(err);
       showToast({
         title: "Face login failed",
-        description: message,
+        description: message.includes("EMAIL_NOT_VERIFIED")
+          ? "Verify your email, then try face login again."
+          : message,
         tone: "error",
+        duration: lockedUntil ? 12_000 : undefined,
+        lockedUntil: lockedUntil ?? undefined,
       });
     } finally {
       setFaceLoading(false);
@@ -188,7 +165,7 @@ function SignInForm() {
 
       <Card>
         <CardBody className="pt-6">
-          {faceProfile ? (
+          {faceAvailable ? (
             <div className="mb-6 space-y-3">
               <Button
                 type="button"
@@ -201,8 +178,8 @@ function SignInForm() {
                 Sign in with face
               </Button>
               <p className="text-center text-xs text-[var(--ds-gray-700)]">
-                Saved for {faceProfile.email}. Use your password if this is a
-                different account.
+                Uses the face saved on your account. Password sign-in still
+                works.
               </p>
               <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.08em] text-[var(--ds-gray-700)]">
                 <span className="h-px flex-1 bg-[var(--ds-gray-200)]" />
@@ -263,9 +240,8 @@ function SignInForm() {
       <FaceCameraDialog
         open={cameraOpen}
         mode="verify"
-        savedDescriptor={faceProfile?.descriptor}
         onClose={() => setCameraOpen(false)}
-        onVerified={() => void onFaceVerified()}
+        onVerified={(descriptor) => void onFaceVerified(descriptor)}
       />
       {hasSession ? (
         <p className="mt-3 text-center text-xs text-[var(--ds-gray-700)]">

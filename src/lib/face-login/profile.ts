@@ -1,6 +1,4 @@
-import { userIdFromToken } from "@/lib/jwt";
-
-/** Device-local face profile. Survives explicit logout so sign-in can use the camera. */
+/** Legacy device copy. New enrollments are stored encrypted on the account. */
 export const FACE_LOGIN_STORAGE_KEY = "finos:face_login";
 
 const LEGACY_BIOMETRIC_FLAG = "finos:face_unlock_enrolled";
@@ -93,23 +91,10 @@ export async function hydrateFaceLoginProfile(): Promise<void> {
   }
 }
 
-/**
- * Keep the saved sign-in token current while this account stays logged in.
- * A different account on the same device does not overwrite the enrolled face.
- */
+/** Face templates live on the account now, not in a device token. */
 export async function syncFaceLoginRefresh(
-  accessToken: string | undefined,
-  refreshToken: string | undefined,
+  _accessToken?: string,
+  _refreshToken?: string,
 ): Promise<void> {
-  try {
-    if (!accessToken || !refreshToken) return;
-    const userId = userIdFromToken(accessToken);
-    if (!userId) return;
-    const profile = readFaceLoginProfileSync();
-    if (!profile || profile.userId !== userId) return;
-    if (profile.refreshToken === refreshToken) return;
-    await writeFaceLoginProfile({ ...profile, refreshToken });
-  } catch {
-    /* Face login can be set up again if storage fails. */
-  }
+  return;
 }

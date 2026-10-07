@@ -6,61 +6,78 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
-import { getErrorMessage, getRefreshToken } from "@/lib/api/client";
+import { getErrorMessage } from "@/lib/api/client";
+import {
+  deleteFaceLogin,
+  getFaceLoginStatus,
+  saveFaceLogin,
+} from "@/lib/api/face-login";
 import { APP_NAME } from "@/lib/brand";
 import { FaceCameraDialog } from "@/components/auth/face-camera-dialog";
 import {
   clearFaceLoginProfile,
-  hydrateFaceLoginProfile,
   readFaceLoginProfileSync,
-  writeFaceLoginProfile,
-  type FaceLoginProfile,
 } from "@/lib/face-login/profile";
 
 export function FaceLoginSettings() {
   const { user } = useAuth();
   const { showToast } = useToast();
-  const [profile, setProfile] = useState<FaceLoginProfile | null>(null);
+  const [enabled, setEnabled] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    void hydrateFaceLoginProfile().then(() => {
-      if (cancelled) return;
-      const saved = readFaceLoginProfileSync();
-      setProfile(saved && (!user?.id || saved.userId === user.id) ? saved : null);
-      setReady(true);
-    });
+    void (async () => {
+      try {
+        const status = await getFaceLoginStatus();
+        if (cancelled) return;
+        if (!status.enabled) {
+          const local = readFaceLoginProfileSync();
+          if (local && user?.id && local.userId === user.id && local.descriptor?.length) {
+            const moved = await saveFaceLogin(local.descriptor);
+            if (!cancelled) {
+              setEnabled(moved.enabled);
+              setEmail(moved.email);
+            }
+          }
+        } else {
+          setEnabled(true);
+          setEmail(status.email);
+        }
+        await clearFaceLoginProfile();
+      } catch {
+        if (!cancelled) {
+          setEnabled(false);
+        }
+      } finally {
+        if (!cancelled) setReady(true);
+      }
+    })();
     return () => {
       cancelled = true;
     };
   }, [user?.id]);
 
-  const enrolledForUser = Boolean(profile && user?.id && profile.userId === user.id);
+  const enrolledForUser = enabled;
 
   function beginEnroll() {
     if (!user?.id || !user.email) return;
-    if (!getRefreshToken()) {
-      showToast({
-        title: "Sign in again first",
-        description: "Face login needs an active session on this device.",
-        tone: "warning",
-      });
-      return;
-    }
     setCameraOpen(true);
   }
 
   async function disable() {
     setBusy(true);
     try {
+      await deleteFaceLogin();
       await clearFaceLoginProfile();
-      setProfile(null);
+      setEnabled(false);
+      setEmail(null);
       showToast({
         title: "Face login turned off",
-        description: "This device will use email and password again.",
+        description: "Password sign-in still works on the web and the phone.",
         tone: "success",
       });
     } catch (error) {
@@ -93,9 +110,9 @@ export function FaceLoginSettings() {
         <CardHeader>
           <h2 className="font-heading text-base font-semibold">Face login</h2>
           <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-            Use the camera to sign in to {APP_NAME} on this browser or phone.
-            Closing the app does not sign you out. Face login is only asked
-            after you tap Log out.
+            Set this up once on the web or the phone. The face template is
+            encrypted with your account, so the other one can use it too.
+            Closing the app does not sign you out.
           </p>
         </CardHeader>
         <CardBody className="space-y-3">
@@ -110,18 +127,10 @@ export function FaceLoginSettings() {
             label="Sign in with face"
             description={
               enrolledForUser
-                ? `Saved for ${profile?.email}. Password sign-in still works.`
-                : "Turn this on to capture your face with the camera. A clear photo is kept on this device."
+                ? `Saved for ${email || user?.email || "this account"}. Password sign-in still works.`
+                : "Turn this on to capture your face. It is encrypted and stored with your account, not only on this device."
             }
           />
-
-          {enrolledForUser && profile?.preview ? (
-            <img
-              src={profile.preview}
-              alt=""
-              className="size-16 rounded-full object-cover"
-            />
-          ) : null}
 
           <div className="flex flex-wrap justify-end gap-2">
             {enrolledForUser ? (
@@ -156,44 +165,22 @@ export function FaceLoginSettings() {
         open={cameraOpen}
         mode="enroll"
         onClose={() => setCameraOpen(false)}
-        onEnrolled={(result) => {
-          if (!user?.id || !user.email) return;
-          const refreshToken = getRefreshToken();
-          if (!refreshToken) {
+        onEnrolled={async (result) => {
+          try {
+            const saved = await saveFaceLogin(result.descriptor);
+            await clearFaceLoginProfile();
+            setEnabled(saved.enabled);
+            setEmail(saved.email);
             setCameraOpen(false);
             showToast({
-              title: "Couldn’t save face login",
-              description: "Sign in again, then set it up from Settings.",
-              tone: "warning",
+              title: "Face login is on",
+              description:
+                "It works on the web and the phone. You stay signed in when you leave the app.",
+              tone: "success",
             });
-            return;
+          } catch (error) {
+            throw new Error(getErrorMessage(error, "Could not save face login."));
           }
-          const next: FaceLoginProfile = {
-            userId: user.id,
-            email: user.email,
-            descriptor: result.descriptor,
-            preview: result.preview,
-            refreshToken,
-            enrolledAt: new Date().toISOString(),
-          };
-          setCameraOpen(false);
-          void writeFaceLoginProfile(next)
-            .then(() => {
-              setProfile(next);
-              showToast({
-                title: "Face login is on",
-                description:
-                  "You stay signed in when you leave the app. After you log out, you can sign in with your face.",
-                tone: "success",
-              });
-            })
-            .catch((error) => {
-              showToast({
-                title: "Couldn’t save face login",
-                description: getErrorMessage(error, "Try again."),
-                tone: "error",
-              });
-            });
         }}
       />
     </>

@@ -662,133 +662,125 @@ export function TransactionForm({
           <option value="income">Income</option>
           <option value="transfer">Transfer</option>
         </Select>
-        {form.type === "transfer" ? (
-          <p className="mt-1.5 text-[11px] text-[var(--ds-gray-700)]">
-            Money leaves From and arrives in To. Use the swap control if they
-            are reversed.
-          </p>
-        ) : null}
       </div>
 
-      {/* Containers immediately under type so transfer To is not buried off-screen. */}
       {(needsSource || needsDestination) && (
-        <div
-          className={
-            needsSource && needsDestination
-              ? "grid gap-2 rounded-[12px] bg-[var(--ds-background-100)] p-3 sm:grid-cols-[1fr_auto_1fr] sm:items-end sm:gap-2 sm:p-4"
-              : undefined
-          }
-        >
-          {needsSource ? (
-            <div className="min-w-0">
-              <Label htmlFor="source">From</Label>
-              <Select
-                id="source"
-                value={form.source_container_id || ""}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setForm((prev) => ({
-                    ...prev,
-                    source_container_id: next,
-                    destination_container_id:
-                      prev.destination_container_id === next
-                        ? ""
-                        : prev.destination_container_id,
-                    exchange_rate: undefined,
-                  }));
-                }}
-                required
-              >
-                <option value="">Select container</option>
-                {sourceOptions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {containerLabel(c)}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          ) : null}
+        <div className="relative">
+          <div
+            className={cn(
+              needsSource && needsDestination
+                ? "grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-x-10"
+                : undefined,
+            )}
+          >
+            {needsSource ? (
+              <div className="min-w-0">
+                <Label htmlFor="source">From</Label>
+                <Select
+                  id="source"
+                  value={form.source_container_id || ""}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      source_container_id: next,
+                      destination_container_id:
+                        prev.destination_container_id === next
+                          ? ""
+                          : prev.destination_container_id,
+                      exchange_rate: undefined,
+                    }));
+                  }}
+                  required
+                >
+                  <option value="">Select container</option>
+                  {sourceOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {containerLabel(c)}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : null}
+
+            {needsDestination ? (
+              <div className="min-w-0">
+                <Label htmlFor="destination">To</Label>
+                <Select
+                  id="destination"
+                  value={form.destination_container_id || ""}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      destination_container_id: next,
+                      source_container_id:
+                        prev.source_container_id === next
+                          ? ""
+                          : prev.source_container_id,
+                      exchange_rate: undefined,
+                    }));
+                  }}
+                  required
+                >
+                  <option value="">Select container</option>
+                  {destinationOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {containerLabel(c)}
+                    </option>
+                  ))}
+                </Select>
+                {form.type === "transfer" && containers.length < 2 ? (
+                  <p className="mt-1.5 text-[11px] text-[var(--ds-status-orange)]">
+                    You need a second container for transfers.{" "}
+                    <button
+                      type="button"
+                      className="text-[var(--ds-focus-color)]"
+                      onClick={() => router.push("/accounts")}
+                    >
+                      Create one in Accounts
+                    </button>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
 
           {needsSource && needsDestination ? (
-            <div className="flex items-center justify-center py-0.5 sm:pb-1">
-              <button
-                type="button"
-                aria-label="Swap From and To containers"
-                title="Swap From and To"
-                disabled={
-                  !form.source_container_id && !form.destination_container_id
-                }
-                onClick={() => {
-                  setForm((prev) => ({
-                    ...prev,
-                    source_container_id: prev.destination_container_id,
-                    destination_container_id: prev.source_container_id,
-                    exchange_rate: undefined,
-                  }));
-                }}
-                className={cn(
-                  "inline-flex size-9 shrink-0 items-center justify-center rounded-full",
-                  "border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)]",
-                  "bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)]",
-                  "shadow-[0_1px_2px_color-mix(in_srgb,var(--ds-gray-1000)_6%,transparent)]",
-                  "transition-colors hover:border-[color:color-mix(in_srgb,var(--ds-focus-color)_35%,transparent)]",
-                  "hover:bg-[color-mix(in_srgb,var(--ds-focus-color)_10%,var(--ds-background-elevated))]",
-                  "hover:text-[var(--ds-focus-color)] ds-focus",
-                  "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)]",
-                  "disabled:hover:bg-[var(--ds-background-elevated)] disabled:hover:text-[var(--ds-gray-900)]",
-                  "rotate-90 sm:rotate-0",
-                )}
-              >
-                <ArrowLeftRight size={16} strokeWidth={1.8} />
-              </button>
-            </div>
-          ) : null}
-
-          {needsDestination ? (
-            <div className="min-w-0">
-              <Label htmlFor="destination">To</Label>
-              <Select
-                id="destination"
-                value={form.destination_container_id || ""}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setForm((prev) => ({
-                    ...prev,
-                    destination_container_id: next,
-                    source_container_id:
-                      prev.source_container_id === next
-                        ? ""
-                        : prev.source_container_id,
-                    exchange_rate: undefined,
-                  }));
-                }}
-                required
-              >
-                <option value="">Select container</option>
-                {destinationOptions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {containerLabel(c)}
-                  </option>
-                ))}
-              </Select>
-              {form.type === "transfer" && containers.length < 2 ? (
-                <p className="mt-1.5 text-[11px] text-[var(--ds-status-orange)]">
-                  You need a second container for transfers.{" "}
-                  <button
-                    type="button"
-                    className="text-[var(--ds-focus-color)]"
-                    onClick={() => router.push("/accounts")}
-                  >
-                    Create one in Accounts
-                  </button>
-                </p>
-              ) : null}
-            </div>
+            <button
+              type="button"
+              aria-label="Swap From and To containers"
+              title="Swap From and To"
+              disabled={
+                !form.source_container_id && !form.destination_container_id
+              }
+              onClick={() => {
+                setForm((prev) => ({
+                  ...prev,
+                  source_container_id: prev.destination_container_id,
+                  destination_container_id: prev.source_container_id,
+                  exchange_rate: undefined,
+                }));
+              }}
+              className={cn(
+                "absolute left-1/2 top-1/2 z-10 inline-flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full",
+                "border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]",
+                "bg-[var(--ds-background-elevated)] text-[var(--ds-gray-900)]",
+                "shadow-[0_2px_8px_color-mix(in_srgb,var(--ds-gray-1000)_16%,transparent)]",
+                "transition-colors hover:border-[color:color-mix(in_srgb,var(--ds-focus-color)_35%,transparent)]",
+                "hover:bg-[color-mix(in_srgb,var(--ds-focus-color)_10%,var(--ds-background-elevated))]",
+                "hover:text-[var(--ds-focus-color)] ds-focus",
+                "disabled:cursor-not-allowed disabled:opacity-40",
+                "rotate-90 sm:rotate-0",
+              )}
+            >
+              <ArrowLeftRight size={14} strokeWidth={1.8} />
+            </button>
           ) : null}
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 sm:gap-5">
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <Label htmlFor="amount">
             Amount
@@ -854,7 +846,7 @@ export function TransactionForm({
           maxLength={500}
           value={form.description}
           onChange={(e) => update("description", e.target.value)}
-          placeholder="Coffee, salary, rent transfer…"
+          placeholder="What this payment was for"
         />
       </div>
 
@@ -891,7 +883,7 @@ export function TransactionForm({
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 sm:gap-5">
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <Label htmlFor="category">Category</Label>
           <Select
@@ -919,7 +911,7 @@ export function TransactionForm({
       </div>
 
       {showReceiptFields ? (
-        <div className="grid gap-3 sm:grid-cols-2 sm:gap-5">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <Label htmlFor="payment_method">Payment method</Label>
             <Input

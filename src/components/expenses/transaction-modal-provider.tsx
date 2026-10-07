@@ -195,13 +195,13 @@ export function TransactionModalProvider({
                 onRemove={clearReceiptPreview}
               />
             </aside>
-            <div className="app-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-6 py-6 pb-10 sm:px-10 sm:py-8 sm:pb-12 lg:px-12">
+            <div className="app-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-8 sm:px-8 sm:py-6 sm:pb-10 lg:px-10">
               <VisionSourceBadge
                 provider={draft?.visionProvider}
                 model={draft?.visionModel}
               />
               {draft?.notice ? (
-                <p className="mb-6 rounded-[16px] border border-[color:color-mix(in_srgb,var(--ds-mesh-a)_18%,transparent)] bg-[color-mix(in_srgb,var(--ds-mesh-a)_7%,var(--ds-background-100))] px-4 py-3.5 text-sm leading-6 text-[var(--ds-gray-900)] sm:px-5">
+                <p className="mb-3 rounded-[12px] border border-[color:color-mix(in_srgb,var(--ds-mesh-a)_18%,transparent)] bg-[color-mix(in_srgb,var(--ds-mesh-a)_7%,var(--ds-background-100))] px-3 py-2.5 text-[13px] leading-5 text-[var(--ds-gray-900)]">
                   {draft.notice}
                 </p>
               ) : null}
@@ -232,7 +232,7 @@ export function TransactionModalProvider({
                   onReceiptReading={setReadingLabel}
                   reading={Boolean(readingLabel)}
                   onReceiptAttached={attachReceiptPreview}
-                  className="space-y-5 sm:space-y-6"
+                  className="space-y-3.5 sm:space-y-4"
                 />
               ) : null}
             </div>
