@@ -111,6 +111,8 @@ function NavLink({
     ? false
     : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
+  // Anchor for the guided tutorial (components/tutorial).
+  const tourId = `nav-${item.href.replace(/^\//, "")}`;
   const className = cn(
     "group flex min-h-8 w-full items-center rounded-[7px] text-[12px] transition-colors ds-focus",
     collapsed ? "justify-center px-2" : "justify-between px-2",
@@ -143,6 +145,7 @@ function NavLink({
     return (
       <button
         type="button"
+        data-tour={tourId}
         title={collapsed ? item.label : undefined}
         className={className}
         onClick={() => {
@@ -161,6 +164,7 @@ function NavLink({
     <Link
       href={item.href}
       onClick={onNavigate}
+      data-tour={tourId}
       title={collapsed ? item.label : undefined}
       className={className}
     >
@@ -228,6 +232,7 @@ function SidebarContents({
         {canCreateTx ? (
           <button
             type="button"
+            data-tour="new-transaction"
             onClick={() => {
               openTransactionModal();
               onNavigate?.();
@@ -240,7 +245,10 @@ function SidebarContents({
         ) : null}
       </div>
 
-      <nav className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-2 py-2">
+      <nav
+        data-tour="nav-primary"
+        className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-2 py-2"
+      >
         <div className="space-y-0.5">
           <p className="mb-1 px-2 text-[10px] font-medium text-[var(--ds-gray-700)]">
             Finance
@@ -436,7 +444,10 @@ export function MobileNav() {
 
   return (
     <>
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex gap-1 bg-[var(--ds-background-elevated)] px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden [box-shadow:0_-1px_0_0_color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]">
+      <nav
+        data-tour="mobile-nav"
+        className="fixed inset-x-0 bottom-0 z-40 flex gap-1 bg-[var(--ds-background-elevated)] px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden [box-shadow:0_-1px_0_0_color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]"
+      >
         {items.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -444,6 +455,7 @@ export function MobileNav() {
             <Link
               key={item.href}
               href={item.href}
+              data-tour={`mobile-nav-${item.href.replace(/^\//, "")}`}
               className={cn(
                 "flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-[9px] px-1 py-1.5 text-[11px]",
                 active
@@ -459,6 +471,7 @@ export function MobileNav() {
         <button
           type="button"
           onClick={() => dispatch(setMobileNavOpen(true))}
+          data-tour="mobile-nav-more"
           className="flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-[9px] px-1 py-1.5 text-[11px] text-[var(--ds-gray-900)]"
           aria-label="Open all modules"
         >

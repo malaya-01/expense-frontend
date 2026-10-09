@@ -14,6 +14,7 @@ import { fetchMyPermissions } from "@/lib/api/permissions";
 import { cn } from "@/lib/cn";
 import { bootstrapOfflineSync } from "@/lib/offline/sync-engine";
 import { NetworkStatusBanner } from "@/components/sync/network-status-banner";
+import { TutorialProvider } from "@/components/tutorial/tutorial-provider";
 import {
   firstAllowedPath,
   hasPermission,
@@ -71,35 +72,37 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <TransactionModalProvider>
       <ReceiptCaptureProvider>
-        <div className="h-dvh overflow-hidden bg-transparent">
-          <AppTopbar />
-          <AppSidebar />
-          <main
-            className={cn(
-              // Offset matches AppTopbar: 3rem + the top safe-area inset.
-              "h-[calc(100dvh-3rem-env(safe-area-inset-top))] translate-y-[calc(3rem+env(safe-area-inset-top))] transition-[margin-left] duration-200 md:ml-[var(--app-sidebar-offset)]",
-              isFullBleedWorkspace
-                ? "overflow-hidden p-0 pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-0"
-                : "app-scrollbar overflow-x-hidden overflow-y-auto overscroll-contain scroll-pt-3 px-3 pt-5 pb-[calc(6.25rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 sm:pb-6 md:pb-10",
-            )}
-          >
-            <div
+        <TutorialProvider>
+          <div className="h-dvh overflow-hidden bg-transparent">
+            <AppTopbar />
+            <AppSidebar />
+            <main
               className={cn(
+                // Offset matches AppTopbar: 3rem + the top safe-area inset.
+                "h-[calc(100dvh-3rem-env(safe-area-inset-top))] translate-y-[calc(3rem+env(safe-area-inset-top))] transition-[margin-left] duration-200 md:ml-[var(--app-sidebar-offset)]",
                 isFullBleedWorkspace
-                  ? "flex h-full w-full max-w-none flex-col"
-                  : "mx-auto w-full min-w-0 max-w-[var(--ds-page-width)]",
+                  ? "overflow-hidden p-0 pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-0"
+                  : "app-scrollbar overflow-x-hidden overflow-y-auto overscroll-contain scroll-pt-3 px-3 pt-5 pb-[calc(6.25rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 sm:pb-6 md:pb-10",
               )}
             >
-              <NetworkStatusBanner />
-              <div className={cn(isFullBleedWorkspace && "min-h-0 flex-1")}>
-                {children}
+              <div
+                className={cn(
+                  isFullBleedWorkspace
+                    ? "flex h-full w-full max-w-none flex-col"
+                    : "mx-auto w-full min-w-0 max-w-[var(--ds-page-width)]",
+                )}
+              >
+                <NetworkStatusBanner />
+                <div className={cn(isFullBleedWorkspace && "min-h-0 flex-1")}>
+                  {children}
+                </div>
               </div>
-            </div>
-          </main>
-          <MobileNav />
-          <MobileCreateFab />
-          <CommandPalette />
-        </div>
+            </main>
+            <MobileNav />
+            <MobileCreateFab />
+            <CommandPalette />
+          </div>
+        </TutorialProvider>
       </ReceiptCaptureProvider>
     </TransactionModalProvider>
   );

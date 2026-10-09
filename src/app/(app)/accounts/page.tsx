@@ -50,6 +50,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useInfiniteList } from "@/hooks/use-infinite-list";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
+import { useTutorialCreateHandler } from "@/lib/tutorial/signals";
 import { formatCurrency, formatInstantDate } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
@@ -79,6 +80,7 @@ function sectionIcon(group: string) {
 
 export default function AccountsPage() {
   const perms = useModulePermissions("accounts");
+  useTutorialCreateHandler("create-account", openCreate, perms.create);
   const { user } = useAuth();
   const { showToast } = useToast();
   const { startReceiptCapture } = useReceiptCapture();

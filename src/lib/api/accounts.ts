@@ -1,6 +1,7 @@
 import type { CreateContainerInput, FinancialContainer } from "@/types";
 import { accountsRepo } from "@/lib/offline/repos";
 import { personalAccounts } from "@/lib/accounts/personal";
+import { emitTutorialSignal } from "@/lib/tutorial/signals";
 
 export async function listAccounts(
   _userId?: string,
@@ -13,7 +14,11 @@ export async function createAccount(
   _userId: string,
   payload: CreateContainerInput,
 ): Promise<FinancialContainer> {
-  return accountsRepo.create(payload as any) as Promise<FinancialContainer>;
+  const created = (await accountsRepo.create(
+    payload as any,
+  )) as FinancialContainer;
+  emitTutorialSignal("create-account");
+  return created;
 }
 
 export async function updateAccount(

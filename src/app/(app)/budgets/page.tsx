@@ -25,6 +25,7 @@ import {
 import { listCategories } from "@/lib/api/categories";
 import { useAuth } from "@/lib/auth-context";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
+import { useTutorialCreateHandler } from "@/lib/tutorial/signals";
 import { formatCurrency } from "@/lib/format";
 import { convertAmount } from "@/lib/currency/currency.data";
 import { getErrorMessage } from "@/lib/api/client";
@@ -38,6 +39,7 @@ type StatusFilter = "all" | "on_track" | "warning" | "over";
 
 export default function BudgetsPage() {
   const perms = useModulePermissions("budgets");
+  useTutorialCreateHandler("create-budget", openCreate, perms.create);
   const { user } = useAuth();
   const { showToast } = useToast();
   const [budgets, setBudgets] = useState<Budget[]>([]);

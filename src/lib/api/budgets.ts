@@ -1,6 +1,7 @@
 import type { Budget, CreateBudgetInput } from "@/types";
 import { budgetsRepo } from "@/lib/offline/repos";
 import { offlineDb } from "@/lib/offline/db";
+import { emitTutorialSignal } from "@/lib/tutorial/signals";
 
 function normalize(row: any): Budget {
   return {
@@ -44,7 +45,11 @@ export async function listBudgets(): Promise<Budget[]> {
 export async function createBudget(
   payload: CreateBudgetInput,
 ): Promise<Budget> {
-  return normalize(await budgetsRepo.create((await enrich(payload)) as any));
+  const created = normalize(
+    await budgetsRepo.create((await enrich(payload)) as any),
+  );
+  emitTutorialSignal("create-budget");
+  return created;
 }
 
 export async function updateBudget(
