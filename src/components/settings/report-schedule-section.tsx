@@ -1,11 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/api/client";
@@ -16,6 +14,14 @@ import {
   type ReportSchedule,
 } from "@/lib/api/reports";
 import { APP_NAME } from "@/lib/brand";
+import { formatDate, formatDateTime } from "@/lib/format";
+import {
+  SectionLoading,
+  Segmented,
+  SettingRow,
+  SettingsGroup,
+  SwitchRow,
+} from "./settings-ui";
 
 const WEEKDAYS = [
   "Sunday",
@@ -140,261 +146,263 @@ export function ReportScheduleSection({ canUpdate }: { canUpdate: boolean }) {
 
   if (loading) {
     return (
-      <Card>
-        <CardBody>
-          <p className="text-sm text-[var(--ds-gray-900)]">
-            Loading report schedule…
-          </p>
-        </CardBody>
-      </Card>
+      <SettingsGroup title="Emailed financial reports">
+        <SectionLoading rows={3} />
+      </SettingsGroup>
     );
   }
 
+  // next_send_at may be a zone-less wall time in the report timezone.
+  const nextSend = form.next_send_at
+    ? /(Z|[+-]\d{2}:?\d{2})$/.test(form.next_send_at)
+      ? formatDateTime(form.next_send_at)
+      : `${formatDate(form.next_send_at.slice(0, 10))} ${form.next_send_at.slice(11, 16)}`.trim()
+    : null;
+
   return (
-    <Card>
-      <CardHeader>
-        <h2 className="font-heading text-base font-semibold">
-          Email financial reports
-        </h2>
-        <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-          {form.default_note ||
-            `If you never change this, ${APP_NAME} emails a report every Saturday at 10:00 in your timezone.`}
-        </p>
-      </CardHeader>
-      <CardBody>
-        <form onSubmit={onSave} className="space-y-4">
-          <Checkbox
-            id="report-enabled"
-            checked={form.enabled}
-            onChange={(checked) => patch({ enabled: checked })}
+    <form onSubmit={onSave} className="space-y-4">
+      <SettingsGroup
+        title="Emailed financial reports"
+        description={
+          form.default_note ||
+          `If you never change this, ${APP_NAME} emails a report every Saturday at 10:00 in your timezone.`
+        }
+        actions={
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            loading={sending}
             disabled={!canUpdate}
-            label="Send reports automatically"
-            description={form.summary || "Weekly on Saturday at 10:00"}
+            onClick={() => void onSendNow()}
+          >
+            Email a report now
+          </Button>
+        }
+      >
+        <SwitchRow
+          id="report-enabled"
+          label="Send reports automatically"
+          description={form.summary || "Weekly on Saturday at 10:00"}
+          checked={form.enabled}
+          disabled={!canUpdate}
+          onChange={(checked) => patch({ enabled: checked })}
+        />
+        <SettingRow label="How often" labelId="report-frequency-label">
+          <Segmented
+            ariaLabelledBy="report-frequency-label"
+            value={form.frequency}
+            disabled={!canUpdate || !form.enabled}
+            options={[
+              { value: "weekly", label: "Weekly" },
+              { value: "monthly", label: "Monthly" },
+              { value: "custom", label: "Custom" },
+            ]}
+            onChange={(frequency) => patch({ frequency })}
           />
+        </SettingRow>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="report-frequency">Frequency</Label>
-              <Select
-                id="report-frequency"
-                value={form.frequency}
-                disabled={!canUpdate}
-                onChange={(e) =>
-                  patch({
-                    frequency: e.target.value as ReportSchedule["frequency"],
-                  })
-                }
-              >
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="custom">Custom</option>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="report-time">Send time</Label>
-              <Input
-                id="report-time"
-                type="time"
-                value={form.send_time}
-                disabled={!canUpdate}
-                onChange={(e) => patch({ send_time: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {form.frequency === "weekly" ? (
-            <div>
-              <Label htmlFor="report-weekday">Weekday</Label>
-              <Select
-                id="report-weekday"
-                value={String(form.weekday)}
-                disabled={!canUpdate}
-                onChange={(e) => patch({ weekday: Number(e.target.value) })}
-              >
-                {WEEKDAYS.map((label, index) => (
-                  <option key={label} value={index}>
-                    {index}. {label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          ) : null}
-
-          {form.frequency === "monthly" ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="report-monthly-mode">Send on</Label>
-                <Select
-                  id="report-monthly-mode"
-                  value={form.monthly_mode}
-                  disabled={!canUpdate}
-                  onChange={(e) =>
-                    patch({
-                      monthly_mode: e.target
-                        .value as ReportSchedule["monthly_mode"],
-                    })
-                  }
-                >
-                  <option value="last_day">Last day of the month</option>
-                  <option value="day_of_month">A specific day</option>
-                </Select>
-              </div>
-              {form.monthly_mode === "day_of_month" ? (
-                <div>
-                  <Label htmlFor="report-dom">Day of month</Label>
-                  <Select
-                    id="report-dom"
-                    value={String(form.day_of_month)}
-                    disabled={!canUpdate}
-                    onChange={(e) =>
-                      patch({ day_of_month: Number(e.target.value) })
-                    }
-                  >
-                    {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
-                      <option key={day} value={day}>
-                        {day}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {form.frequency === "custom" ? (
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="report-custom-mode">Custom type</Label>
-                <Select
-                  id="report-custom-mode"
-                  value={form.custom_mode}
-                  disabled={!canUpdate}
-                  onChange={(e) =>
-                    patch({
-                      custom_mode: e.target.value as ReportSchedule["custom_mode"],
-                    })
-                  }
-                >
-                  <option value="interval">Every N days</option>
-                  <option value="dates">Specific dates</option>
-                </Select>
-              </div>
-              {form.custom_mode === "interval" ? (
-                <div>
-                  <Label htmlFor="report-interval">Days between reports</Label>
-                  <Input
-                    id="report-interval"
-                    type="number"
-                    min={1}
-                    max={365}
-                    value={form.interval_days}
-                    disabled={!canUpdate}
-                    onChange={(e) =>
-                      patch({ interval_days: Number(e.target.value) || 1 })
-                    }
-                  />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="report-add-date">Add a send date</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="report-add-date"
-                      type="date"
-                      value={dateToAdd}
-                      disabled={!canUpdate}
-                      onChange={(e) => setDateToAdd(e.target.value)}
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={!canUpdate || !dateToAdd}
-                      onClick={addDate}
-                    >
-                      Add
-                    </Button>
-                  </div>
-                  {form.custom_dates.length ? (
-                    <ul className="flex flex-wrap gap-1.5">
-                      {form.custom_dates.map((date) => (
-                        <li
-                          key={date}
-                          className="flex items-center gap-1 rounded-full bg-[var(--ds-background-100)] px-2.5 py-1 text-[12px] ds-border"
-                        >
-                          {date}
-                          <button
-                            type="button"
-                            className="text-[var(--ds-gray-700)]"
-                            disabled={!canUpdate}
-                            onClick={() =>
-                              patch({
-                                custom_dates: form.custom_dates.filter(
-                                  (item) => item !== date,
-                                ),
-                              })
-                            }
-                          >
-                            ×
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-xs text-[var(--ds-gray-700)]">
-                      Add at least one date or reports will not send on a custom
-                      calendar.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          ) : null}
-
-          <Checkbox
-            id="report-excel"
-            checked={form.include_excel}
-            onChange={(checked) => patch({ include_excel: checked })}
-            disabled={!canUpdate}
-            label="Attach Excel workbook"
-            description="Includes data-bar charts, transactions, budgets, accounts, goals, loans, and investments."
-          />
-          <Checkbox
-            id="report-ai"
-            checked={form.include_ai}
-            onChange={(checked) => patch({ include_ai: checked })}
-            disabled={!canUpdate}
-            label="Include AI coaching"
-            description="Uses your connected AI provider. If it is unavailable, Opal still writes number-based recommendations."
-          />
-
-          {form.next_send_at ? (
-            <p className="text-xs text-[var(--ds-gray-700)]">
-              Next send: {form.next_send_at.replace("T", " ")}
-              {form.timezone ? ` · ${form.timezone}` : ""}
-            </p>
-          ) : null}
-          {form.last_error ? (
-            <p className="text-xs text-[var(--ds-status-red)]">
-              Last send error: {form.last_error}
-            </p>
-          ) : null}
-
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              loading={sending}
-              disabled={!canUpdate}
-              onClick={() => void onSendNow()}
+        {form.frequency === "weekly" ? (
+          <SettingRow label="Day of the week" htmlFor="report-weekday">
+            <Select
+              id="report-weekday"
+              value={String(form.weekday)}
+              disabled={!canUpdate || !form.enabled}
+              onChange={(e) => patch({ weekday: Number(e.target.value) })}
             >
-              Email report now
-            </Button>
-            <Button type="submit" loading={saving} disabled={!canUpdate}>
-              Save schedule
-            </Button>
+              {WEEKDAYS.map((label, index) => (
+                <option key={label} value={index}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </SettingRow>
+        ) : null}
+
+        {form.frequency === "monthly" ? (
+          <>
+            <SettingRow label="Send on" labelId="report-monthly-mode-label">
+              <Segmented
+                ariaLabelledBy="report-monthly-mode-label"
+                value={form.monthly_mode}
+                disabled={!canUpdate || !form.enabled}
+                options={[
+                  { value: "last_day", label: "Last day" },
+                  { value: "day_of_month", label: "Specific day" },
+                ]}
+                onChange={(monthly_mode) => patch({ monthly_mode })}
+              />
+            </SettingRow>
+            {form.monthly_mode === "day_of_month" ? (
+              <SettingRow
+                label="Day of month"
+                htmlFor="report-dom"
+                description="Days 29–31 aren't offered so every month gets a report."
+              >
+                <Select
+                  id="report-dom"
+                  value={String(form.day_of_month)}
+                  disabled={!canUpdate || !form.enabled}
+                  onChange={(e) =>
+                    patch({ day_of_month: Number(e.target.value) })
+                  }
+                >
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                    <option key={day} value={day}>
+                      {String(day)}
+                    </option>
+                  ))}
+                </Select>
+              </SettingRow>
+            ) : null}
+          </>
+        ) : null}
+
+        {form.frequency === "custom" ? (
+          <>
+            <SettingRow label="Custom schedule" labelId="report-custom-mode-label">
+              <Segmented
+                ariaLabelledBy="report-custom-mode-label"
+                value={form.custom_mode}
+                disabled={!canUpdate || !form.enabled}
+                options={[
+                  { value: "interval", label: "Every N days" },
+                  { value: "dates", label: "Specific dates" },
+                ]}
+                onChange={(custom_mode) => patch({ custom_mode })}
+              />
+            </SettingRow>
+            {form.custom_mode === "interval" ? (
+              <SettingRow label="Days between reports" htmlFor="report-interval">
+                <Input
+                  id="report-interval"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={365}
+                  value={form.interval_days}
+                  disabled={!canUpdate || !form.enabled}
+                  onChange={(e) =>
+                    patch({ interval_days: Number(e.target.value) || 1 })
+                  }
+                />
+              </SettingRow>
+            ) : (
+              <SettingRow
+                label="Send dates"
+                htmlFor="report-add-date"
+                description={
+                  form.custom_dates.length
+                    ? undefined
+                    : "Add at least one date, or no report is sent."
+                }
+                stacked
+              >
+                <div className="flex gap-2">
+                  <Input
+                    id="report-add-date"
+                    type="date"
+                    value={dateToAdd}
+                    disabled={!canUpdate || !form.enabled}
+                    onChange={(e) => setDateToAdd(e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-10 shrink-0 sm:h-11"
+                    disabled={!canUpdate || !dateToAdd}
+                    onClick={addDate}
+                  >
+                    Add
+                  </Button>
+                </div>
+                {form.custom_dates.length ? (
+                  <ul className="mt-2.5 flex flex-wrap gap-1.5">
+                    {form.custom_dates.map((date) => (
+                      <li
+                        key={date}
+                        className="flex items-center gap-1 rounded-full bg-[var(--ds-background-100)] py-0.5 pr-0.5 pl-3 text-[12px] tabular-nums ds-border"
+                      >
+                        {formatDate(date)}
+                        <button
+                          type="button"
+                          aria-label={`Remove ${formatDate(date)}`}
+                          className="flex size-8 items-center justify-center rounded-full text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] ds-focus"
+                          disabled={!canUpdate}
+                          onClick={() =>
+                            patch({
+                              custom_dates: form.custom_dates.filter(
+                                (item) => item !== date,
+                              ),
+                            })
+                          }
+                        >
+                          <X size={13} aria-hidden />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </SettingRow>
+            )}
+          </>
+        ) : null}
+
+        <SettingRow
+          label="Send time"
+          htmlFor="report-time"
+          description={form.timezone ? `In ${form.timezone}.` : undefined}
+        >
+          <Input
+            id="report-time"
+            type="time"
+            value={form.send_time}
+            disabled={!canUpdate || !form.enabled}
+            onChange={(e) => patch({ send_time: e.target.value })}
+          />
+        </SettingRow>
+      </SettingsGroup>
+
+      <SettingsGroup title="What's included">
+        <SwitchRow
+          id="report-excel"
+          label="Attach Excel workbook"
+          description="Charts, transactions, budgets, accounts, goals, loans and investments."
+          checked={form.include_excel}
+          disabled={!canUpdate}
+          onChange={(checked) => patch({ include_excel: checked })}
+        />
+        <SwitchRow
+          id="report-ai"
+          label="Include AI coaching"
+          description={`Uses your connected AI provider. If it's unavailable, ${APP_NAME} still writes number-based recommendations.`}
+          checked={form.include_ai}
+          disabled={!canUpdate}
+          onChange={(checked) => patch({ include_ai: checked })}
+        />
+        {nextSend || form.last_error ? (
+          <div className="space-y-1 py-3">
+            {nextSend ? (
+              <p className="text-[12px] text-[var(--ds-gray-700)]">
+                Next report:{" "}
+                <span className="font-medium text-[var(--ds-gray-1000)] tabular-nums">
+                  {nextSend}
+                </span>
+              </p>
+            ) : null}
+            {form.last_error ? (
+              <p role="alert" className="text-[12px] text-[var(--ds-status-red)]">
+                Last send failed: {form.last_error}
+              </p>
+            ) : null}
           </div>
-        </form>
-      </CardBody>
-    </Card>
+        ) : null}
+        <div className="flex justify-end py-3">
+          <Button type="submit" loading={saving} disabled={!canUpdate}>
+            Save schedule
+          </Button>
+        </div>
+      </SettingsGroup>
+    </form>
   );
 }

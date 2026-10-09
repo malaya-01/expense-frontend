@@ -1,661 +1,481 @@
 "use client";
 
-import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { PageHeader } from "@/components/ui/page-header";
-import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import {
+  ArrowLeftRight,
+  Bell,
+  ChevronLeft,
+  ChevronRight,
+  Database,
+  Globe2,
+  Keyboard,
+  Palette,
+  ShieldCheck,
+  Sparkles,
+  TriangleAlert,
+  UserRound,
+} from "lucide-react";
+import { ModuleHeader } from "@/components/ui/module-header";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { PasswordInput } from "@/components/ui/password-input";
+import { Alert } from "@/components/ui/feedback";
 import { AppearanceSection } from "@/components/settings/theme-settings";
 import { AiProvidersSection } from "@/components/settings/ai-providers-section";
-import { SyncSettingsSection } from "@/components/settings/sync-settings-section";
+import { NotificationPreferencesCard } from "@/components/settings/sync-settings-section";
 import { ReportScheduleSection } from "@/components/settings/report-schedule-section";
-import { useAuth } from "@/lib/auth-context";
+import { ProfileSection } from "@/components/settings/profile-section";
+import { SecuritySection } from "@/components/settings/security-section";
+import { RegionalSection } from "@/components/settings/regional-section";
+import { TransactionsSection } from "@/components/settings/transactions-section";
+import { DataSection } from "@/components/settings/data-section";
+import { DangerSection } from "@/components/settings/danger-section";
 import {
-  COUNTRIES,
-  SUPPORTED_CURRENCIES,
-  getCountry,
-} from "@/lib/currency/currency.data";
-import { cn } from "@/lib/cn";
-import { useToast } from "@/components/ui/toast";
-import { listAccounts } from "@/lib/api/accounts";
-import { listTransactions } from "@/lib/api/transactions";
-import { listBudgets } from "@/lib/api/budgets";
-import { listGoals } from "@/lib/api/goals";
-import { listInvestments } from "@/lib/api/investments";
-import { listCategories } from "@/lib/api/categories";
-import { changePassword, updateProfile } from "@/lib/api/user";
-import { APP_DESCRIPTION, APP_NAME, APP_SLUG, APP_VERSION } from "@/lib/brand";
-import { getErrorMessage } from "@/lib/api/client";
+  SettingsDirtyContext,
+  SettingsGroup,
+} from "@/components/settings/settings-ui";
 import { openCommandPalette } from "@/components/layout/command-palette";
-import { getClientPlatform } from "@/lib/runtime-platform";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
-import { saveTextFile } from "@/components/native/save-file";
+import { useAuth } from "@/lib/auth-context";
+import { cn } from "@/lib/cn";
 
-const SECTIONS = [
+type SectionDef = {
+  id: string;
+  label: string;
+  blurb: string;
+  icon: ComponentType<{ size?: number; className?: string; "aria-hidden"?: boolean }>;
+  /** Hidden from the phone list (e.g. keyboard shortcuts). */
+  desktopOnly?: boolean;
+  tone?: "danger";
+};
+
+const SECTIONS: SectionDef[] = [
   {
-    id: "general",
-    label: "General",
-    blurb: "Workspace defaults for country, currency, and timezone.",
+    id: "profile",
+    label: "Profile",
+    blurb: "Your name, photo and account details.",
+    icon: UserRound,
   },
   {
-    id: "reports",
-    label: "Reports",
-    blurb: "How often Opal emails your financial report, and in what format.",
+    id: "security",
+    label: "Sign-in & security",
+    blurb: "Password, active sessions and signed-in devices.",
+    icon: ShieldCheck,
+  },
+  {
+    id: "regional",
+    label: "Regional & formatting",
+    blurb: "Currency, timezone, and how numbers, dates and weeks look.",
+    icon: Globe2,
+  },
+  {
+    id: "transactions",
+    label: "Transactions",
+    blurb: "Defaults for new transactions and delete safety.",
+    icon: ArrowLeftRight,
   },
   {
     id: "appearance",
     label: "Appearance",
-    blurb: "Personalize your workspace with themes and display settings.",
+    blurb: "Theme and fonts, density, text size and motion.",
+    icon: Palette,
+  },
+  {
+    id: "notifications",
+    label: "Notifications & reports",
+    blurb: "Emailed financial reports and in-app alerts.",
+    icon: Bell,
   },
   {
     id: "ai",
-    label: "AI & Models",
-    blurb: "Connect providers and choose the model Opal Advisor uses.",
-  },
-  {
-    id: "security",
-    label: "Security",
-    blurb: "Password, device unlock, and account protection.",
+    label: "AI",
+    blurb: "Providers, models, memory and the advisor prompt.",
+    icon: Sparkles,
   },
   {
     id: "data",
-    label: "Data & Backup",
-    blurb: "Export your twin and manage local copies.",
-  },
-  {
-    id: "sync",
-    label: "Sync",
-    blurb: "Offline queue, conflicts, and durable backup.",
+    label: "Data & sync",
+    blurb: "Export, offline sync, local cache and app info.",
+    icon: Database,
   },
   {
     id: "shortcuts",
-    label: "Shortcuts",
-    blurb: "Keyboard commands for moving through Opal faster.",
+    label: "Keyboard shortcuts",
+    blurb: "Move through Opal faster.",
+    icon: Keyboard,
+    desktopOnly: true,
   },
   {
-    id: "session",
-    label: "Session",
-    blurb: "Sign out of this device.",
+    id: "danger",
+    label: "Danger zone",
+    blurb: "Delete your account.",
+    icon: TriangleAlert,
+    tone: "danger",
   },
-  {
-    id: "about",
-    label: "About",
-    blurb: "App version and product details.",
-  },
-] as const;
-
-type SectionId = (typeof SECTIONS)[number]["id"];
-
-const TIMEZONES = [
-  "UTC",
-  "America/New_York",
-  "America/Chicago",
-  "America/Denver",
-  "America/Los_Angeles",
-  "Europe/London",
-  "Europe/Paris",
-  "Europe/Berlin",
-  "Asia/Dubai",
-  "Asia/Kolkata",
-  "Asia/Singapore",
-  "Asia/Tokyo",
-  "Australia/Sydney",
 ];
+
+/** Old ?section= ids keep working. */
+const LEGACY_SECTIONS: Record<string, string> = {
+  general: "regional",
+  reports: "notifications",
+  session: "security",
+  sync: "data",
+  about: "data",
+};
+
+const DEFAULT_SECTION = "profile";
+
+function resolveSection(raw: string | null): string | null {
+  if (!raw) return null;
+  const id = LEGACY_SECTIONS[raw] ?? raw;
+  return SECTIONS.some((section) => section.id === id) ? id : null;
+}
+
+function useIsDesktop(): boolean | null {
+  const [desktop, setDesktop] = useState<boolean | null>(null);
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 768px)");
+    const update = () => setDesktop(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return desktop;
+}
 
 export default function SettingsPage() {
   return (
-    <Suspense
-      fallback={
-        <p className="text-sm text-[var(--ds-gray-900)]">Loading settings…</p>
-      }
-    >
+    <Suspense fallback={<SettingsSkeleton />}>
       <SettingsPageInner />
     </Suspense>
   );
 }
 
+function SettingsSkeleton() {
+  return (
+    <div role="status" aria-label="Loading settings" className="space-y-4">
+      <span className="block h-8 w-40 animate-pulse rounded-[8px] bg-[var(--ds-gray-100)]" />
+      <span className="block h-4 w-72 max-w-full animate-pulse rounded-[6px] bg-[var(--ds-gray-100)]" />
+      <span className="block h-64 w-full animate-pulse rounded-[14px] bg-[var(--ds-gray-100)]" />
+    </div>
+  );
+}
+
 function SettingsPageInner() {
-  const { user, setSession, logout } = useAuth();
-  const settingsPerms = useModulePermissions("settings");
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { showToast } = useToast();
-  const [section, setSection] = useState<SectionId>("general");
-  const [exporting, setExporting] = useState(false);
+  const { user, ready } = useAuth();
+  const perms = useModulePermissions("settings");
+  const isDesktop = useIsDesktop();
 
-  const [country, setCountry] = useState(user?.country || "US");
-  const [currency, setCurrency] = useState(user?.currency || "USD");
-  const [timezone, setTimezone] = useState(user?.timezone || "UTC");
-  const [savingDefaults, setSavingDefaults] = useState(false);
+  const requested = resolveSection(searchParams.get("section"));
+  const active = requested ?? (isDesktop ? DEFAULT_SECTION : null);
+  const activeDef = SECTIONS.find((section) => section.id === active) ?? null;
 
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [savingPassword, setSavingPassword] = useState(false);
-
-  const sortedCountries = useMemo(
-    () => [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name)),
+  /* -------- unsaved-changes guard -------- */
+  const dirtyRef = useRef(new Set<string>());
+  const [dirtyCount, setDirtyCount] = useState(0);
+  const dirtyContext = useMemo(
+    () => ({
+      setDirty: (key: string, dirty: boolean) => {
+        const set = dirtyRef.current;
+        const had = set.has(key);
+        if (dirty && !had) set.add(key);
+        else if (!dirty && had) set.delete(key);
+        else return;
+        setDirtyCount(set.size);
+      },
+    }),
     [],
   );
+  const [pendingNav, setPendingNav] = useState<string | null | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
-    const requested = searchParams.get("section");
-    if (SECTIONS.some((item) => item.id === requested)) {
-      setSection(requested as SectionId);
-    }
-  }, [searchParams]);
+    if (!dirtyCount) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirtyCount]);
 
-  useEffect(() => {
-    setCountry(user?.country || "US");
-    setCurrency(user?.currency || "USD");
-    setTimezone(user?.timezone || "UTC");
-  }, [user?.country, user?.currency, user?.timezone]);
+  const pushedRef = useRef(false);
+  const navigate = useCallback(
+    (id: string | null) => {
+      const href = id ? `/settings?section=${id}` : "/settings";
+      // Phones: entering a section is a sub-page, so Back returns to the list.
+      if (!isDesktop && id) {
+        pushedRef.current = true;
+        router.push(href, { scroll: false });
+      } else {
+        router.replace(href, { scroll: false });
+      }
+      document.querySelector("main")?.scrollTo({ top: 0 });
+    },
+    [isDesktop, router],
+  );
 
-  function go(id: SectionId) {
-    setSection(id);
-    router.replace(`/settings?section=${id}`, { scroll: false });
-  }
+  /** Phone "back to list": pop our own history entry when we pushed one. */
+  const backToList = useCallback(() => {
+    if (pushedRef.current) {
+      pushedRef.current = false;
+      router.back();
+    } else {
+      navigate(null);
+    }
+  }, [navigate, router]);
 
-  async function saveDefaults(e: FormEvent) {
-    e.preventDefault();
-    if (!user) return;
-    setSavingDefaults(true);
-    try {
-      const updated = await updateProfile({ country, currency, timezone });
-      setSession({ ...user, ...updated });
-      showToast({
-        title: "Defaults saved",
-        description: "Country, currency, and timezone updated.",
-        tone: "success",
-      });
-    } catch (err) {
-      showToast({
-        title: "Could not save defaults",
-        description: getErrorMessage(err),
-        tone: "error",
-      });
-    } finally {
-      setSavingDefaults(false);
-    }
-  }
+  const go = useCallback(
+    (id: string | null) => {
+      if (id === active) return;
+      if (dirtyRef.current.size > 0) {
+        setPendingNav(id);
+        return;
+      }
+      navigate(id);
+    },
+    [active, navigate],
+  );
 
-  async function onChangePassword(e: FormEvent) {
-    e.preventDefault();
-    if (newPassword !== confirmNewPassword) {
-      showToast({
-        title: "Passwords do not match",
-        description: "Re-enter the same new password.",
-        tone: "warning",
-      });
-      return;
-    }
-    setSavingPassword(true);
-    try {
-      await changePassword({
-        currentPassword,
-        newPassword,
-        confirmNewPassword,
-      });
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmNewPassword("");
-      showToast({
-        title: "Password updated",
-        description: "Your password was changed successfully.",
-        tone: "success",
-      });
-    } catch (err) {
-      showToast({
-        title: "Password change failed",
-        description: getErrorMessage(err),
-        tone: "error",
-      });
-    } finally {
-      setSavingPassword(false);
-    }
-  }
+  const visibleSections = SECTIONS.filter(
+    (section) => isDesktop !== false || !section.desktopOnly,
+  );
 
-  async function exportData() {
-    if (!user?.id) return;
-    setExporting(true);
-    try {
-      const [accounts, transactions, budgets, goals, investments, categories] =
-        await Promise.all([
-          listAccounts(user.id),
-          listTransactions(),
-          listBudgets(),
-          listGoals(),
-          listInvestments(),
-          listCategories(),
-        ]);
-      const payload = {
-        exported_at: new Date().toISOString(),
-        version: "1.0",
-        user: {
-          id: user.id,
-          full_name: user.full_name,
-          email: user.email,
-          country: user.country,
-          currency: user.currency,
-          timezone: user.timezone,
-        },
-        accounts,
-        transactions,
-        budgets,
-        goals,
-        investments,
-        categories,
-      };
-      const saved = await saveTextFile(
-        `${APP_SLUG}-backup-${new Date().toISOString().slice(0, 10)}.json`,
-        JSON.stringify(payload, null, 2),
-        "application/json",
-      );
-      showToast({
-        title: "Backup exported",
-        description:
-          saved.kind === "native"
-            ? `Saved to ${saved.path}.`
-            : `Your ${APP_NAME} data was downloaded as JSON.`,
-        tone: "success",
-      });
-    } catch {
-      showToast({
-        title: "Export failed",
-        description: `${APP_NAME} could not prepare your backup. Please try again.`,
-        tone: "error",
-      });
-    } finally {
-      setExporting(false);
-    }
-  }
+  if (!ready || isDesktop === null) return <SettingsSkeleton />;
+
+  const showList = !isDesktop && !activeDef;
 
   return (
-    <div>
-      <PageHeader
-        title="Settings"
-        description="Configure your workspace, preferences and experience."
-      />
-      <nav
-        aria-label="Settings sections"
-        className="sticky top-0 z-20 -mx-3 mb-5 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_10%,transparent)] bg-[var(--ds-background-100)] px-3 sm:-mx-6 sm:px-6"
-      >
-        <div className="flex gap-1 overflow-x-auto py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {SECTIONS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => go(item.id)}
-              className={cn(
-                "shrink-0 rounded-[8px] px-3 py-1.5 text-[13px] whitespace-nowrap transition-colors ds-focus",
-                section === item.id
-                  ? "bg-[var(--ds-background-elevated)] font-medium text-[var(--ds-gray-1000)] shadow-[var(--ds-shadow-border)]"
-                  : "text-[var(--ds-gray-900)] hover:bg-[var(--ds-background-200)] hover:text-[var(--ds-gray-1000)]",
-              )}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </nav>
+    <SettingsDirtyContext.Provider value={dirtyContext}>
+      <div className="min-w-0">
+        {showList || isDesktop ? (
+          <ModuleHeader
+            title="Settings"
+            description="Your account, how Opal looks and formats money, and how your data syncs."
+          />
+        ) : null}
 
-      <div className="min-w-0 space-y-4">
-        <div>
-          <h2 className="font-heading text-base font-semibold tracking-[-0.02em] sm:text-lg">
-            {SECTIONS.find((item) => item.id === section)?.label}
-          </h2>
-          <p className="mt-0.5 text-xs leading-5 text-[var(--ds-gray-700)] sm:text-sm">
-            {SECTIONS.find((item) => item.id === section)?.blurb}
-          </p>
-        </div>
+        {!perms.update && user ? (
+          <Alert
+            className="mb-4"
+            tone="info"
+            title="View only"
+            description="Your role can view settings but not change them."
+          />
+        ) : null}
 
-          {section === "general" ? (
-            <Card>
-              <CardHeader className="flex flex-row items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-heading text-base font-semibold">
-                    Workspace defaults
-                  </h2>
-                  <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-                    Reporting currency and regional defaults for totals.
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => router.push("/profile")}
+        <div className="md:grid md:grid-cols-[13.5rem_minmax(0,1fr)] md:gap-8 lg:grid-cols-[15rem_minmax(0,1fr)]">
+          {/* Desktop: sticky left nav. Phones: the section list page. */}
+          {isDesktop ? (
+            <nav aria-label="Settings sections" className="min-w-0">
+              <ul className="sticky top-0 space-y-0.5">
+                {visibleSections.map((section) => {
+                  const Icon = section.icon;
+                  const current = section.id === active;
+                  return (
+                    <li key={section.id}>
+                      <button
+                        type="button"
+                        onClick={() => go(section.id)}
+                        aria-current={current ? "page" : undefined}
+                        className={cn(
+                          "flex min-h-10 w-full items-center gap-2.5 rounded-[9px] px-2.5 text-left text-[13px] transition-colors ds-focus",
+                          current
+                            ? "bg-[var(--ds-background-elevated)] font-medium text-[var(--ds-gray-1000)] shadow-[var(--ds-shadow-border)]"
+                            : "text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)]",
+                          section.tone === "danger" &&
+                            !current &&
+                            "text-[var(--ds-status-red)]",
+                        )}
+                      >
+                        <Icon size={15} aria-hidden className="shrink-0 opacity-80" />
+                        <span className="truncate">{section.label}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          ) : null}
+
+          {showList ? (
+            <nav aria-label="Settings sections">
+              <ul className="overflow-hidden rounded-[14px] bg-[var(--ds-background-elevated)] ds-border">
+                {visibleSections.map((section, index) => {
+                  const Icon = section.icon;
+                  return (
+                    <li
+                      key={section.id}
+                      className={cn(
+                        index > 0 &&
+                          "border-t border-[color:color-mix(in_srgb,var(--ds-gray-1000)_7%,transparent)]",
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => go(section.id)}
+                        className="flex min-h-[3.75rem] w-full items-center gap-3 px-3.5 py-2.5 text-left active:bg-[var(--ds-gray-100)] ds-focus"
+                      >
+                        <span
+                          className={cn(
+                            "flex size-9 shrink-0 items-center justify-center rounded-[10px]",
+                            section.tone === "danger"
+                              ? "bg-[var(--ds-danger-hover)] text-[var(--ds-status-red)]"
+                              : "bg-[var(--ds-background-200)] text-[var(--ds-gray-1000)]",
+                          )}
+                        >
+                          <Icon size={17} aria-hidden />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span
+                            className={cn(
+                              "block truncate text-[14px] font-medium",
+                              section.tone === "danger"
+                                ? "text-[var(--ds-status-red)]"
+                                : "text-[var(--ds-gray-1000)]",
+                            )}
+                          >
+                            {section.label}
+                          </span>
+                          <span className="block truncate text-[12px] text-[var(--ds-gray-700)]">
+                            {section.blurb}
+                          </span>
+                        </span>
+                        <ChevronRight
+                          size={16}
+                          aria-hidden
+                          className="shrink-0 text-[var(--ds-gray-700)]"
+                        />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          ) : null}
+
+          {activeDef ? (
+            <section aria-labelledby="settings-section-title" className="min-w-0">
+              {!isDesktop ? (
+                <button
+                  type="button"
+                  onClick={() => (dirtyRef.current.size ? setPendingNav(null) : backToList())}
+                  className="-ml-1.5 mb-2 inline-flex min-h-10 items-center gap-1 rounded-[8px] px-1.5 text-[13px] text-[var(--ds-gray-900)] ds-focus"
                 >
-                  Open profile
-                </Button>
-              </CardHeader>
-              <CardBody>
-                <form onSubmit={saveDefaults} className="space-y-3 sm:space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <Label htmlFor="country">Country</Label>
-                      <Select
-                        id="country"
-                        value={country}
-                        onChange={(e) => {
-                          const code = e.target.value;
-                          setCountry(code);
-                          const meta = getCountry(code);
-                          if (meta) setCurrency(meta.currency);
-                        }}
-                      >
-                        {sortedCountries.map((c) => (
-                          <option key={c.code} value={c.code}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="currency">Base currency</Label>
-                      <Select
-                        id="currency"
-                        value={currency}
-                        onChange={(e) => setCurrency(e.target.value)}
-                      >
-                        {SUPPORTED_CURRENCIES.map((code) => (
-                          <option key={code} value={code}>
-                            {code}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="timezone">Timezone</Label>
-                    <Select
-                      id="timezone"
-                      value={timezone}
-                      onChange={(e) => setTimezone(e.target.value)}
-                    >
-                      {TIMEZONES.map((tz) => (
-                        <option key={tz} value={tz}>
-                          {tz}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button
-                      type="submit"
-                      loading={savingDefaults}
-                      disabled={!settingsPerms.update}
-                    >
-                      Save defaults
-                    </Button>
-                  </div>
-                </form>
-              </CardBody>
-            </Card>
-          ) : null}
-
-          {section === "reports" ? (
-            <ReportScheduleSection canUpdate={settingsPerms.update} />
-          ) : null}
-
-          {section === "ai" ? <AiProvidersSection /> : null}
-          {section === "appearance" ? <AppearanceSection /> : null}
-
-          {section === "security" ? (
-            <div className="space-y-3 sm:space-y-4">
-              <Card>
-                <CardHeader>
-                  <h2 className="font-heading text-base font-semibold">
-                    Change password
-                  </h2>
-                  <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-                    Update the password used to sign in to {APP_NAME}.
-                  </p>
-                </CardHeader>
-                <CardBody>
-                  <form onSubmit={onChangePassword} className="space-y-3 sm:space-y-4">
-                    <div>
-                      <Label htmlFor="currentPassword">Current password</Label>
-                      <PasswordInput
-                        id="currentPassword"
-                        autoComplete="current-password"
-                        required
-                        minLength={8}
-                        value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
-                      />
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <Label htmlFor="newPassword">New password</Label>
-                        <PasswordInput
-                          id="newPassword"
-                          autoComplete="new-password"
-                          required
-                          minLength={8}
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="confirmNewPassword">Confirm new</Label>
-                        <PasswordInput
-                          id="confirmNewPassword"
-                          autoComplete="new-password"
-                          required
-                          minLength={8}
-                          value={confirmNewPassword}
-                          onChange={(e) => setConfirmNewPassword(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-end">
-                      <Button
-                        type="submit"
-                        loading={savingPassword}
-                        disabled={!settingsPerms.update}
-                      >
-                        Update password
-                      </Button>
-                    </div>
-                  </form>
-                </CardBody>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <h2 className="font-heading text-base font-semibold">
-                    Security posture
-                  </h2>
-                </CardHeader>
-                <CardBody className="space-y-3 text-xs leading-5 text-[var(--ds-gray-700)]">
-                  <p>
-                    Sessions use signed access tokens with automatic refresh.
-                    AI provider secrets are encrypted at rest (AES-256-GCM).
-                  </p>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => router.push("/forgot-password")}
-                  >
-                    Reset via email instead
-                  </Button>
-                </CardBody>
-              </Card>
-            </div>
-          ) : null}
-
-          {section === "data" ? (
-            <div className="space-y-3 sm:space-y-4">
-              <Card>
-                <CardHeader>
-                  <h2 className="font-heading text-base font-semibold">
-                    Export backup
-                  </h2>
-                  <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-                    Download accounts, transactions, categories, budgets, goals,
-                    and investments as JSON.
-                  </p>
-                </CardHeader>
-                <CardBody>
-                  <Button
-                    variant="secondary"
-                    loading={exporting}
-                    onClick={exportData}
-                  >
-                    Export data
-                  </Button>
-                </CardBody>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <h2 className="font-heading text-base font-semibold">
-                    Local cache
-                  </h2>
-                  <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-                    Clear dismissed notifications stored in this browser. Does
-                    not delete server data.
-                  </p>
-                </CardHeader>
-                <CardBody>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      localStorage.removeItem("finos:dismissed-notifications");
-                      showToast({
-                        title: "Local cache cleared",
-                        description: "Dismissed notification state was reset.",
-                        tone: "success",
-                      });
-                    }}
-                  >
-                    Clear dismissed notifications
-                  </Button>
-                </CardBody>
-              </Card>
-            </div>
-          ) : null}
-
-          {section === "sync" ? <SyncSettingsSection /> : null}
-
-          {section === "shortcuts" ? (
-            <Card>
-              <CardHeader>
-                <h2 className="font-heading text-base font-semibold">
-                  Keyboard shortcuts
+                  <ChevronLeft size={16} aria-hidden />
+                  Settings
+                </button>
+              ) : null}
+              <header className="mb-4">
+                <h2
+                  id="settings-section-title"
+                  className={cn(
+                    "font-heading text-[20px] font-semibold tracking-[-0.02em] sm:text-[22px]",
+                    activeDef.tone === "danger"
+                      ? "text-[var(--ds-status-red)]"
+                      : "text-[var(--ds-gray-1000)]",
+                  )}
+                >
+                  {activeDef.label}
                 </h2>
-                <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-                  Try them now — open the command palette from here.
+                <p className="mt-1 text-[13px] leading-5 text-[var(--ds-gray-700)]">
+                  {activeDef.blurb}
                 </p>
-              </CardHeader>
-              <CardBody className="space-y-1">
-                <Shortcut label="Command palette" keys="Ctrl / Cmd + K" />
-                <Shortcut label="New transaction" keys="Ctrl / Cmd + N" />
-                <Shortcut label="Navigate command results" keys="↑ / ↓" />
-                <Shortcut label="Run selected command" keys="Enter" />
-                <Shortcut label="Close dialogs and panels" keys="Esc" />
-                <div className="pt-3">
-                  <Button size="sm" variant="secondary" onClick={openCommandPalette}>
-                    Open command palette
-                  </Button>
-                </div>
-              </CardBody>
-            </Card>
-          ) : null}
-
-          {section === "session" ? (
-            <Card>
-              <CardHeader>
-                <h2 className="font-heading text-base font-semibold">Session</h2>
-                <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-                  Signed in as {user?.email || "—"}. Leaving the app does not
-                  sign you out. Log out is the only way to end this session.
-                </p>
-              </CardHeader>
-              <CardBody className="space-y-3">
-                <p className="text-[12px] text-[var(--ds-gray-800)]">
-                  This session:{" "}
-                  <strong className="text-[var(--ds-gray-1000)]">
-                    {getClientPlatform().label}
-                  </strong>
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="danger"
-                    onClick={() => {
-                      void logout().then(() => router.replace("/signin"));
-                    }}
-                  >
-                    Log out
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => router.push("/profile")}
-                  >
-                    Edit profile
-                  </Button>
-                </div>
-              </CardBody>
-            </Card>
-          ) : null}
-
-          {section === "about" ? (
-            <Card>
-              <CardHeader>
-                <h2 className="font-heading text-base font-semibold">
-                  About {APP_NAME}
-                </h2>
-              </CardHeader>
-              <CardBody className="space-y-3">
-                <Row label="Application" value={APP_NAME} />
-                <Row label="Version" value={APP_VERSION} mono />
-                <Row label="Product" value={APP_DESCRIPTION} />
-                <p className="pt-2 text-xs leading-5 text-[var(--ds-gray-700)]">
-                  A private, local-first money app with ledger-backed accounting
-                  and a confirmation-gated AI advisor.
-                </p>
-              </CardBody>
-            </Card>
+              </header>
+              <SectionBody id={activeDef.id} canUpdate={perms.update} />
+            </section>
           ) : null}
         </div>
-    </div>
+      </div>
+
+      <ConfirmDialog
+        open={pendingNav !== undefined}
+        title="Discard unsaved changes?"
+        description="You have changes in this section that haven't been saved."
+        confirmLabel="Discard changes"
+        destructive
+        onClose={() => setPendingNav(undefined)}
+        onConfirm={() => {
+          const target = pendingNav;
+          setPendingNav(undefined);
+          dirtyRef.current.clear();
+          setDirtyCount(0);
+          if (target === null && !isDesktop) backToList();
+          else navigate(target ?? null);
+        }}
+      />
+    </SettingsDirtyContext.Provider>
   );
 }
 
-function Row({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-sm text-[var(--ds-gray-900)]">{label}</span>
-      <span
-        className={
-          mono
-            ? "max-w-[60%] truncate font-mono text-[13px] text-[var(--ds-gray-700)]"
-            : "text-sm text-[var(--ds-gray-1000)]"
-        }
-      >
-        {value}
-      </span>
-    </div>
-  );
+function SectionBody({ id, canUpdate }: { id: string; canUpdate: boolean }) {
+  switch (id) {
+    case "profile":
+      return <ProfileSection canUpdate={canUpdate} />;
+    case "security":
+      return <SecuritySection canUpdate={canUpdate} />;
+    case "regional":
+      return <RegionalSection canUpdate={canUpdate} />;
+    case "transactions":
+      return <TransactionsSection canUpdate={canUpdate} />;
+    case "appearance":
+      return <AppearanceSection />;
+    case "notifications":
+      return (
+        <div className="space-y-4">
+          <ReportScheduleSection canUpdate={canUpdate} />
+          <NotificationPreferencesCard />
+        </div>
+      );
+    case "ai":
+      return <AiProvidersSection />;
+    case "data":
+      return <DataSection />;
+    case "shortcuts":
+      return <ShortcutsSection />;
+    case "danger":
+      return <DangerSection canUpdate={canUpdate} />;
+    default:
+      return null;
+  }
 }
 
-function Shortcut({ label, keys }: { label: string; keys: string }) {
+function ShortcutsSection() {
+  const shortcuts: Array<[string, string]> = [
+    ["Command palette", "Ctrl / ⌘ + K"],
+    ["New transaction", "Ctrl / ⌘ + N"],
+    ["Move through results", "↑ / ↓"],
+    ["Run selected command", "Enter"],
+    ["Close dialogs and panels", "Esc"],
+  ];
   return (
-    <div className="flex min-h-12 items-center justify-between gap-4 border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_6%,transparent)] py-2 last:border-b-0">
-      <span className="text-[13px] text-[var(--ds-gray-900)]">{label}</span>
-      <kbd className="rounded-[7px] bg-[var(--ds-background-200)] px-2.5 py-1.5 font-mono text-[11px] text-[var(--ds-gray-900)] ds-border">
-        {keys}
-      </kbd>
-    </div>
+    <SettingsGroup
+      title="Keyboard shortcuts"
+      actions={
+        <Button size="sm" variant="secondary" onClick={openCommandPalette}>
+          Open command palette
+        </Button>
+      }
+    >
+      {shortcuts.map(([label, keys]) => (
+        <div key={label} className="flex min-h-12 items-center justify-between gap-4 py-2">
+          <span className="text-[13px] text-[var(--ds-gray-900)]">{label}</span>
+          <kbd className="rounded-[7px] bg-[var(--ds-background-200)] px-2.5 py-1.5 font-mono text-[11px] text-[var(--ds-gray-900)] ds-border">
+            {keys}
+          </kbd>
+        </div>
+      ))}
+    </SettingsGroup>
   );
 }
