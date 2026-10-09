@@ -7,10 +7,10 @@
    * the pre-paint bootstrap script) re-points these at its own pairing.
    * Defaults below match the default theme (Nocturne).
    */
-  --font-app-sans: var(--font-face-jakarta), ui-sans-serif, system-ui, sans-serif;
-  --font-app-heading: var(--font-face-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-app-sans: var(--font-face-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-app-heading: var(--font-face-space-grotesk), ui-sans-serif, system-ui, sans-serif;
   --font-geist-mono: var(--font-face-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-app-features: "liga", "ss01", "cv11";
+  --font-app-features: "liga";
   /* Text size preference (0.9–1.2); scales rem-based type and spacing. */
   --app-font-scale: 1;
 

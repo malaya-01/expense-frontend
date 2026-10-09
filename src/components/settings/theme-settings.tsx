@@ -76,7 +76,10 @@ function ThemeCard({
         <div className="flex items-center justify-between gap-2">
           <span
             className="min-w-0 truncate text-[17px] leading-6 font-semibold tracking-[-0.02em]"
-            style={{ fontFamily: fontStack(fonts.heading) }}
+            style={{
+              fontFamily: fontStack(fonts.heading),
+              fontFeatureSettings: FONT_OPTIONS[fonts.heading].features,
+            }}
           >
             {theme.name}
           </span>
@@ -94,7 +97,11 @@ function ThemeCard({
         >
           <span
             className="block text-[10px] leading-4"
-            style={{ color: muted, fontFamily: fontStack(fonts.heading) }}
+            style={{
+              color: muted,
+              fontFamily: fontStack(fonts.heading),
+              fontFeatureSettings: FONT_OPTIONS[fonts.heading].features,
+            }}
           >
             Spent this month
           </span>
@@ -102,6 +109,7 @@ function ThemeCard({
             className="block truncate text-[19px] leading-6 font-semibold"
             style={{
               fontFamily: fontStack(fonts.heading),
+              fontFeatureSettings: FONT_OPTIONS[fonts.heading].features,
               fontVariantNumeric: "tabular-nums",
             }}
           >

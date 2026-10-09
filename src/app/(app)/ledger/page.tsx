@@ -1,7 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, Download } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModuleHeader } from "@/components/ui/module-header";
 import { Select } from "@/components/ui/select";
@@ -26,13 +32,19 @@ import {
 import {
   balanceWording,
   buildAccountLedger,
+  buildCombinedLines,
   buildConsolidatedLedger,
   type LedgerPeriod,
 } from "@/lib/ledger/ledger";
+import { convertAmount } from "@/lib/currency/currency.data";
 import { cn } from "@/lib/cn";
-import { formatCurrency, todayISO } from "@/lib/format";
+import {
+  formatCurrency,
+  formatDate,
+  formatNumber,
+  todayISO,
+} from "@/lib/format";
 import { timeFromPaidAt } from "@/lib/receipts/defaults-from-parse";
-import { transactionAmountClass } from "@/lib/transactions/display";
 import type { FinancialContainer, LedgerTransaction } from "@/types";
 
 type PeriodId = "this-month" | "last-month" | "3-months" | "this-year" | "all";
@@ -67,27 +79,6 @@ function periodRange(id: PeriodId): LedgerPeriod {
     default:
       return { from: null, to: null };
   }
-}
-
-function dayHeading(date: string) {
-  const d = new Date(`${date}T00:00:00`);
-  return d.toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: d.getFullYear() === new Date().getFullYear() ? undefined : "numeric",
-  });
-}
-
-function groupByDay<T extends { tx: LedgerTransaction }>(entries: T[]) {
-  // Newest day first; entries within a day newest first.
-  const groups = new Map<string, T[]>();
-  for (const entry of [...entries].reverse()) {
-    const rows = groups.get(entry.tx.date) ?? [];
-    rows.push(entry);
-    groups.set(entry.tx.date, rows);
-  }
-  return [...groups.entries()];
 }
 
 function flowText(tx: LedgerTransaction) {
@@ -253,7 +244,7 @@ export default function LedgerPage() {
           {accountOptions.flatMap(([group, rows]) =>
             rows.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name} · {GROUP_LABELS[group] || group}
+                {`${a.name} · ${GROUP_LABELS[group] || group}`}
               </option>
             )),
           )}
@@ -282,11 +273,14 @@ export default function LedgerPage() {
       ) : accountLedger ? (
         <AccountLedgerView
           ledger={accountLedger}
+          period={period}
           onOpen={setSelected}
         />
       ) : consolidated ? (
         <ConsolidatedView
           ledger={consolidated}
+          accounts={accounts}
+          period={period}
           baseCurrency={baseCurrency}
           onOpen={setSelected}
           onAccount={chooseAccount}
@@ -306,302 +300,409 @@ export default function LedgerPage() {
   );
 }
 
-function Stat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone?: "in" | "out" | "neutral";
-}) {
+/* ---------------------------- Ledger tables ---------------------------- */
+
+/** Ledger cells show plain numbers; the currency is stated once per table. */
+function amt(n: number) {
+  return Math.abs(n) < 0.005
+    ? ""
+    : formatNumber(Math.abs(n), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function bal(n: number) {
+  const text = formatNumber(Math.abs(n), {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return n < -0.005 ? `(${text})` : text;
+}
+
+function shortDate(date: string) {
+  const d = new Date(`${date}T00:00:00`);
+  return d.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
+}
+
+const TH =
+  "px-2 py-2 text-[10.5px] font-semibold uppercase tracking-[0.04em] text-[var(--ds-gray-700)] sm:px-3 sm:text-[11px]";
+const TD = "px-2 py-2 align-top sm:px-3";
+const NUM = "text-right tabular-nums whitespace-nowrap";
+const ROW_LINE =
+  "border-t border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)]";
+
+function LedgerTable({ children }: { children: ReactNode }) {
   return (
-    <div className="min-w-0 rounded-[12px] bg-[var(--ds-background-100)] px-3 py-2.5">
-      <p className="truncate text-[11px] text-[var(--ds-gray-700)]">{label}</p>
-      <p
-        className={cn(
-          "mt-0.5 truncate text-[15px] font-semibold tabular-nums",
-          tone === "in"
-            ? "text-[var(--ds-status-green)]"
-            : tone === "out"
-              ? "text-[var(--ds-status-red)]"
-              : "text-[var(--ds-gray-1000)]",
-        )}
-      >
-        {value}
-      </p>
+    <div className="overflow-x-auto rounded-[12px] bg-[var(--ds-background-elevated)] ds-border">
+      <table className="w-full min-w-[20rem] border-collapse text-[12px] text-[var(--ds-gray-1000)] sm:text-[13px]">
+        {children}
+      </table>
     </div>
   );
 }
 
-function EmptyEntries() {
+function StatementTitle({
+  title,
+  subtitle,
+  right,
+}: {
+  title: string;
+  subtitle: string;
+  right?: ReactNode;
+}) {
   return (
-    <p className="rounded-[14px] bg-[var(--ds-background-elevated)] px-4 py-8 text-center text-[13px] text-[var(--ds-gray-700)] ds-border">
-      No entries in this period.
-    </p>
+    <div className="mb-2 flex items-end justify-between gap-3 px-1">
+      <div className="min-w-0">
+        <h2 className="truncate text-[15px] font-semibold text-[var(--ds-gray-1000)]">
+          {title}
+        </h2>
+        <p className="text-[11.5px] text-[var(--ds-gray-700)]">{subtitle}</p>
+      </div>
+      {right}
+    </div>
+  );
+}
+
+function periodText(period: LedgerPeriod) {
+  if (!period.from && !period.to) return "All time";
+  return `${period.from ? formatDate(period.from) : "Start"} – ${
+    period.to ? formatDate(period.to) : "Today"
+  }`;
+}
+
+function Particulars({
+  tx,
+  detail,
+}: {
+  tx: LedgerTransaction;
+  detail: string;
+}) {
+  const time = timeFromPaidAt(tx.paid_at);
+  return (
+    <>
+      <span className="flex min-w-0 items-center gap-1.5">
+        <span className="break-words font-medium">{tx.description}</span>
+        <SyncBadge row={tx as never} />
+      </span>
+      <span className="block text-[11px] leading-4 text-[var(--ds-gray-700)]">
+        {[detail, time].filter(Boolean).join(" · ")}
+      </span>
+    </>
   );
 }
 
 function AccountLedgerView({
   ledger,
+  period,
   onOpen,
 }: {
   ledger: ReturnType<typeof buildAccountLedger>;
+  period: LedgerPeriod;
   onOpen: (tx: LedgerTransaction) => void;
 }) {
   const { account } = ledger;
   const words = balanceWording(account);
-  const liability = isLiabilityType(account.type);
-  const money = (n: number) => formatCurrency(n, account.currency);
-  // For owed-money accounts an increase is bad news (red), a decrease good.
-  const upTone = liability ? "out" : "in";
-  const downTone = liability ? "in" : "out";
 
   return (
     <>
-      <section className="mb-3 rounded-[14px] bg-[var(--ds-background-elevated)] p-3 ds-border sm:mb-5 sm:p-4">
-        <div className="mb-2.5 flex items-baseline justify-between gap-2">
-          <div className="min-w-0">
-            <h2 className="truncate text-[15px] font-semibold text-[var(--ds-gray-1000)]">
-              {account.name}
-            </h2>
-            <p className="text-[12px] text-[var(--ds-gray-700)]">
-              {getContainerMeta(account.type).label} · {account.currency}
-            </p>
-          </div>
+      <StatementTitle
+        title={`${account.name} — ledger`}
+        subtitle={`${getContainerMeta(account.type).label} · ${periodText(period)} · amounts in ${account.currency}`}
+        right={
           <p className="shrink-0 text-right">
             <span className="block text-[11px] text-[var(--ds-gray-700)]">
               {words.balance} now
             </span>
-            <span className="text-[16px] font-semibold tabular-nums">
-              {money(Number(account.balance))}
+            <span className="text-[15px] font-semibold tabular-nums">
+              {formatCurrency(Number(account.balance), account.currency)}
             </span>
           </p>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Stat label={`${words.balance} at start`} value={money(ledger.opening)} />
-          <Stat label={words.up} value={`+${money(ledger.increases)}`} tone={upTone} />
-          <Stat label={words.down} value={`−${money(ledger.decreases)}`} tone={downTone} />
-          <Stat label={`${words.balance} at end`} value={money(ledger.closing)} />
-        </div>
-      </section>
-
-      {ledger.entries.length === 0 ? (
-        <EmptyEntries />
-      ) : (
-        <div className="space-y-3">
-          {groupByDay(ledger.entries).map(([date, entries]) => (
-            <section key={date}>
-              <h3 className="mb-1.5 px-1 text-[12px] font-semibold text-[var(--ds-gray-900)]">
-                {dayHeading(date)}
-              </h3>
-              <ul className="overflow-hidden rounded-[14px] bg-[var(--ds-background-elevated)] ds-border">
-                {entries.map((e) => {
-                  const time = timeFromPaidAt(e.tx.paid_at);
-                  const tone = e.change >= 0 ? upTone : downTone;
-                  return (
-                    <li
-                      key={e.tx.id}
-                      className="border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_7%,transparent)] last:border-b-0"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => onOpen(e.tx)}
-                        className="flex w-full min-w-0 items-center gap-3 px-3 py-2.5 text-left hover:bg-[var(--ds-gray-100)] ds-focus"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="flex min-w-0 items-center gap-1.5">
-                            <span className="truncate text-[13.5px] font-medium text-[var(--ds-gray-1000)]">
-                              {e.tx.description}
-                            </span>
-                            <SyncBadge row={e.tx as never} />
-                          </p>
-                          <p className="mt-0.5 truncate text-[11.5px] text-[var(--ds-gray-700)]">
-                            {[time, e.counterparty].filter(Boolean).join(" · ")}
-                          </p>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p
-                            className={cn(
-                              "text-[13.5px] font-semibold tabular-nums",
-                              tone === "in"
-                                ? "text-[var(--ds-status-green)]"
-                                : "text-[var(--ds-status-red)]",
-                            )}
-                          >
-                            {e.change >= 0 ? "+" : "−"}
-                            {money(Math.abs(e.change))}
-                          </p>
-                          <p className="text-[11px] tabular-nums text-[var(--ds-gray-700)]">
-                            {money(e.balanceAfter)}
-                          </p>
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
-        </div>
-      )}
+        }
+      />
+      <LedgerTable>
+        <thead className="bg-[var(--ds-gray-100)]">
+          <tr>
+            <th className={cn(TH, "w-[3.6rem] text-left")}>Date</th>
+            <th className={cn(TH, "text-left")}>Particulars</th>
+            <th className={cn(TH, "text-right")}>{words.upCol}</th>
+            <th className={cn(TH, "text-right")}>{words.downCol}</th>
+            <th className={cn(TH, "text-right")}>{words.balance}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr className="bg-[color-mix(in_srgb,var(--ds-gray-100)_50%,transparent)]">
+            <td className={cn(TD, "text-[var(--ds-gray-700)]")}>
+              {period.from ? shortDate(period.from) : ""}
+            </td>
+            <td className={cn(TD, "font-semibold")} colSpan={3}>
+              Opening balance
+            </td>
+            <td className={cn(TD, NUM, "font-semibold")}>{bal(ledger.opening)}</td>
+          </tr>
+          {ledger.entries.length === 0 ? (
+            <tr className={ROW_LINE}>
+              <td className={cn(TD, "py-6 text-center text-[var(--ds-gray-700)]")} colSpan={5}>
+                No entries in this period.
+              </td>
+            </tr>
+          ) : (
+            ledger.entries.map((e) => (
+              <tr
+                key={e.tx.id}
+                className={cn(ROW_LINE, "cursor-pointer hover:bg-[var(--ds-gray-100)]")}
+                onClick={() => onOpen(e.tx)}
+              >
+                <td className={cn(TD, "whitespace-nowrap text-[var(--ds-gray-900)]")}>
+                  {shortDate(e.tx.date)}
+                </td>
+                <td className={cn(TD, "min-w-[7rem]")}>
+                  <Particulars tx={e.tx} detail={e.counterparty} />
+                </td>
+                <td className={cn(TD, NUM)}>{e.change > 0 ? amt(e.change) : ""}</td>
+                <td className={cn(TD, NUM)}>{e.change < 0 ? amt(e.change) : ""}</td>
+                <td className={cn(TD, NUM, "text-[var(--ds-gray-900)]")}>
+                  {bal(e.balanceAfter)}
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+        <tfoot>
+          <tr className="border-t-[3px] border-double border-[color:color-mix(in_srgb,var(--ds-gray-1000)_25%,transparent)]">
+            <td className={TD} />
+            <td className={cn(TD, "font-semibold")}>Totals</td>
+            <td className={cn(TD, NUM, "font-semibold")}>{amt(ledger.increases)}</td>
+            <td className={cn(TD, NUM, "font-semibold")}>{amt(ledger.decreases)}</td>
+            <td className={TD} />
+          </tr>
+          <tr className={cn(ROW_LINE, "bg-[color-mix(in_srgb,var(--ds-gray-100)_50%,transparent)]")}>
+            <td className={cn(TD, "text-[var(--ds-gray-700)]")}>
+              {period.to ? shortDate(period.to) : ""}
+            </td>
+            <td className={cn(TD, "font-semibold")} colSpan={3}>
+              Closing balance
+            </td>
+            <td className={cn(TD, NUM, "font-semibold")}>{bal(ledger.closing)}</td>
+          </tr>
+        </tfoot>
+      </LedgerTable>
+      <p className="mt-2 px-1 text-[11px] text-[var(--ds-gray-700)]">
+        Opening + {words.upCol.toLowerCase()} − {words.downCol.toLowerCase()} =
+        closing. Tap a row to see or edit the entry.
+      </p>
     </>
   );
 }
 
 function ConsolidatedView({
   ledger,
+  accounts,
+  period,
   baseCurrency,
   onOpen,
   onAccount,
 }: {
   ledger: ReturnType<typeof buildConsolidatedLedger>;
+  accounts: FinancialContainer[];
+  period: LedgerPeriod;
   baseCurrency: string;
   onOpen: (tx: LedgerTransaction) => void;
   onAccount: (id: string) => void;
 }) {
-  const money = (n: number) => formatCurrency(n, baseCurrency);
+  const lines = buildCombinedLines(accounts, ledger);
   const active = ledger.accounts.filter(
-    (a) =>
-      a.entries.length > 0 || Math.abs(Number(a.account.balance)) > 0.005,
+    (a) => a.entries.length > 0 || Math.abs(Number(a.account.balance)) > 0.005,
   );
+  const signed = (a: (typeof active)[number], n: number) =>
+    convertAmount(
+      isLiabilityType(a.account.type) ? -n : n,
+      a.account.currency,
+      baseCurrency,
+    );
+  const totalOpening = active.reduce((s, a) => s + signed(a, a.opening), 0);
+  const totalClosing = active.reduce((s, a) => s + signed(a, a.closing), 0);
 
   return (
-    <>
-      <section className="mb-3 rounded-[14px] bg-[var(--ds-background-elevated)] p-3 ds-border sm:mb-5 sm:p-4">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Stat label="Net worth at start" value={money(ledger.openingWorth)} />
-          <Stat label="Money in (income)" value={`+${money(ledger.moneyIn)}`} tone="in" />
-          <Stat label="Money out (spending)" value={`−${money(ledger.moneyOut)}`} tone="out" />
-          <Stat label="Net worth at end" value={money(ledger.closingWorth)} />
-        </div>
-        {ledger.moved > 0 ? (
-          <p className="mt-2 text-[11.5px] text-[var(--ds-gray-700)]">
-            {money(ledger.moved)} moved between your own accounts (transfers,
-            debt payments) — that doesn’t change your net worth.
-          </p>
-        ) : null}
-      </section>
-
-      {active.length ? (
-        <section className="mb-3 sm:mb-5">
-          <h3 className="mb-1.5 px-1 text-[12px] font-semibold text-[var(--ds-gray-900)]">
-            Accounts
-          </h3>
-          <ul className="overflow-hidden rounded-[14px] bg-[var(--ds-background-elevated)] ds-border">
-            {active.map(({ account, opening, closing }) => {
-              const words = balanceWording(account);
+    <div className="space-y-5">
+      <section>
+        <StatementTitle
+          title="Account balances"
+          subtitle={`${periodText(period)} · tap an account for its own ledger`}
+        />
+        <LedgerTable>
+          <thead className="bg-[var(--ds-gray-100)]">
+            <tr>
+              <th className={cn(TH, "text-left")}>Account</th>
+              <th className={cn(TH, "text-right")}>Opening</th>
+              <th className={cn(TH, "hidden text-right sm:table-cell")}>Increase</th>
+              <th className={cn(TH, "hidden text-right sm:table-cell")}>Decrease</th>
+              <th className={cn(TH, "text-right")}>Closing</th>
+            </tr>
+          </thead>
+          <tbody>
+            {active.map((a) => {
+              const liability = isLiabilityType(a.account.type);
               return (
-                <li
-                  key={account.id}
-                  className="border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_7%,transparent)] last:border-b-0"
+                <tr
+                  key={a.account.id}
+                  className={cn(ROW_LINE, "cursor-pointer hover:bg-[var(--ds-gray-100)]")}
+                  onClick={() => onAccount(a.account.id)}
                 >
-                  <button
-                    type="button"
-                    onClick={() => onAccount(account.id)}
-                    className="flex w-full min-w-0 items-center gap-3 px-3 py-2.5 text-left hover:bg-[var(--ds-gray-100)] ds-focus"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13.5px] font-medium text-[var(--ds-gray-1000)]">
-                        {account.name}
-                      </p>
-                      <p className="truncate text-[11.5px] text-[var(--ds-gray-700)]">
-                        {words.balance}
-                      </p>
-                    </div>
-                    <p className="flex shrink-0 items-center gap-1 text-[12.5px] tabular-nums">
-                      <span className="text-[var(--ds-gray-700)]">
-                        {formatCurrency(opening, account.currency)}
-                      </span>
-                      <ArrowRight size={12} className="text-[var(--ds-gray-700)]" aria-hidden />
-                      <span className="font-semibold text-[var(--ds-gray-1000)]">
-                        {formatCurrency(closing, account.currency)}
-                      </span>
-                    </p>
-                  </button>
-                </li>
+                  <td className={TD}>
+                    <span className="block font-medium">{a.account.name}</span>
+                    <span className="block text-[11px] text-[var(--ds-gray-700)]">
+                      {balanceWording(a.account).balance} · {a.account.currency}
+                    </span>
+                  </td>
+                  <td className={cn(TD, NUM, liability && "text-[var(--ds-status-red)]")}>
+                    {liability ? "−" : ""}
+                    {bal(a.opening)}
+                  </td>
+                  <td className={cn(TD, NUM, "hidden sm:table-cell")}>{amt(a.increases)}</td>
+                  <td className={cn(TD, NUM, "hidden sm:table-cell")}>{amt(a.decreases)}</td>
+                  <td className={cn(TD, NUM, "font-semibold", liability && "text-[var(--ds-status-red)]")}>
+                    {liability ? "−" : ""}
+                    {bal(a.closing)}
+                  </td>
+                </tr>
               );
             })}
-          </ul>
-        </section>
-      ) : null}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-[3px] border-double border-[color:color-mix(in_srgb,var(--ds-gray-1000)_25%,transparent)]">
+              <td className={cn(TD, "font-semibold")}>
+                Net worth
+                <span className="block text-[11px] font-normal text-[var(--ds-gray-700)]">
+                  what you own − what you owe · {baseCurrency}
+                </span>
+              </td>
+              <td className={cn(TD, NUM, "font-semibold")}>{bal(totalOpening)}</td>
+              <td className={cn(TD, "hidden sm:table-cell")} />
+              <td className={cn(TD, "hidden sm:table-cell")} />
+              <td className={cn(TD, NUM, "font-semibold")}>{bal(totalClosing)}</td>
+            </tr>
+          </tfoot>
+        </LedgerTable>
+      </section>
 
-      {ledger.entries.length === 0 ? (
-        <EmptyEntries />
-      ) : (
-        <div className="space-y-3">
-          {groupByDay(ledger.entries).map(([date, entries]) => {
-            const dayNet = entries.reduce((s, e) => s + e.worthChange, 0);
-            return (
-              <section key={date}>
-                <div className="mb-1.5 flex items-baseline justify-between px-1">
-                  <h3 className="text-[12px] font-semibold text-[var(--ds-gray-900)]">
-                    {dayHeading(date)}
-                  </h3>
-                  {Math.abs(dayNet) > 0.005 ? (
-                    <span
-                      className={cn(
-                        "text-[11.5px] font-medium tabular-nums",
-                        dayNet > 0
-                          ? "text-[var(--ds-status-green)]"
-                          : "text-[var(--ds-status-red)]",
-                      )}
-                    >
-                      {dayNet > 0 ? "+" : "−"}
-                      {money(Math.abs(dayNet))} for the day
-                    </span>
-                  ) : null}
-                </div>
-                <ul className="overflow-hidden rounded-[14px] bg-[var(--ds-background-elevated)] ds-border">
-                  {entries.map((e) => {
-                    const time = timeFromPaidAt(e.tx.paid_at);
-                    const sign =
-                      e.tx.type === "income" ? "+" : e.tx.type === "expense" ? "−" : "";
-                    return (
-                      <li
-                        key={e.tx.id}
-                        className="border-b border-[color:color-mix(in_srgb,var(--ds-gray-1000)_7%,transparent)] last:border-b-0"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => onOpen(e.tx)}
-                          className="flex w-full min-w-0 items-center gap-3 px-3 py-2.5 text-left hover:bg-[var(--ds-gray-100)] ds-focus"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="flex min-w-0 items-center gap-1.5">
-                              <span className="truncate text-[13.5px] font-medium text-[var(--ds-gray-1000)]">
-                                {e.tx.description}
-                              </span>
-                              <SyncBadge row={e.tx as never} />
-                            </p>
-                            <p className="mt-0.5 truncate text-[11.5px] text-[var(--ds-gray-700)]">
-                              {[time, flowText(e.tx)].filter(Boolean).join(" · ")}
-                            </p>
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <p
-                              className={cn(
-                                "text-[13.5px] font-semibold tabular-nums",
-                                transactionAmountClass(e.tx.type),
-                              )}
-                            >
-                              {sign}
-                              {formatCurrency(Number(e.tx.amount), e.tx.currency || baseCurrency)}
-                            </p>
-                            <p className="text-[11px] text-[var(--ds-gray-700)]">
-                              {e.tx.type === "transfer" ? "Transfer" : `Worth ${money(e.worthAfter)}`}
-                            </p>
-                          </div>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            );
-          })}
-        </div>
-      )}
-    </>
+      <section>
+        <StatementTitle
+          title="Consolidated ledger"
+          subtitle={`Every entry, one line per account it touches · ${periodText(period)}`}
+        />
+        <LedgerTable>
+          <thead className="bg-[var(--ds-gray-100)]">
+            <tr>
+              <th className={cn(TH, "w-[3.6rem] text-left")}>Date</th>
+              <th className={cn(TH, "text-left")}>Particulars</th>
+              <th className={cn(TH, "text-right")}>In</th>
+              <th className={cn(TH, "text-right")}>Out</th>
+              <th className={cn(TH, "hidden text-right md:table-cell")}>Net worth</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="bg-[color-mix(in_srgb,var(--ds-gray-100)_50%,transparent)]">
+              <td className={cn(TD, "text-[var(--ds-gray-700)]")}>
+                {period.from ? shortDate(period.from) : ""}
+              </td>
+              <td className={cn(TD, "font-semibold")} colSpan={3}>
+                Opening net worth
+                <span className="font-normal text-[var(--ds-gray-700)] md:hidden">
+                  {" "}· {bal(ledger.openingWorth)}
+                </span>
+              </td>
+              <td className={cn(TD, NUM, "hidden font-semibold md:table-cell")}>
+                {bal(ledger.openingWorth)}
+              </td>
+            </tr>
+            {lines.length === 0 ? (
+              <tr className={ROW_LINE}>
+                <td className={cn(TD, "py-6 text-center text-[var(--ds-gray-700)]")} colSpan={5}>
+                  No entries in this period.
+                </td>
+              </tr>
+            ) : (
+              lines.map((line, index) => {
+                const first = index === 0 || lines[index - 1].tx.id !== line.tx.id;
+                const accountText = line.account
+                  ? `${line.account.name}${isLiabilityType(line.account.type) || line.account.type === "receivable" ? ` (${balanceWording(line.account).balance.toLowerCase()})` : ""}`
+                  : "—";
+                const other =
+                  line.tx.type === "expense"
+                    ? line.tx.category_name || "Spending"
+                    : line.tx.type === "income"
+                      ? line.tx.category_name || "Income"
+                      : "Transfer";
+                return (
+                  <tr
+                    key={`${line.tx.id}-${index}`}
+                    className={cn(
+                      first && ROW_LINE,
+                      "cursor-pointer hover:bg-[var(--ds-gray-100)]",
+                    )}
+                    onClick={() => onOpen(line.tx)}
+                  >
+                    <td className={cn(TD, "whitespace-nowrap text-[var(--ds-gray-900)]", !first && "pt-0")}>
+                      {first ? shortDate(line.tx.date) : ""}
+                    </td>
+                    <td className={cn(TD, "min-w-[7rem]", !first && "pt-0")}>
+                      {first ? (
+                        <Particulars tx={line.tx} detail={other} />
+                      ) : null}
+                      <span className="mt-1 block border-l-2 border-[color:color-mix(in_srgb,var(--ds-gray-1000)_18%,transparent)] pl-2 text-[11.5px] leading-4 text-[var(--ds-gray-900)]">
+                        {accountText}
+                      </span>
+                    </td>
+                    <td style={{ verticalAlign: "bottom" }} className={cn(TD, NUM, "text-[var(--ds-status-green)]", !first && "pt-0")}>
+                      {amt(line.moneyIn)}
+                    </td>
+                    <td style={{ verticalAlign: "bottom" }} className={cn(TD, NUM, "text-[var(--ds-status-red)]", !first && "pt-0")}>
+                      {amt(line.moneyOut)}
+                    </td>
+                    <td style={{ verticalAlign: "bottom" }} className={cn(TD, NUM, "hidden text-[var(--ds-gray-900)] md:table-cell", !first && "pt-0")}>
+                      {line.worthAfter != null && line.tx.type !== "transfer"
+                        ? bal(line.worthAfter)
+                        : ""}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-[3px] border-double border-[color:color-mix(in_srgb,var(--ds-gray-1000)_25%,transparent)]">
+              <td className={TD} />
+              <td className={cn(TD, "font-semibold")}>
+                Income {amt(ledger.moneyIn) || "0.00"} · Spending{" "}
+                {amt(ledger.moneyOut) || "0.00"}
+                <span className="block text-[11px] font-normal text-[var(--ds-gray-700)]">
+                  {amt(ledger.moved) || "0.00"} moved between your own accounts
+                  (no effect on net worth)
+                </span>
+              </td>
+              <td className={TD} colSpan={2} />
+              <td className={cn(TD, "hidden md:table-cell")} />
+            </tr>
+            <tr className={cn(ROW_LINE, "bg-[color-mix(in_srgb,var(--ds-gray-100)_50%,transparent)]")}>
+              <td className={cn(TD, "text-[var(--ds-gray-700)]")}>
+                {period.to ? shortDate(period.to) : ""}
+              </td>
+              <td className={cn(TD, "font-semibold")} colSpan={3}>
+                Closing net worth
+                <span className="font-normal text-[var(--ds-gray-700)] md:hidden">
+                  {" "}· {bal(ledger.closingWorth)}
+                </span>
+              </td>
+              <td className={cn(TD, NUM, "hidden font-semibold md:table-cell")}>
+                {bal(ledger.closingWorth)}
+              </td>
+            </tr>
+          </tfoot>
+        </LedgerTable>
+        <p className="mt-2 px-1 text-[11px] text-[var(--ds-gray-700)]">
+          In/Out are per account, in that account&apos;s currency. A payment
+          into a payable or card shows as “In” there because it reduces what
+          you owe. Brackets mean a negative balance.
+        </p>
+      </section>
+    </div>
   );
 }

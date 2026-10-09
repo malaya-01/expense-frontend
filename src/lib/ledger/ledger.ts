@@ -173,16 +173,57 @@ export function buildConsolidatedLedger(
   };
 }
 
-/** Plain words for an account's balance column. */
+/** Plain words for an account's balance and its two ledger columns. */
 export function balanceWording(account: FinancialContainer) {
   if (account.type === "receivable") {
-    return { balance: "Owed to you", up: "Lent / owed more", down: "Paid back to you" };
+    return { balance: "Owed to you", up: "Lent / owed more", down: "Paid back to you", upCol: "Lent", downCol: "Received" };
   }
   if (account.type === "credit_card") {
-    return { balance: "Amount due", up: "Card spending", down: "Bill paid" };
+    return { balance: "Amount due", up: "Card spending", down: "Bill paid", upCol: "Spent", downCol: "Paid" };
   }
   if (isLiabilityType(account.type)) {
-    return { balance: "You owe", up: "Borrowed / owed more", down: "Paid back" };
+    return { balance: "You owe", up: "Borrowed / owed more", down: "Paid back", upCol: "Owed more", downCol: "Paid" };
   }
-  return { balance: "Balance", up: "Money in", down: "Money out" };
+  return { balance: "Balance", up: "Money in", down: "Money out", upCol: "In", downCol: "Out" };
+}
+
+export type CombinedLine = {
+  tx: LedgerTransaction;
+  account: FinancialContainer | null;
+  /** Money into / out of the account, in its own currency (a payment into a
+   *  payable or card is money "in" to it: it reduces what is owed). */
+  moneyIn: number;
+  moneyOut: number;
+  /** Set on the last line of each entry: net worth right after it. */
+  worthAfter: number | null;
+};
+
+/**
+ * The consolidated ledger as double-entry lines: every account an entry
+ * touches gets its own line, so a transfer shows both sides (out of HDFC,
+ * into Ravi) and each account's column adds up.
+ */
+export function buildCombinedLines(
+  accounts: FinancialContainer[],
+  consolidated: ConsolidatedLedger,
+): CombinedLine[] {
+  const byId = new Map(accounts.map((a) => [a.id, a]));
+  const lines: CombinedLine[] = [];
+  for (const entry of consolidated.entries) {
+    const legs = transactionLegs(entry.tx);
+    if (!legs.length) {
+      lines.push({ tx: entry.tx, account: null, moneyIn: 0, moneyOut: 0, worthAfter: entry.worthAfter });
+      continue;
+    }
+    legs.forEach((leg, index) => {
+      lines.push({
+        tx: entry.tx,
+        account: byId.get(leg.containerId) ?? null,
+        moneyIn: leg.flow > 0 ? leg.flow : 0,
+        moneyOut: leg.flow < 0 ? -leg.flow : 0,
+        worthAfter: index === legs.length - 1 ? entry.worthAfter : null,
+      });
+    });
+  }
+  return lines;
 }
