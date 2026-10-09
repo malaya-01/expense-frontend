@@ -25,6 +25,7 @@ import {
 import { listCategories } from "@/lib/api/categories";
 import { useAuth } from "@/lib/auth-context";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
+import { useTutorialCreateHandler } from "@/lib/tutorial/signals";
 import { formatCurrency } from "@/lib/format";
 import { convertAmount } from "@/lib/currency/currency.data";
 import { getErrorMessage } from "@/lib/api/client";
@@ -38,6 +39,7 @@ type StatusFilter = "all" | "on_track" | "warning" | "over";
 
 export default function BudgetsPage() {
   const perms = useModulePermissions("budgets");
+  useTutorialCreateHandler("create-budget", openCreate, perms.create);
   const { user } = useAuth();
   const { showToast } = useToast();
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -50,6 +52,9 @@ export default function BudgetsPage() {
   const [deleting, setDeleting] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [createCategoryId, setCreateCategoryId] = useState<string | null>(
+    null,
+  );
 
   const baseCurrency = user?.currency || "USD";
 
@@ -88,6 +93,25 @@ export default function BudgetsPage() {
       window.removeEventListener(TRANSACTION_CREATED_EVENT, onDataChanged);
     };
   }, [user?.id, refresh]);
+
+  // /budgets?category=<id> (from a category card) opens "New budget" with that
+  // category selected once the categories have loaded.
+  useEffect(() => {
+    if (loading || !perms.create) return;
+    const params = new URLSearchParams(window.location.search);
+    const categoryId = params.get("category");
+    if (!categoryId) return;
+    params.delete("category");
+    const query = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${window.location.pathname}${query ? `?${query}` : ""}`,
+    );
+    setEditing(null);
+    setCreateCategoryId(categoryId);
+    setModalOpen(true);
+  }, [loading, perms.create]);
 
   const summary = useMemo(() => {
     const toBase = (amount: number, currency?: string | null) =>
@@ -131,6 +155,7 @@ export default function BudgetsPage() {
 
   function openCreate() {
     setEditing(null);
+    setCreateCategoryId(null);
     setModalOpen(true);
   }
 
@@ -291,10 +316,12 @@ export default function BudgetsPage() {
         onClose={() => {
           setModalOpen(false);
           setEditing(null);
+          setCreateCategoryId(null);
         }}
         initial={editing}
         categories={categories}
         defaultCurrency={baseCurrency}
+        defaultCategoryId={createCategoryId}
         onSubmit={handleSubmit}
       />
       <ConfirmDialog

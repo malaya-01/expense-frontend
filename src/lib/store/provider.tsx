@@ -21,6 +21,7 @@ import {
   isExitAnchor,
 } from "@/lib/native/back-history";
 import { initLiveUpdates } from "@/lib/native/live-update";
+import { installKeyboardWatcher } from "@/lib/native/keyboard-state";
 
 /**
  * Client-side navigation for the native back handler. On Android a full page
@@ -85,6 +86,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     bootstrapAppState(store.dispatch);
     // Independent of session restore so a slow login can't trigger rollback.
     void initLiveUpdates();
+    installKeyboardWatcher();
 
     void (async () => {
       await markNativeAppChrome();

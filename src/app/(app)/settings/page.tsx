@@ -18,6 +18,7 @@ import {
   Database,
   Globe2,
   Keyboard,
+  LifeBuoy,
   Palette,
   ShieldCheck,
   Sparkles,
@@ -38,6 +39,7 @@ import { RegionalSection } from "@/components/settings/regional-section";
 import { TransactionsSection } from "@/components/settings/transactions-section";
 import { DataSection } from "@/components/settings/data-section";
 import { DangerSection } from "@/components/settings/danger-section";
+import { TutorialSection } from "@/components/settings/tutorial-section";
 import {
   SettingsDirtyContext,
   SettingsGroup,
@@ -107,6 +109,12 @@ const SECTIONS: SectionDef[] = [
     icon: Database,
   },
   {
+    id: "help",
+    label: "Help & tutorial",
+    blurb: "Replay the guided tour and open the documentation.",
+    icon: LifeBuoy,
+  },
+  {
     id: "shortcuts",
     label: "Keyboard shortcuts",
     blurb: "Move through Opal faster.",
@@ -129,6 +137,7 @@ const LEGACY_SECTIONS: Record<string, string> = {
   session: "security",
   sync: "data",
   about: "data",
+  tutorial: "help",
 };
 
 const DEFAULT_SECTION = "profile";
@@ -442,6 +451,8 @@ function SectionBody({ id, canUpdate }: { id: string; canUpdate: boolean }) {
       return <AiProvidersSection />;
     case "data":
       return <DataSection />;
+    case "help":
+      return <TutorialSection />;
     case "shortcuts":
       return <ShortcutsSection />;
     case "danger":

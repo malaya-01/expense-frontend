@@ -5,10 +5,13 @@ import { ActionMenu } from "@/components/ui/action-menu";
 import { StatusDot } from "@/components/ui/status-dot";
 import { SortableTh } from "@/components/ui/sortable-th";
 import { formatCurrency, formatRelativeDate } from "@/lib/format";
+import { timeFromPaidAt } from "@/lib/receipts/defaults-from-parse";
 import type { SortDir } from "@/hooks/use-table-sort";
 import type { LedgerTransaction } from "@/types";
 import { SyncBadge } from "@/components/sync/sync-badge";
 import { ReceiptThumb } from "@/components/receipts/receipt-thumb";
+import { cn } from "@/lib/cn";
+import { transactionAmountClass } from "@/lib/transactions/display";
 
 const TYPE_TONE = {
   expense: "orange" as const,
@@ -117,6 +120,9 @@ export function TransactionTable({
                       {flow}
                       {" · "}
                       {formatRelativeDate(tx.date)}
+                      {timeFromPaidAt(tx.paid_at)
+                        ? `, ${timeFromPaidAt(tx.paid_at)}`
+                        : ""}
                       {tx.category_name ? ` · ${tx.category_name}` : ""}
                     </p>
                   </div>
@@ -126,7 +132,12 @@ export function TransactionTable({
                   onClick={(event) => event.stopPropagation()}
                 >
                   <div className="text-right">
-                    <p className="text-[13px] font-semibold tabular-nums">
+                    <p
+                      className={cn(
+                        "text-[13px] font-semibold tabular-nums",
+                        transactionAmountClass(tx.type),
+                      )}
+                    >
                       {sign}
                       {formatCurrency(tx.amount, nativeCurrency)}
                     </p>
@@ -262,7 +273,7 @@ export function TransactionTable({
                   {formatRelativeDate(tx.date)}
                 </td>
                 <td className="px-5 py-3.5 text-right font-mono text-[13px] font-semibold tabular-nums text-[var(--ds-gray-1000)]">
-                  <div>
+                  <div className={transactionAmountClass(tx.type)}>
                     {sign}
                     {formatCurrency(tx.amount, nativeCurrency)}
                   </div>

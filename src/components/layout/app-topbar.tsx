@@ -110,9 +110,12 @@ export function AppTopbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-0.5">
-        <SyncStatusButton />
+        <span data-tour="topbar-sync" className="flex">
+          <SyncStatusButton />
+        </span>
         <button
           type="button"
+          data-tour="topbar-search"
           onClick={openCommandPalette}
           className="flex size-9 items-center justify-center rounded-[6px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] ds-focus"
           aria-label={`Search ${APP_NAME}`}

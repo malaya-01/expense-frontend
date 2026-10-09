@@ -35,6 +35,10 @@ import { useGlobalLoader } from "@/components/brand/global-loader";
 import { useAppSelector } from "@/lib/store/hooks";
 import { selectPreferences } from "@/lib/preferences/slice";
 import {
+  transactionDefaultsFor,
+  type TransactionTypeDefaults,
+} from "@/lib/preferences/types";
+import {
   readLastSourceContainerId,
   writeLastSourceContainerId,
 } from "@/lib/receipts/last-container";
@@ -85,9 +89,8 @@ type TransactionFormProps = {
 /** Defaults from Settings > Transactions (new transactions only). */
 type PreferenceDefaults = {
   type: TransactionType;
-  categoryId: string;
-  /** Last-used account (if remembered) or the default account. */
-  accountId: string;
+  /** Each type keeps its own accounts / category. */
+  byType: Record<TransactionType, TransactionTypeDefaults>;
 };
 
 function emptyTransaction(
@@ -95,24 +98,22 @@ function emptyTransaction(
   pref?: PreferenceDefaults,
 ): CreateTransactionInput {
   const type = defaults?.type ?? pref?.type ?? "expense";
+  const typeDefaults = pref?.byType[type];
   return {
     type,
     amount: defaults?.amount ?? 0,
     description: defaults?.description ?? "",
     date: requireDateOnly(defaults?.date, todayISO()),
-    category_id:
-      defaults?.category_id ??
-      (pref && type === pref.type ? pref.categoryId : ""),
+    category_id: defaults?.category_id ?? typeDefaults?.categoryId ?? "",
     source_container_id:
       defaults?.source_container_id ??
       (type === "income"
         ? ""
-        : pref
-          ? pref.accountId
+        : typeDefaults
+          ? typeDefaults.sourceId
           : readLastSourceContainerId()),
     destination_container_id:
-      defaults?.destination_container_id ??
-      (type === "income" && pref ? pref.accountId : ""),
+      defaults?.destination_container_id ?? typeDefaults?.destinationId ?? "",
     merchant: defaults?.merchant ?? "",
     currency: defaults?.currency ?? "",
     exchange_rate: defaults?.exchange_rate ?? undefined,
@@ -125,6 +126,12 @@ function emptyTransaction(
     platform: defaults?.platform ?? "",
     platform_txn_id: defaults?.platform_txn_id ?? "",
   };
+}
+
+/** Current local wall-clock time as HH:mm (default for new transactions). */
+function nowTime(): string {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
 function FieldCard({
@@ -188,15 +195,25 @@ export function TransactionForm({
   const prefs = useAppSelector(selectPreferences);
   const isCreate = mode !== "edit" && !initial;
   // Resolved once per form mount (the modal remounts the form for each open).
-  const [prefDefaults] = useState<PreferenceDefaults | undefined>(() =>
+  const [prefDefaults, setPrefDefaults] = useState<
+    PreferenceDefaults | undefined
+  >(() =>
     isCreate
       ? {
           type: prefs.default_transaction_type,
-          categoryId: prefs.default_category_id || "",
-          accountId:
-            (prefs.remember_last_account ? readLastSourceContainerId() : "") ||
-            prefs.default_account_id ||
-            "",
+          byType: {
+            expense: transactionDefaultsFor(
+              prefs,
+              "expense",
+              readLastSourceContainerId(),
+            ),
+            income: transactionDefaultsFor(prefs, "income"),
+            transfer: transactionDefaultsFor(
+              prefs,
+              "transfer",
+              readLastSourceContainerId(),
+            ),
+          },
         }
       : undefined,
   );
@@ -241,7 +258,8 @@ export function TransactionForm({
   }, [form.amount]);
   const [time, setTime] = useState(
     () =>
-      timeFromPaidAt(initial?.paid_at || defaults?.paid_at) || "",
+      timeFromPaidAt(initial?.paid_at || defaults?.paid_at) ||
+      (mode === "create" ? nowTime() : ""),
   );
   const [showReceiptFields, setShowReceiptFields] = useState(
     () =>
@@ -292,39 +310,44 @@ export function TransactionForm({
       .catch(() => setContainers([]));
   }, []);
 
-  // Drop a preferred account / category that no longer exists.
+  // Drop preferred accounts / categories that no longer exist, both from the
+  // form and from the per-type presets used when switching type.
   useEffect(() => {
-    if (!prefDefaults || !containers.length) return;
-    const ids = new Set(containers.map((c) => c.id));
-    setForm((prev) => {
-      let next = prev;
-      if (
-        prev.source_container_id &&
-        prev.source_container_id === prefDefaults.accountId &&
-        !ids.has(prev.source_container_id)
-      ) {
-        next = { ...next, source_container_id: "" };
+    if (!prefDefaults || !containers.length || !categories.length) return;
+    const accountIds = new Set(containers.map((c) => c.id));
+    const categoryIds = new Set(categories.map((c) => c.id));
+    const presets = Object.values(prefDefaults.byType);
+    const stale = new Set<string>();
+    for (const preset of presets) {
+      for (const id of [preset.sourceId, preset.destinationId]) {
+        if (id && !accountIds.has(id)) stale.add(id);
       }
-      if (
-        prev.destination_container_id &&
-        prev.destination_container_id === prefDefaults.accountId &&
-        !ids.has(prev.destination_container_id)
-      ) {
-        next = { ...next, destination_container_id: "" };
+      if (preset.categoryId && !categoryIds.has(preset.categoryId)) {
+        stale.add(preset.categoryId);
       }
-      return next;
+    }
+    if (!stale.size) return;
+    const clean = (id: string) => (stale.has(id) ? "" : id);
+    setPrefDefaults({
+      ...prefDefaults,
+      byType: Object.fromEntries(
+        Object.entries(prefDefaults.byType).map(([type, preset]) => [
+          type,
+          {
+            sourceId: clean(preset.sourceId),
+            destinationId: clean(preset.destinationId),
+            categoryId: clean(preset.categoryId),
+          },
+        ]),
+      ) as PreferenceDefaults["byType"],
     });
-  }, [containers, prefDefaults]);
-
-  useEffect(() => {
-    if (!prefDefaults?.categoryId || !categories.length) return;
-    if (categories.some((c) => c.id === prefDefaults.categoryId)) return;
-    setForm((prev) =>
-      prev.category_id === prefDefaults.categoryId
-        ? { ...prev, category_id: "" }
-        : prev,
-    );
-  }, [categories, prefDefaults]);
+    setForm((prev) => ({
+      ...prev,
+      source_container_id: clean(prev.source_container_id || ""),
+      destination_container_id: clean(prev.destination_container_id || ""),
+      category_id: clean(prev.category_id || ""),
+    }));
+  }, [containers, categories, prefDefaults]);
 
   useEffect(() => {
     if (!containers.length || !receiptMatch) return;
@@ -445,24 +468,38 @@ export function TransactionForm({
   }
 
   function setType(type: TransactionType) {
-    const preferred = prefDefaults?.accountId || "";
-    setForm((prev) => ({
-      ...prev,
-      type,
-      // New transactions: fill the side that becomes required with the
-      // preferred account (Settings > Transactions) when it is empty.
-      source_container_id:
+    setForm((prev) => {
+      // New transactions: swap the previous type's defaults (Settings >
+      // Transactions) for the new type's; values the user picked stay.
+      const before = prefDefaults?.byType[prev.type];
+      const after = prefDefaults?.byType[type];
+      const picked = (value: string | undefined | null, preset?: string) =>
+        value && value !== preset ? value : "";
+      const source =
         type === "income"
           ? ""
-          : prev.source_container_id ||
-            (prev.destination_container_id === preferred ? "" : preferred),
-      destination_container_id:
+          : picked(prev.source_container_id, before?.sourceId) ||
+            after?.sourceId ||
+            "";
+      let destination =
         type === "expense"
           ? ""
-          : prev.destination_container_id ||
-            (type === "income" ? preferred : ""),
-      exchange_rate: undefined,
-    }));
+          : picked(prev.destination_container_id, before?.destinationId) ||
+            after?.destinationId ||
+            "";
+      if (destination && destination === source) destination = "";
+      return {
+        ...prev,
+        type,
+        source_container_id: source,
+        destination_container_id: destination,
+        category_id:
+          picked(prev.category_id, before?.categoryId) ||
+          after?.categoryId ||
+          "",
+        exchange_rate: undefined,
+      };
+    });
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -727,7 +764,7 @@ export function TransactionForm({
             setLocalPreview(null);
             setAttachedReceipt(null);
             setForm(emptyTransaction());
-            setTime("");
+            setTime(nowTime());
             setShowReceiptFields(false);
             setVisionSource(null);
             setReceiptNotice("");
@@ -907,8 +944,9 @@ export function TransactionForm({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.8fr)]">
         <FieldCard
+          className="col-span-2 sm:col-span-1"
           label={
             source
               ? `Amount (${source.currency})`
@@ -952,25 +990,23 @@ export function TransactionForm({
             }}
           />
         </FieldCard>
-        {showReceiptFields ? (
-          <FieldCard label="Time" htmlFor="paid_time">
-            <Input
-              id="paid_time"
-              embedded
-              type="time"
-              className="[color-scheme:dark]"
-              value={time}
-              onChange={(e) => {
-                const next = e.target.value;
-                setTime(next);
-                setForm((prev) => ({
-                  ...prev,
-                  paid_at: localPaidAt(prev.date, next),
-                }));
-              }}
-            />
-          </FieldCard>
-        ) : null}
+        <FieldCard label="Time" htmlFor="paid_time">
+          <Input
+            id="paid_time"
+            embedded
+            type="time"
+            className="[color-scheme:dark]"
+            value={time}
+            onChange={(e) => {
+              const next = e.target.value;
+              setTime(next);
+              setForm((prev) => ({
+                ...prev,
+                paid_at: localPaidAt(prev.date, next),
+              }));
+            }}
+          />
+        </FieldCard>
       </div>
 
       <FieldCard label="Description" htmlFor="description">

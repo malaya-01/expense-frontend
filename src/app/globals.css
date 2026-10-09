@@ -1116,3 +1116,79 @@ kbd,
 samp {
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- Guided tutorial (components/tutorial) ------------------------------ */
+
+/* Dimmed layer with a hole cut around the highlighted element. */
+.tutorial-dim {
+  animation: ds-backdrop-in 220ms var(--ds-motion-timing-swift) both;
+}
+
+/* The hole and its focus ring are moved per frame in JS (tutorial-tour). */
+
+.tutorial-spotlight-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    0 0 0 2px var(--ds-focus-color),
+    0 0 0 6px color-mix(in srgb, var(--ds-focus-color) 28%, transparent);
+  animation: tutorial-ring 1.8s ease-out infinite;
+}
+
+@keyframes tutorial-ring {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px var(--ds-focus-color),
+      0 0 0 4px color-mix(in srgb, var(--ds-focus-color) 32%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px var(--ds-focus-color),
+      0 0 0 10px color-mix(in srgb, var(--ds-focus-color) 0%, transparent);
+  }
+}
+
+.tutorial-card {
+  transition:
+    top 320ms var(--ds-motion-timing-swift),
+    left 320ms var(--ds-motion-timing-swift),
+    width 320ms var(--ds-motion-timing-swift),
+    opacity 200ms ease;
+}
+
+.tutorial-step-in {
+  animation: tutorial-step-in 260ms var(--ds-motion-timing-swift) both;
+}
+
+@keyframes tutorial-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* On-screen keyboard (see src/lib/native/keyboard-state.ts): the bottom tab
+   bar and FAB stay behind the keyboard instead of riding up on top of it, and
+   the space reserved for them goes to the focused composer instead. */
+html[data-keyboard="open"] [data-mobile-nav],
+html[data-keyboard="open"] [data-mobile-fab] {
+  display: none !important;
+}
+
+html[data-keyboard="open"] main[data-app-main="workspace"] {
+  padding-bottom: var(--kb-inset, 0px) !important;
+}
+
+html[data-keyboard="open"] main[data-app-main="page"] {
+  padding-bottom: calc(var(--kb-inset, 0px) + 1rem) !important;
+}
+
+html[data-keyboard="open"] [data-save-bar] {
+  bottom: calc(var(--kb-inset, 0px) + 0.5rem);
+}

@@ -16,12 +16,14 @@ import { EmptyState } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardBody } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { CategoryCard } from "@/components/categories/category-card";
+import {
+  CategoryCard,
+  primaryCategoryBudget,
+} from "@/components/categories/category-card";
 import { TRANSACTION_CREATED_EVENT } from "@/components/expenses/transaction-modal-provider";
 import {
   createCategory,
@@ -29,6 +31,7 @@ import {
   listCategories,
   updateCategory,
 } from "@/lib/api/categories";
+import { listBudgets } from "@/lib/api/budgets";
 import { getErrorMessage } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
@@ -44,7 +47,8 @@ import {
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel";
 import { useInfiniteList } from "@/hooks/use-infinite-list";
 import { formatCurrency } from "@/lib/format";
-import type { Category, CreateCategoryInput } from "@/types";
+import { convertAmount } from "@/lib/currency/currency.data";
+import type { Budget, Category, CreateCategoryInput } from "@/types";
 
 const COLORS = [
   "#6B7280",
@@ -64,8 +68,6 @@ const emptyForm: CreateCategoryInput = {
   description: "",
   color: COLORS[0],
   icon: "tags",
-  budget_amount: undefined,
-  budget_period: "MONTHLY",
 };
 
 type FilterKind = "all" | "budgeted" | "unbudgeted";
@@ -82,6 +84,7 @@ export default function CategoriesPage() {
   const { showToast } = useToast();
   const currency = user?.currency || "USD";
   const [categories, setCategories] = useState<Category[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -103,8 +106,12 @@ export default function CategoriesPage() {
       setError("");
     }
     try {
-      const data = await listCategories();
+      const [data, budgetRows] = await Promise.all([
+        listCategories(),
+        listBudgets().catch(() => [] as Budget[]),
+      ]);
       setCategories(data);
+      setBudgets(budgetRows);
     } catch (err) {
       if (silent) return;
       setError(getErrorMessage(err, "Could not load categories"));
@@ -127,17 +134,32 @@ export default function CategoriesPage() {
     };
   }, [refresh]);
 
+  // Budgets are created in the Budgets module; link them back by category.
+  const budgetsByCategory = useMemo(() => {
+    const map = new Map<string, Budget[]>();
+    for (const budget of budgets) {
+      if (!budget.category_id) continue;
+      const rows = map.get(budget.category_id) ?? [];
+      rows.push(budget);
+      map.set(budget.category_id, rows);
+    }
+    return map;
+  }, [budgets]);
+
   const stats = useMemo(() => {
     let overBudget = 0;
     let totalSpent = 0;
     let totalBudget = 0;
     for (const category of categories) {
-      const spent = Number(category.spent_amount || 0);
-      const budget = Number(category.budget_amount || 0);
-      totalSpent += spent;
-      if (budget > 0) {
-        totalBudget += budget;
-        if (spent > budget) overBudget += 1;
+      totalSpent += Number(category.spent_amount || 0);
+      const linked = primaryCategoryBudget(
+        category,
+        budgetsByCategory.get(category.id),
+      );
+      if (linked && linked.amount > 0) {
+        const from = linked.currency || currency;
+        totalBudget += convertAmount(linked.amount, from, currency);
+        if (linked.over) overBudget += 1;
       }
     }
     return {
@@ -146,13 +168,13 @@ export default function CategoriesPage() {
       totalSpent,
       totalBudget,
     };
-  }, [categories]);
+  }, [categories, budgetsByCategory, currency]);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     return categories.filter((category) => {
       const hasBudget = Boolean(
-        category.budget_amount && Number(category.budget_amount) > 0,
+        primaryCategoryBudget(category, budgetsByCategory.get(category.id)),
       );
       if (filter === "budgeted" && !hasBudget) return false;
       if (filter === "unbudgeted" && hasBudget) return false;
@@ -162,7 +184,7 @@ export default function CategoriesPage() {
         (category.description || "").toLowerCase().includes(q)
       );
     });
-  }, [categories, filter, search]);
+  }, [categories, budgetsByCategory, filter, search]);
 
   const list = useInfiniteList(visible, {
     pageSize: 20,
@@ -184,10 +206,6 @@ export default function CategoriesPage() {
       description: category.description || "",
       color: category.color || COLORS[0],
       icon: normalizeCategoryIcon(category.icon),
-      budget_amount: category.budget_amount
-        ? Number(category.budget_amount)
-        : undefined,
-      budget_period: category.budget_period || "MONTHLY",
     });
     setModalOpen(true);
   }
@@ -210,20 +228,13 @@ export default function CategoriesPage() {
     setSaving(true);
     setError("");
     try {
-      // When editing, an explicit null clears a previously set budget (the
-      // API accepts null on update); on create the fields are simply omitted.
-      const cleared = editing ? null : undefined;
+      // Budgets live in the Budgets module (linked by category), so the
+      // category form never sends budget fields.
       const payload: CreateCategoryInput = {
         name: form.name.trim(),
         description: form.description?.trim() || (editing ? "" : undefined),
         color: form.color,
         icon: normalizeCategoryIcon(form.icon),
-        budget_amount: (form.budget_amount
-          ? Number(form.budget_amount)
-          : cleared) as CreateCategoryInput["budget_amount"],
-        budget_period: (form.budget_amount
-          ? form.budget_period
-          : cleared) as CreateCategoryInput["budget_period"],
       };
       if (editing) {
         await updateCategory(editing.id, payload);
@@ -253,35 +264,35 @@ export default function CategoriesPage() {
   return (
     <div>
       <div className="mb-3 sm:mb-5">
-        <div className="min-w-0">
-          <h1 className="font-heading text-[22px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
-            Categories
-          </h1>
-          <p className="mt-1 text-[13px] leading-5 text-[var(--ds-gray-700)] sm:text-sm">
-            Track spending envelopes with budget, progress, and color coding.
-          </p>
-        </div>
-
-        <div className="mt-0 flex items-center gap-2 sm:mt-3">
+        <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search categories..."
-              aria-label="Search categories"
-              startAdornment={<Search size={14} aria-hidden />}
-              className="h-10"
-            />
+            <h1 className="font-heading text-[22px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
+              Categories
+            </h1>
+            <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-[var(--ds-gray-700)] sm:line-clamp-none sm:text-sm">
+              Track spending envelopes with budget, progress, and color coding.
+            </p>
           </div>
           {perms.create ? (
-            <div className="shrink-0">
-              <Button onClick={openCreate} className="h-10 gap-1 px-3 text-[12px] sm:px-4 sm:text-[13px]">
-                <Plus size={15} />
-                <span className="sm:hidden">New</span>
-                <span className="hidden sm:inline">New category</span>
-              </Button>
-            </div>
+            <Button
+              onClick={openCreate}
+              className="h-9 shrink-0 gap-1 px-3 text-[12px] sm:h-10 sm:px-4 sm:text-[13px]"
+            >
+              <Plus size={15} />
+              New category
+            </Button>
           ) : null}
+        </div>
+
+        <div className="mt-2.5 sm:mt-3 sm:max-w-xs">
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search categories..."
+            aria-label="Search categories"
+            startAdornment={<Search size={14} aria-hidden />}
+            className="h-10"
+          />
         </div>
 
         {!loading && categories.length > 0 ? (
@@ -390,6 +401,8 @@ export default function CategoriesPage() {
                 key={category.id}
                 category={category}
                 currency={currency}
+                budgets={budgetsByCategory.get(category.id)}
+                canAddBudget={perms.create}
                 onEdit={perms.update ? () => openEdit(category) : undefined}
                 onDelete={
                   perms.delete ? () => setDeleteTarget(category) : undefined
@@ -416,13 +429,13 @@ export default function CategoriesPage() {
             <span className="font-semibold text-[var(--ds-gray-1000)]">
               Tip:
             </span>{" "}
-            Set a monthly budget on each category to see On Track / Near Limit
-            status as you spend.{" "}
+            Budgets you create for a category in Budgets show up here with
+            their spend and progress.{" "}
             <Link
               href="/budgets"
               className="font-medium text-[var(--ds-status-blue)] underline underline-offset-2"
             >
-              Learn more
+              Go to Budgets
             </Link>
           </p>
         </aside>
@@ -506,42 +519,6 @@ export default function CategoriesPage() {
                   </button>
                 );
               })}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="budget">Budget</Label>
-              <Input
-                id="budget"
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.budget_amount ?? ""}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    budget_amount: e.target.value
-                      ? Number(e.target.value)
-                      : undefined,
-                  }))
-                }
-                placeholder="Optional"
-              />
-            </div>
-            <div>
-              <Label htmlFor="period">Period</Label>
-              <Select
-                id="period"
-                value={form.budget_period || "MONTHLY"}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, budget_period: e.target.value }))
-                }
-              >
-                <option value="DAILY">Daily</option>
-                <option value="WEEKLY">Weekly</option>
-                <option value="MONTHLY">Monthly</option>
-                <option value="YEARLY">Yearly</option>
-              </Select>
             </div>
           </div>
         </form>

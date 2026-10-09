@@ -29,6 +29,8 @@ import {
   receiptMediaUrl,
   ReceiptThumb,
 } from "@/components/receipts/receipt-thumb";
+import { cn } from "@/lib/cn";
+import { transactionAmountClass } from "@/lib/transactions/display";
 
 const TYPE_TONE = {
   expense: "orange" as const,
@@ -170,7 +172,12 @@ export function TransactionDetailModal({
           <h3 className="mt-3 text-[18px] font-semibold tracking-[-0.03em] text-[var(--ds-gray-1000)]">
             {tx.description}
           </h3>
-          <p className="mt-2 text-[26px] font-semibold tabular-nums tracking-[-0.04em] text-[var(--ds-gray-1000)]">
+          <p
+            className={cn(
+              "mt-2 text-[26px] font-semibold tabular-nums tracking-[-0.04em]",
+              transactionAmountClass(tx.type),
+            )}
+          >
             {sign}
             {formatCurrency(tx.amount, nativeCurrency)}
           </p>

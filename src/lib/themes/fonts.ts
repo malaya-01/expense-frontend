@@ -181,27 +181,33 @@ export function fontStack(id: FontId): string {
   return `var(${option.cssVar}), ${option.fallback}`;
 }
 
+/**
+ * The face used for all app text: the theme's display (heading) font, so a
+ * theme's typography shows everywhere rather than on headings alone.
+ */
+export function themeUiFont(fonts?: Partial<ThemeFonts> | null): FontId {
+  return resolveThemeFonts(fonts).heading;
+}
+
 /** CSS custom properties the app reads (see globals.css). */
 export function themeFontVariables(
   fonts?: Partial<ThemeFonts> | null,
 ): Record<string, string> {
   const resolved = resolveThemeFonts(fonts);
+  const ui = themeUiFont(fonts);
   return {
-    "--font-app-sans": fontStack(resolved.sans),
-    "--font-app-heading": fontStack(resolved.heading),
+    "--font-app-sans": fontStack(ui),
+    "--font-app-heading": fontStack(ui),
     "--font-geist-mono": fontStack(resolved.mono),
-    "--font-app-features": FONT_OPTIONS[resolved.sans].features,
+    "--font-app-features": FONT_OPTIONS[ui].features,
   };
 }
 
 export function describeFonts(fonts?: Partial<ThemeFonts> | null): string {
   const resolved = resolveThemeFonts(fonts);
-  const sans = FONT_OPTIONS[resolved.sans].label;
-  const heading = FONT_OPTIONS[resolved.heading].label;
+  const ui = FONT_OPTIONS[themeUiFont(fonts)].label;
   const mono = FONT_OPTIONS[resolved.mono].label;
-  return heading === sans
-    ? `${sans} · ${mono}`
-    : `${heading} + ${sans} · ${mono}`;
+  return `${ui} · ${mono}`;
 }
 
 /** Named pairings offered for custom themes. */
@@ -215,8 +221,8 @@ export const FONT_PAIRINGS: Array<{
   { id: "manrope", label: "Manrope + JetBrains", fonts: { sans: "manrope", heading: "manrope", mono: "jetbrains-mono" } },
   { id: "plex", label: "IBM Plex family", fonts: { sans: "plex-sans", heading: "plex-sans", mono: "plex-mono" } },
   { id: "grotesk", label: "Space Grotesk + JetBrains", fonts: { sans: "space-grotesk", heading: "space-grotesk", mono: "jetbrains-mono" } },
-  { id: "editorial", label: "Fraunces + DM Sans", fonts: { sans: "dm-sans", heading: "fraunces", mono: "plex-mono" } },
-  { id: "studio", label: "Space Grotesk + DM Sans", fonts: { sans: "dm-sans", heading: "space-grotesk", mono: "geist-mono" } },
+  { id: "editorial", label: "Fraunces + Plex Mono", fonts: { sans: "dm-sans", heading: "fraunces", mono: "plex-mono" } },
+  { id: "studio", label: "Space Grotesk + Geist Mono", fonts: { sans: "dm-sans", heading: "space-grotesk", mono: "geist-mono" } },
 ];
 
 export function pairingIdFor(fonts?: Partial<ThemeFonts> | null): string {

@@ -4,20 +4,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Building2,
   CreditCard,
-  Filter,
   Landmark,
   PiggyBank,
   Plus,
-  Search,
   Scale,
   Users,
   Wallet,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
+import { ModuleHeader } from "@/components/ui/module-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { AccountCard } from "@/components/accounts/account-card";
 import { AccountFormModal } from "@/components/accounts/account-form-modal";
 import { AccountKpiCard } from "@/components/accounts/account-kpi-card";
@@ -50,6 +47,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useInfiniteList } from "@/hooks/use-infinite-list";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel";
 import { useModulePermissions } from "@/components/permissions/permission-gate";
+import { useTutorialCreateHandler } from "@/lib/tutorial/signals";
 import { formatCurrency, formatInstantDate } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/components/ui/toast";
@@ -79,6 +77,7 @@ function sectionIcon(group: string) {
 
 export default function AccountsPage() {
   const perms = useModulePermissions("accounts");
+  useTutorialCreateHandler("create-account", openCreate, perms.create);
   const { user } = useAuth();
   const { showToast } = useToast();
   const { startReceiptCapture } = useReceiptCapture();
@@ -253,54 +252,32 @@ export default function AccountsPage() {
 
   return (
     <div className="min-w-0 max-w-full overflow-x-hidden">
-      <div className="mb-3 sm:mb-5">
-        <div className="min-w-0">
-          <h1 className="font-heading text-[22px] font-semibold tracking-[-0.04em] text-[var(--ds-gray-1000)] sm:text-[28px]">
-            Accounts
-          </h1>
-          <p className="line-clamp-2 max-w-xl text-[13px] leading-5 text-[var(--ds-gray-700)] sm:mt-1 sm:line-clamp-none sm:text-sm">
-            Financial containers — every place value lives in your Digital
-            Financial Twin.
-          </p>
-        </div>
-        <div className="mt-2.5 flex items-center gap-2 sm:mt-3">
-          <div className="min-w-0 flex-1 sm:max-w-xs sm:flex-none sm:w-56">
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search accounts..."
-              aria-label="Search accounts"
-              startAdornment={<Search size={14} aria-hidden />}
-              className="h-10"
-            />
-          </div>
-          <div className="w-[8.5rem] shrink-0 sm:w-44">
-            <Select
-              value={groupFilter}
-              onChange={(e) => setGroupFilter(e.target.value as GroupFilter)}
-              aria-label="Filter accounts"
-              startAdornment={<Filter size={14} aria-hidden />}
-              className="h-10"
-            >
-              <option value="all">All accounts</option>
-              <option value="liquid">Cash & banks</option>
-              <option value="invest">Investments</option>
-              <option value="credit">Credit & loans</option>
-              <option value="people">People</option>
-              <option value="other">Other</option>
-            </Select>
-          </div>
-          {perms.create ? (
-            <div className="shrink-0">
-              <Button onClick={openCreate} className="h-10 gap-1 px-3 text-[12px] sm:px-4 sm:text-[13px]">
-                <Plus size={15} />
-                <span className="sm:hidden">Add</span>
-                <span className="hidden sm:inline">Add account</span>
-              </Button>
-            </div>
-          ) : null}
-        </div>
-      </div>
+      <ModuleHeader
+        title="Accounts"
+        description="Financial containers — every place value lives in your Digital Financial Twin."
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search accounts..."
+        filter={groupFilter}
+        onFilterChange={(value) => setGroupFilter(value as GroupFilter)}
+        filterLabel="Filter accounts"
+        filterOptions={[
+          { value: "all", label: "All accounts" },
+          { value: "liquid", label: "Cash & banks" },
+          { value: "invest", label: "Investments" },
+          { value: "credit", label: "Credit & loans" },
+          { value: "people", label: "People" },
+          { value: "other", label: "Other" },
+        ]}
+        actions={
+          perms.create ? (
+            <Button onClick={openCreate} className="gap-1">
+              <Plus size={15} />
+              Add account
+            </Button>
+          ) : null
+        }
+      />
 
       <div className="mb-4 grid min-w-0 grid-cols-2 gap-2 sm:mb-6 sm:gap-3 xl:grid-cols-4">
         <AccountKpiCard

@@ -24,12 +24,57 @@ import {
 
 type TxDraft = Pick<
   UserPreferences,
-  | "default_account_id"
-  | "default_category_id"
   | "default_transaction_type"
+  | "default_expense_account_id"
+  | "default_expense_category_id"
+  | "default_income_account_id"
+  | "default_income_category_id"
+  | "default_transfer_from_account_id"
+  | "default_transfer_to_account_id"
   | "remember_last_account"
   | "confirm_before_delete"
 >;
+
+type IdKey = Exclude<
+  keyof TxDraft,
+  "default_transaction_type" | "remember_last_account" | "confirm_before_delete"
+>;
+
+/** One group per type, each with its own fields, so nothing carries over. */
+const TYPE_GROUPS: Array<{
+  type: TransactionType;
+  title: string;
+  description: string;
+  fields: Array<{ key: IdKey; label: string; kind: "account" | "category" }>;
+}> = [
+  {
+    type: "expense",
+    title: "Expense defaults",
+    description: "Money going out.",
+    fields: [
+      { key: "default_expense_account_id", label: "Paid from", kind: "account" },
+      { key: "default_expense_category_id", label: "Category", kind: "category" },
+    ],
+  },
+  {
+    type: "income",
+    title: "Income defaults",
+    description: "Money coming in.",
+    fields: [
+      { key: "default_income_account_id", label: "Received into", kind: "account" },
+      { key: "default_income_category_id", label: "Category", kind: "category" },
+    ],
+  },
+  {
+    type: "transfer",
+    title: "Transfer defaults",
+    description: "Moving money between your own accounts.",
+    fields: [
+      { key: "default_transfer_from_account_id", label: "From", kind: "account" },
+      { key: "default_transfer_to_account_id", label: "To", kind: "account" },
+    ],
+  },
+];
 
 const NONE = "__none__";
 
@@ -42,15 +87,18 @@ const TYPE_OPTIONS: Array<{ value: TransactionType; label: string }> = [
 export function TransactionsSection({ canUpdate }: { canUpdate: boolean }) {
   const { prefs, save } = usePreferences();
   const { showToast } = useToast();
-  const accountLabelId = useId();
-  const categoryLabelId = useId();
+  const labelPrefix = useId();
   const typeLabelId = useId();
 
   const saved: TxDraft = useMemo(
     () => ({
-      default_account_id: prefs.default_account_id,
-      default_category_id: prefs.default_category_id,
       default_transaction_type: prefs.default_transaction_type,
+      default_expense_account_id: prefs.default_expense_account_id,
+      default_expense_category_id: prefs.default_expense_category_id,
+      default_income_account_id: prefs.default_income_account_id,
+      default_income_category_id: prefs.default_income_category_id,
+      default_transfer_from_account_id: prefs.default_transfer_from_account_id,
+      default_transfer_to_account_id: prefs.default_transfer_to_account_id,
       remember_last_account: prefs.remember_last_account,
       confirm_before_delete: prefs.confirm_before_delete,
     }),
@@ -104,15 +152,33 @@ export function TransactionsSection({ canUpdate }: { canUpdate: boolean }) {
     return [{ value: NONE, label: "No default" }, ...rows];
   }, [categories]);
 
-  const missingAccount =
-    accounts &&
-    draft.default_account_id &&
-    !accounts.some((a) => a.id === draft.default_account_id);
+  function isMissing(kind: "account" | "category", id: string | null) {
+    if (!id) return false;
+    const rows: Array<{ id: string }> | null =
+      kind === "account" ? accounts : categories;
+    return Boolean(rows && !rows.some((row) => row.id === id));
+  }
 
   async function onSave() {
     setSaving(true);
     try {
-      const { queued } = await save(draft);
+      // Keep the legacy single defaults in step for older app versions.
+      const type = draft.default_transaction_type;
+      const { queued } = await save({
+        ...draft,
+        default_account_id:
+          type === "income"
+            ? draft.default_income_account_id
+            : type === "transfer"
+              ? draft.default_transfer_from_account_id
+              : draft.default_expense_account_id,
+        default_category_id:
+          type === "income"
+            ? draft.default_income_category_id
+            : type === "expense"
+              ? draft.default_expense_category_id
+              : null,
+      });
       showToast({
         title: queued ? "Saved on this device" : "Transaction defaults saved",
         description: queued
@@ -139,14 +205,18 @@ export function TransactionsSection({ canUpdate }: { canUpdate: boolean }) {
         <Alert tone="warning" title="Lists unavailable" description={loadError} />
       ) : null}
       <SettingsGroup
-        title="New transaction defaults"
-        description="Pre-filled every time you open “New transaction”. Receipt scans and quick actions can still override them."
+        title="New transaction"
+        description="What “New transaction” starts with. Receipt scans and quick actions can still override these."
       >
         {loading ? (
-          <SectionLoading rows={3} />
+          <SectionLoading rows={2} />
         ) : (
           <>
-            <SettingRow label="Type" labelId={typeLabelId}>
+            <SettingRow
+              label="Opens as"
+              labelId={typeLabelId}
+              description="Changing the type in the form switches to that type's own defaults below."
+            >
               <Segmented
                 ariaLabelledBy={typeLabelId}
                 value={draft.default_transaction_type}
@@ -157,52 +227,10 @@ export function TransactionsSection({ canUpdate }: { canUpdate: boolean }) {
                 }
               />
             </SettingRow>
-            <SettingRow
-              label="Default account"
-              labelId={accountLabelId}
-              description={
-                missingAccount
-                  ? "That account no longer exists — pick another."
-                  : "Where money leaves (expense, transfer) or arrives (income)."
-              }
-            >
-              <SearchSelect
-                ariaLabelledBy={accountLabelId}
-                value={draft.default_account_id || NONE}
-                options={accountOptions}
-                disabled={!canUpdate}
-                searchPlaceholder="Search accounts"
-                onChange={(value) =>
-                  setDraft((d) => ({
-                    ...d,
-                    default_account_id: value === NONE ? null : value,
-                  }))
-                }
-              />
-            </SettingRow>
-            <SettingRow
-              label="Default category"
-              labelId={categoryLabelId}
-              description={`Applied to new ${draft.default_transaction_type} transactions.`}
-            >
-              <SearchSelect
-                ariaLabelledBy={categoryLabelId}
-                value={draft.default_category_id || NONE}
-                options={categoryOptions}
-                disabled={!canUpdate}
-                searchPlaceholder="Search categories"
-                onChange={(value) =>
-                  setDraft((d) => ({
-                    ...d,
-                    default_category_id: value === NONE ? null : value,
-                  }))
-                }
-              />
-            </SettingRow>
             <SwitchRow
               id="settings-remember-account"
               label="Remember last used account"
-              description="Start with the account you used last time instead of the default account."
+              description="Expenses and transfers start from the account you last paid from instead of the default."
               checked={draft.remember_last_account}
               disabled={!canUpdate}
               onChange={(checked) =>
@@ -212,6 +240,55 @@ export function TransactionsSection({ canUpdate }: { canUpdate: boolean }) {
           </>
         )}
       </SettingsGroup>
+
+      {TYPE_GROUPS.map((group) => (
+        <SettingsGroup
+          key={group.type}
+          title={group.title}
+          description={group.description}
+        >
+          {loading ? (
+            <SectionLoading rows={2} />
+          ) : (
+            group.fields.map((field) => {
+              const value = draft[field.key];
+              const labelId = `${labelPrefix}-${field.key}`;
+              return (
+                <SettingRow
+                  key={field.key}
+                  label={field.label}
+                  labelId={labelId}
+                  description={
+                    isMissing(field.kind, value)
+                      ? `That ${field.kind} no longer exists — pick another.`
+                      : undefined
+                  }
+                >
+                  <SearchSelect
+                    ariaLabelledBy={labelId}
+                    value={value || NONE}
+                    options={
+                      field.kind === "account" ? accountOptions : categoryOptions
+                    }
+                    disabled={!canUpdate}
+                    searchPlaceholder={
+                      field.kind === "account"
+                        ? "Search accounts"
+                        : "Search categories"
+                    }
+                    onChange={(next) =>
+                      setDraft((d) => ({
+                        ...d,
+                        [field.key]: next === NONE ? null : next,
+                      }))
+                    }
+                  />
+                </SettingRow>
+              );
+            })
+          )}
+        </SettingsGroup>
+      ))}
 
       <SettingsGroup title="Safety">
         <SwitchRow

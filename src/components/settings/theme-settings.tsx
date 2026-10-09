@@ -94,14 +94,14 @@ function ThemeCard({
         >
           <span
             className="block text-[10px] leading-4"
-            style={{ color: muted, fontFamily: fontStack(fonts.sans) }}
+            style={{ color: muted, fontFamily: fontStack(fonts.heading) }}
           >
             Spent this month
           </span>
           <span
             className="block truncate text-[19px] leading-6 font-semibold"
             style={{
-              fontFamily: fontStack(fonts.sans),
+              fontFamily: fontStack(fonts.heading),
               fontVariantNumeric: "tabular-nums",
             }}
           >

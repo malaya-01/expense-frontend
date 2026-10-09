@@ -34,6 +34,7 @@ import { useModulePermissions } from "@/components/permissions/permission-gate";
 import { useInfiniteList } from "@/hooks/use-infinite-list";
 import { useTableSort } from "@/hooks/use-table-sort";
 import type { TransactionSortKey } from "@/components/expenses/expense-table";
+import { compareTransactionTime } from "@/lib/transactions/order";
 
 const TRANSACTION_COMPARATORS: Record<
   TransactionSortKey,
@@ -54,7 +55,7 @@ const TRANSACTION_COMPARATORS: Record<
       sensitivity: "base",
     });
   },
-  date: (a, b) => a.date.localeCompare(b.date),
+  date: compareTransactionTime,
   amount: (a, b) => Number(a.amount) - Number(b.amount),
 };
 

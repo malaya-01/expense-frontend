@@ -6,6 +6,7 @@ import type {
 } from "@/types";
 import { transactionsRepo } from "@/lib/offline/repos";
 import { offlineDb } from "@/lib/offline/db";
+import { emitTutorialSignal } from "@/lib/tutorial/signals";
 import { requireDateOnly } from "@/lib/format";
 
 type TxRow = LedgerTransaction & { _pending?: boolean };
@@ -213,6 +214,7 @@ export async function createTransaction(
   const created = (await transactionsRepo.create(
     enriched,
   )) as LedgerTransaction;
+  emitTutorialSignal("create-transaction");
   return normalizeTx(created);
 }
 

@@ -1,11 +1,18 @@
 "use client";
 
-import { ArrowLeftRight, CalendarDays, MoreHorizontal } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowLeftRight,
+  CalendarDays,
+  MoreHorizontal,
+  PiggyBank,
+  Plus,
+} from "lucide-react";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { Progress } from "@/components/ui/feedback";
 import { getCategoryIconComponent } from "@/lib/categories/icons";
 import { formatCurrency, formatRelativeDay } from "@/lib/format";
-import type { Category } from "@/types";
+import type { Budget, Category } from "@/types";
 
 function periodLabel(period?: string | null) {
   switch ((period || "MONTHLY").toUpperCase()) {
@@ -20,24 +27,69 @@ function periodLabel(period?: string | null) {
   }
 }
 
+export type CategoryBudgetSummary = {
+  amount: number;
+  spent: number;
+  period: string;
+  currency?: string;
+  over: boolean;
+};
+
+/**
+ * The budget a category card shows: the first budget created for it in the
+ * Budgets module, falling back to the legacy per-category budget fields.
+ */
+export function primaryCategoryBudget(
+  category: Category,
+  budgets: Budget[] | undefined,
+): CategoryBudgetSummary | null {
+  const linked = budgets?.[0];
+  if (linked) {
+    return {
+      amount: Number(linked.amount || 0),
+      spent: Number(linked.spent || 0),
+      period: linked.period_type,
+      currency: linked.currency,
+      over: linked.status === "over",
+    };
+  }
+  const legacy = Number(category.budget_amount || 0);
+  if (legacy > 0) {
+    const spent = Number(category.spent_amount || 0);
+    return {
+      amount: legacy,
+      spent,
+      period: category.budget_period || "MONTHLY",
+      over: spent > legacy,
+    };
+  }
+  return null;
+}
+
 export function CategoryCard({
   category,
   currency,
+  budgets,
+  canAddBudget,
   onEdit,
   onDelete,
 }: {
   category: Category;
   currency: string;
+  /** Budgets from the Budgets module linked to this category. */
+  budgets?: Budget[];
+  canAddBudget?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
 }) {
   const color = category.color || "#6B7280";
   const Icon = getCategoryIconComponent(category.icon);
-  const spent = Number(category.spent_amount || 0);
-  const budget = category.budget_amount
-    ? Number(category.budget_amount)
-    : null;
-  const pct = budget && budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
+  const linked = primaryCategoryBudget(category, budgets);
+  const budgetCurrency = linked?.currency || currency;
+  const spent = linked ? linked.spent : Number(category.spent_amount || 0);
+  const budget = linked && linked.amount > 0 ? linked.amount : null;
+  const pct = budget ? Math.min(100, (spent / budget) * 100) : 0;
+  const extraBudgets = Math.max(0, (budgets?.length ?? 0) - 1);
   const txnCount = Number(category.transaction_count || 0);
   const updated = category.updated_at
     ? formatRelativeDay(category.updated_at.slice(0, 10))
@@ -103,20 +155,51 @@ export function CategoryCard({
         </div>
 
         <div className="mt-3.5">
-          <p className="text-[13px] font-medium tabular-nums leading-5 text-[var(--ds-gray-1000)] sm:text-[14px]">
-            {formatCurrency(spent, currency)}
-            <span className="font-normal text-[var(--ds-gray-700)]">
-              {" "}
-              /{" "}
-              {budget
-                ? `${formatCurrency(budget, currency)}/${periodLabel(category.budget_period)}`
-                : "No budget set"}
-            </span>
-          </p>
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="min-w-0 text-[13px] font-medium tabular-nums leading-5 text-[var(--ds-gray-1000)] sm:text-[14px]">
+              <span
+                className={
+                  linked?.over ? "text-[var(--ds-status-red)]" : undefined
+                }
+              >
+                {formatCurrency(spent, budgetCurrency)}
+              </span>
+              <span className="font-normal text-[var(--ds-gray-700)]">
+                {" "}
+                /{" "}
+                {budget
+                  ? `${formatCurrency(budget, budgetCurrency)}/${periodLabel(linked?.period)}`
+                  : "No budget set"}
+              </span>
+            </p>
+            {budget ? (
+              <Link
+                href="/budgets"
+                className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)]"
+              >
+                <PiggyBank size={12} aria-hidden />
+                {extraBudgets > 0 ? `+${extraBudgets} more` : "Budget"}
+              </Link>
+            ) : canAddBudget ? (
+              <Link
+                href={`/budgets?category=${encodeURIComponent(category.id)}`}
+                className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-[var(--ds-status-blue)]"
+              >
+                <Plus size={12} aria-hidden />
+                Set budget
+              </Link>
+            ) : null}
+          </div>
           <Progress
             className="mt-2"
             value={budget ? pct : 0}
-            tone={budget ? color : "var(--ds-gray-400)"}
+            tone={
+              linked?.over
+                ? "var(--ds-status-red)"
+                : budget
+                  ? color
+                  : "var(--ds-gray-400)"
+            }
           />
         </div>
 

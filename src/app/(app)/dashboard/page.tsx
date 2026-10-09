@@ -43,6 +43,9 @@ import type {
   InvestmentSummary,
   LedgerTransaction,
 } from "@/types";
+import { newestTransactionFirst } from "@/lib/transactions/order";
+import { cn } from "@/lib/cn";
+import { transactionAmountClass } from "@/lib/transactions/display";
 
 export default function DashboardPage() {
   const { openTransactionModal } = useTransactionModal();
@@ -137,7 +140,7 @@ export default function DashboardPage() {
       count: monthTx.length,
       healthScore,
       recent: [...transactions]
-        .sort((a, b) => b.date.localeCompare(a.date))
+        .sort(newestTransactionFirst)
         .slice(0, 6),
       topContainers: [...containers]
         .filter((c) => c.include_in_net_worth)
@@ -382,7 +385,12 @@ export default function DashboardPage() {
                           </p>
                         </div>
                       </div>
-                      <p className="shrink-0 text-sm font-medium tabular-nums text-[var(--ds-gray-1000)]">
+                      <p
+                        className={cn(
+                          "shrink-0 text-sm font-medium tabular-nums",
+                          transactionAmountClass(tx.type),
+                        )}
+                      >
                         {sign}
                         {formatCurrency(tx.amount, tx.currency || "USD")}
                       </p>

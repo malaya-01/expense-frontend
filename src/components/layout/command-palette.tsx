@@ -14,6 +14,7 @@ import {
   ChartNoAxesCombined,
   CirclePlus,
   Command,
+  GraduationCap,
   Moon,
   ReceiptText,
   Search,
@@ -26,6 +27,7 @@ import {
 import { PRIMARY_NAV, SECONDARY_NAV } from "./app-sidebar";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { useReceiptCapture } from "@/components/receipts/receipt-capture-provider";
+import { useTutorial } from "@/components/tutorial/tutorial-provider";
 import { cn } from "@/lib/cn";
 import { useOverlayBack } from "@/lib/native/overlay-back";
 import { useAuth } from "@/lib/auth-context";
@@ -105,6 +107,7 @@ export function CommandPalette() {
   const { openTransactionModal, openEditTransactionModal } =
     useTransactionModal();
   const { startReceiptCapture } = useReceiptCapture();
+  const { start: startTutorial } = useTutorial();
   const dispatch = useAppDispatch();
   const { user } = useAuth();
   const open = useAppSelector((state) => state.ui.commandPaletteOpen);
@@ -354,6 +357,14 @@ export function CommandPalette() {
         icon: Settings,
         run: () => router.push("/settings"),
       },
+      {
+        id: "tutorial",
+        title: "Take the app tour",
+        subtitle: "Replay the guided tutorial",
+        keywords: "tutorial tour onboarding help guide walkthrough intro",
+        icon: GraduationCap,
+        run: () => void startTutorial({ restart: true }),
+      },
     );
     if (canSpaces) {
       commands.push({
@@ -372,6 +383,7 @@ export function CommandPalette() {
     canSpaces,
     openTransactionModal,
     startReceiptCapture,
+    startTutorial,
     recordItems,
     router,
     user,

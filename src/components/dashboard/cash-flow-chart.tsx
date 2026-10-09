@@ -20,6 +20,7 @@ import {
 } from "@/lib/format";
 import type { FinancialContainer, LedgerTransaction } from "@/types";
 import { cn } from "@/lib/cn";
+import { transactionAmountClass } from "@/lib/transactions/display";
 
 const RANGES: Array<{ id: CashFlowRange; label: string }> = [
   { id: "7d", label: "7D" },
@@ -362,7 +363,12 @@ export function CashFlowChart({
                           {formatRelativeDate(tx.date)} · {flow}
                         </p>
                       </div>
-                      <p className="shrink-0 text-xs font-medium tabular-nums">
+                      <p
+                        className={cn(
+                          "shrink-0 text-xs font-medium tabular-nums",
+                          transactionAmountClass(tx.type),
+                        )}
+                      >
                         {sign}
                         {formatCurrency(tx.amount, tx.currency || currency)}
                       </p>
