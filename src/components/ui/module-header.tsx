@@ -14,6 +14,7 @@ export function ModuleHeader({
   filterOptions,
   filterLabel = "Filter",
   actions,
+  inlineActions = false,
 }: {
   title: string;
   description: string;
@@ -25,6 +26,8 @@ export function ModuleHeader({
   filterOptions?: Array<{ value: string; label: string }>;
   filterLabel?: string;
   actions?: ReactNode;
+  /** Keep a small action beside the title on phones too (no extra row). */
+  inlineActions?: boolean;
 }) {
   const hasSearchOrFilter = Boolean(onSearchChange || onFilterChange);
 
@@ -99,13 +102,19 @@ export function ModuleHeader({
           </p>
         </div>
         {actions ? (
-          <div className="hidden shrink-0 items-center gap-2 sm:flex">
+          <div
+            className={
+              inlineActions
+                ? "flex shrink-0 items-center gap-2 [&_button]:h-9 [&_button]:px-3 [&_button]:text-[12px] sm:[&_button]:h-10 sm:[&_button]:px-4 sm:[&_button]:text-[13px]"
+                : "hidden shrink-0 items-center gap-2 sm:flex"
+            }
+          >
             {actions}
           </div>
         ) : null}
       </div>
 
-      {actions ? (
+      {actions && !inlineActions ? (
         <div className="mt-2.5 flex items-center gap-2 sm:hidden [&_button]:h-10 [&_button]:flex-1 [&_button]:justify-center [&_button]:px-3 [&_button]:text-[12px]">
           {actions}
         </div>

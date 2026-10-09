@@ -100,7 +100,7 @@ export function RecurringCard({
       ? [
           {
             id: "archive",
-            label: "Archive",
+            label: "Delete",
             tone: "danger" as const,
             onSelect: onArchive,
           },

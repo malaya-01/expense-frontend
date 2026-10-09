@@ -21,6 +21,8 @@ import {
   UserRound,
   WalletCards,
   UsersRound,
+  BookText,
+  TriangleAlert,
 } from "lucide-react";
 import { openCommandPalette } from "@/components/layout/command-palette";
 import { NotificationCenter } from "@/components/layout/notification-center";
@@ -37,6 +39,8 @@ const ROUTE_TITLES = [
   { route: "/accounts", title: "Accounts", icon: WalletCards },
   { route: "/expenses/new", title: "New transaction", icon: Plus },
   { route: "/expenses", title: "Transactions", icon: ArrowLeftRight },
+  { route: "/ledger", title: "Ledger", icon: BookText },
+  { route: "/sync-issues", title: "Sync issues", icon: TriangleAlert },
   { route: "/recurring", title: "Recurring", icon: Repeat2 },
   { route: "/investments", title: "Investments", icon: TrendingUp },
   { route: "/loans", title: "Loans & Debts", icon: Landmark },

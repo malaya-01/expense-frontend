@@ -280,6 +280,23 @@ async function postRefresh(
   return res.data.data;
 }
 
+/**
+ * Signed out because the account signed in on another device (one device per
+ * account). The server tags those 401s with SESSION_REPLACED.
+ */
+export function isSessionReplaced(error: unknown): boolean {
+  const message =
+    (axios.isAxiosError(error)
+      ? (error.response?.data as { message?: string } | undefined)?.message
+      : undefined) ||
+    (error instanceof Error ? error.message : "") ||
+    "";
+  return String(message).includes("SESSION_REPLACED");
+}
+
+/** Value of SESSION_EXPIRED_FLAG_KEY when another device took over. */
+export const SESSION_REPLACED_FLAG = "replaced";
+
 /** The server answered the refresh call and said no (not a network blip). */
 class RefreshRejectedError extends Error {}
 
@@ -329,6 +346,21 @@ async function refreshWithLock(): Promise<string> {
     }
     return doRefresh();
   });
+}
+
+/**
+ * Another device signed in. Credentials go; the offline outbox and durable
+ * backup stay, so unsynced work uploads when the user signs in here again.
+ */
+function signOutReplaced() {
+  clearTokens();
+  authFailureHandler?.();
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("expense-tracker:user");
+  writeSession(SESSION_EXPIRED_FLAG_KEY, SESSION_REPLACED_FLAG);
+  if (!window.location.pathname.startsWith("/signin")) {
+    window.location.assign("/signin?session=replaced");
+  }
 }
 
 let refreshInFlight: Promise<string> | null = null;
@@ -401,6 +433,9 @@ export async function ensureSession(): Promise<boolean> {
   } catch (error) {
     if (isAuthRejection(error)) {
       clearTokens();
+      if (isSessionReplaced(error) && typeof window !== "undefined") {
+        writeSession(SESSION_EXPIRED_FLAG_KEY, SESSION_REPLACED_FLAG);
+      }
       return false;
     }
     // Network / cold-start errors: keep tokens so offline UX still works.
@@ -588,6 +623,11 @@ function createClient(): AxiosInstance {
         return Promise.reject(error);
       }
 
+      if (isSessionReplaced(error)) {
+        signOutReplaced();
+        return Promise.reject(error);
+      }
+
       original._retry = true;
       beginApiActivity();
       try {
@@ -615,6 +655,10 @@ function createClient(): AxiosInstance {
         } catch (refreshError) {
           if (!isAuthRejection(refreshError)) {
             // Offline / 429 / 5xx: keep the session, just fail this request.
+            return Promise.reject(error);
+          }
+          if (isSessionReplaced(refreshError)) {
+            signOutReplaced();
             return Promise.reject(error);
           }
           clearTokens();

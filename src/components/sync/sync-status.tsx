@@ -16,12 +16,7 @@ import {
   subscribeSyncStatus,
   type SyncStatusSnapshot,
 } from "@/lib/offline/sync-engine";
-import {
-  listConflicts,
-  resolveKeepLocal,
-  resolveKeepRemote,
-} from "@/lib/offline/conflicts";
-import type { ConflictItem } from "@/lib/offline/db";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { Popover } from "@/components/ui/popover";
 import { getClientPlatform } from "@/lib/runtime-platform";
@@ -39,18 +34,12 @@ const EMPTY_STATUS: SyncStatusSnapshot = {
 export function SyncStatusButton() {
   const { user } = useAuth();
   const [status, setStatus] = useState<SyncStatusSnapshot>(EMPTY_STATUS);
-  const [open, setOpen] = useState(false);
-  const [conflicts, setConflicts] = useState<ConflictItem[]>([]);
   const platform = useMemo(() => getClientPlatform(), []);
 
   useEffect(() => {
     return subscribeSyncStatus(setStatus);
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-    void listConflicts().then(setConflicts);
-  }, [open, status.conflicts]);
 
   const label = !status.online
     ? "Offline"
@@ -84,7 +73,6 @@ export function SyncStatusButton() {
       align="end"
       className="w-[min(20rem,calc(100vw-1.5rem))] p-3"
       triggerLabel="Connection & sync status"
-      onOpenChange={setOpen}
       trigger={
         <span
           className="flex h-7 items-center gap-1 rounded-[6px] px-1.5 text-[11px] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)]"
@@ -141,47 +129,25 @@ export function SyncStatusButton() {
         automatically (free servers can take up to ~60s to wake).
       </p>
 
-      {conflicts.length > 0 ? (
-        <div className="mt-3 max-h-[40vh] space-y-2 overflow-y-auto border-t border-[var(--ds-gray-200)] pt-2">
-          <p className="text-[11px] font-medium text-[var(--ds-gray-1000)]">
-            Resolve conflicts
-          </p>
-          {conflicts.map((c) => (
-            <div
-              key={c.id}
-              className="rounded-[6px] bg-[var(--ds-gray-100)] p-2"
-            >
-              <p className="text-[11px] text-[var(--ds-gray-900)]">
-                {c.entity_type} · {c.entity_id.slice(0, 8)}…
-              </p>
-              <div className="mt-1.5 flex gap-1">
-                <button
-                  type="button"
-                  className="rounded-[5px] bg-[var(--ds-background-100)] px-2 py-1 text-[10px]"
-                  onClick={async () => {
-                    if (c.id == null) return;
-                    await resolveKeepLocal(c.id);
-                    setConflicts(await listConflicts());
-                    void runSync("conflict-local");
-                  }}
-                >
-                  Keep local
-                </button>
-                <button
-                  type="button"
-                  className="rounded-[5px] bg-[var(--ds-background-100)] px-2 py-1 text-[10px]"
-                  onClick={async () => {
-                    if (c.id == null) return;
-                    await resolveKeepRemote(c.id);
-                    setConflicts(await listConflicts());
-                  }}
-                >
-                  Keep remote
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+      {status.conflicts > 0 || status.failed > 0 ? (
+        <Link
+          href="/sync-issues"
+          className="mt-3 flex items-center justify-between gap-2 rounded-[8px] bg-[color-mix(in_srgb,var(--ds-status-orange)_12%,transparent)] px-2.5 py-2 text-[12px] font-medium text-[var(--ds-gray-1000)] hover:bg-[color-mix(in_srgb,var(--ds-status-orange)_18%,transparent)]"
+        >
+          <span>
+            {[
+              status.failed > 0
+                ? `${status.failed} not saved`
+                : null,
+              status.conflicts > 0
+                ? `${status.conflicts} changed on two devices`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+          <span className="shrink-0 text-[var(--ds-focus-color)]">Review →</span>
+        </Link>
       ) : null}
     </Popover>
   );

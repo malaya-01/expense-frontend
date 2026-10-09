@@ -806,20 +806,21 @@ export default function RecurringPage() {
 
       <ConfirmDialog
         open={Boolean(archiveTarget)}
-        title="Archive recurring schedule?"
-        description="Future executions stop. Existing generated transactions and audit history remain unchanged."
-        confirmLabel="Archive schedule"
+        title="Delete this recurring schedule?"
+        description="It stops creating entries. Transactions it already posted stay in your history and balances."
+        confirmLabel="Delete schedule"
+        destructive
         onClose={() => setArchiveTarget(null)}
         onConfirm={async () => {
           if (!archiveTarget) return;
           try {
             await archiveRecurringSchedule(archiveTarget.id);
             setArchiveTarget(null);
-            showToast({ title: "Schedule archived", tone: "success" });
+            showToast({ title: "Schedule deleted", tone: "success" });
             await refresh();
           } catch (err) {
             showToast({
-              title: "Could not archive schedule",
+              title: "Could not delete schedule",
               description: getErrorMessage(err, "Please try again."),
               tone: "error",
             });

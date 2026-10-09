@@ -41,14 +41,26 @@ function SignInForm() {
     if (sessionToastShown.current) return;
     // Android full-page loads drop the query string, so the API client also
     // leaves a sessionStorage flag.
-    let flagged = false;
+    let flag: string | null = null;
     try {
-      flagged = sessionStorage.getItem(SESSION_EXPIRED_FLAG_KEY) === "1";
+      flag = sessionStorage.getItem(SESSION_EXPIRED_FLAG_KEY);
       sessionStorage.removeItem(SESSION_EXPIRED_FLAG_KEY);
     } catch {
-      flagged = false;
+      flag = null;
     }
-    if (searchParams.get("session") !== "expired" && !flagged) return;
+    const reason = searchParams.get("session");
+    if (reason === "replaced" || flag === "replaced") {
+      sessionToastShown.current = true;
+      showToast({
+        title: "Signed in on another device",
+        description:
+          "Opal stays signed in on one device at a time, so this one was signed out. Anything you saved here that hadn't synced is kept and uploads when you sign in again.",
+        tone: "warning",
+        duration: 12000,
+      });
+      return;
+    }
+    if (reason !== "expired" && flag !== "1") return;
     sessionToastShown.current = true;
     showToast({
       title: "Session expired",

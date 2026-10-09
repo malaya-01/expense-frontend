@@ -8,6 +8,11 @@ import { transactionsRepo } from "@/lib/offline/repos";
 import { offlineDb } from "@/lib/offline/db";
 import { emitTutorialSignal } from "@/lib/tutorial/signals";
 import { requireDateOnly } from "@/lib/format";
+import { isOnline } from "@/lib/offline/network";
+import {
+  applyLocalBalanceEffects,
+  localBalanceProblem,
+} from "@/lib/accounts/balance-effects";
 
 type TxRow = LedgerTransaction & { _pending?: boolean };
 
@@ -210,10 +215,17 @@ export async function createTransaction(
   },
 ): Promise<LedgerTransaction> {
   const enriched = await enrichTransactionFields(payload);
+  // Offline entries are checked here: queued work the server would reject
+  // later (overdrawn account, overpaid debt) is how sync failures happen.
+  if (!isOnline()) {
+    const problem = await localBalanceProblem(payload);
+    if (problem) throw new Error(problem);
+  }
   // Outbox keeps API fields only; local row keeps join/display fields.
   const created = (await transactionsRepo.create(
     enriched,
   )) as LedgerTransaction;
+  await applyLocalBalanceEffects(normalizeTx(created), 1);
   emitTutorialSignal("create-transaction");
   return normalizeTx(created);
 }
@@ -239,13 +251,30 @@ export async function updateTransaction(
     },
     "update",
   );
+  const before = existing ? normalizeTx(existing) : null;
+  if (!isOnline() && before) {
+    const problem = await localBalanceProblem(
+      { ...before, ...(payload as Partial<LedgerTransaction>) } as LedgerTransaction,
+      before,
+    );
+    if (problem) throw new Error(problem);
+  }
   const updated = (await transactionsRepo.update(
     id,
     enriched,
   )) as LedgerTransaction;
-  return normalizeTx(updated);
+  const after = normalizeTx(updated);
+  if (before) await applyLocalBalanceEffects(before, -1);
+  await applyLocalBalanceEffects(after, 1);
+  return after;
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
+  const existing = (await offlineDb.transactions.get(id)) as
+    | TxRow
+    | undefined;
   await transactionsRepo.remove(id);
+  if (existing && !(existing as { deleted_at?: string | null }).deleted_at) {
+    await applyLocalBalanceEffects(normalizeTx(existing), -1);
+  }
 }

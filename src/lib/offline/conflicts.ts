@@ -5,6 +5,7 @@ import {
   type SyncEntityType,
 } from "./db";
 import { enqueueOutbox } from "./outbox";
+import { invalidateHydrate, notifyDataUpdated } from "./hydrate-cache";
 
 export async function addConflict(input: {
   client_op_id: string;
@@ -48,6 +49,10 @@ export async function resolveKeepRemote(conflictId: number): Promise<void> {
     }
   }
   await offlineDb.conflicts.delete(conflictId);
+  // Balances on this device may include the dropped version: reload them.
+  if (table) invalidateHydrate(table);
+  invalidateHydrate("accounts");
+  notifyDataUpdated();
 }
 
 export async function resolveKeepLocal(conflictId: number): Promise<void> {
@@ -66,6 +71,9 @@ export async function resolveKeepLocal(conflictId: number): Promise<void> {
     force: true,
   });
   await offlineDb.conflicts.delete(conflictId);
+  // Reload balances once the forced write has synced.
+  invalidateHydrate("accounts");
+  notifyDataUpdated();
 }
 
 function entityTable(type: SyncEntityType): string | null {
