@@ -217,7 +217,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-base">Financial health</h2>
+                  <h2 className="text-base">The Breaking Bank</h2>
                   <Badge
                     tone={
                       stats.healthScore >= 80
