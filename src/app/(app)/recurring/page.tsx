@@ -33,11 +33,13 @@ import {
   archiveRecurringSchedule,
   createRecurringSchedule,
   executeRecurringSchedule,
+  skipMissedRecurringRuns,
   listRecurringSchedules,
   updateRecurringSchedule,
 } from "@/lib/api/recurring";
 import { getErrorMessage } from "@/lib/api/client";
-import { todayISO } from "@/lib/format";
+import { formatDate, todayISO } from "@/lib/format";
+import { recurringDueInfo } from "@/lib/recurring/schedule";
 import type {
   Category,
   CreateRecurringScheduleInput,
@@ -87,6 +89,8 @@ export default function RecurringPage() {
   const [form, setForm] = useState<CreateRecurringScheduleInput>(EMPTY);
   const [archiveTarget, setArchiveTarget] =
     useState<RecurringSchedule | null>(null);
+  const [editing, setEditing] = useState<RecurringSchedule | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
@@ -137,8 +141,10 @@ export default function RecurringPage() {
       automatic: active.filter(
         (schedule) => schedule.execution_mode === "automatic",
       ).length,
-      due: active.filter((schedule) => schedule.next_execution <= todayISO())
-        .length,
+      due: active.reduce(
+        (sum, schedule) => sum + recurringDueInfo(schedule).dueCount,
+        0,
+      ),
     };
   }, [schedules]);
 
@@ -164,6 +170,17 @@ export default function RecurringPage() {
     resetKey: `${search}|${statusFilter}`,
   });
 
+  // Runs a new schedule would owe immediately because it starts in the past.
+  const pastStartRuns = useMemo(() => {
+    if (editing || !form.start_date || form.start_date >= todayISO()) return 0;
+    return recurringDueInfo({
+      ...(form as unknown as RecurringSchedule),
+      status: "active",
+      next_execution: form.start_date,
+      end_date: form.end_date || null,
+    }).missedCount;
+  }, [editing, form]);
+
   function validateSchedule(): string | null {
     const type = form.transaction_type;
     if (!Number.isFinite(Number(form.amount)) || Number(form.amount) <= 0) {
@@ -184,6 +201,31 @@ export default function RecurringPage() {
     return null;
   }
 
+  function openCreate() {
+    setEditing(null);
+    setForm({ ...EMPTY, start_date: todayISO() });
+    setOpen(true);
+  }
+
+  function openEdit(schedule: RecurringSchedule) {
+    setEditing(schedule);
+    setForm({
+      name: schedule.name,
+      transaction_type: schedule.transaction_type,
+      amount: Number(schedule.amount),
+      description: schedule.description || "",
+      category_id: schedule.category_id || "",
+      source_container_id: schedule.source_container_id || "",
+      destination_container_id: schedule.destination_container_id || "",
+      frequency: schedule.frequency,
+      start_date: schedule.start_date,
+      end_date: schedule.end_date || "",
+      execution_mode: schedule.execution_mode,
+      notes: schedule.notes || "",
+    });
+    setOpen(true);
+  }
+
   async function create(event: FormEvent) {
     event.preventDefault();
     if (saving) return;
@@ -199,28 +241,46 @@ export default function RecurringPage() {
     setSaving(true);
     setError("");
     try {
-      await createRecurringSchedule({
-        ...form,
-        category_id: form.category_id || undefined,
-        source_container_id: form.source_container_id || undefined,
-        destination_container_id: form.destination_container_id || undefined,
-        end_date: form.end_date || undefined,
-      });
+      if (editing) {
+        // Empty strings clear optional links / the end date on the server.
+        await updateRecurringSchedule(editing.id, {
+          ...form,
+          category_id: (form.category_id || null) as unknown as string,
+          source_container_id: (form.source_container_id ||
+            null) as unknown as string,
+          destination_container_id: (form.destination_container_id ||
+            null) as unknown as string,
+          end_date: (form.end_date || null) as unknown as string,
+        });
+      } else {
+        await createRecurringSchedule({
+          ...form,
+          category_id: form.category_id || undefined,
+          source_container_id: form.source_container_id || undefined,
+          destination_container_id: form.destination_container_id || undefined,
+          end_date: form.end_date || undefined,
+        });
+      }
       setOpen(false);
       showToast({
-        title: "Recurring schedule created",
-        description:
-          form.execution_mode === "automatic"
+        title: editing ? "Schedule updated" : "Recurring schedule created",
+        description: editing
+          ? "Changes apply to upcoming runs. Posted transactions are unchanged."
+          : form.execution_mode === "automatic"
             ? "Due entries will post automatically through the ledger."
             : "Due entries will wait for your review.",
         tone: "success",
       });
+      setEditing(null);
       await refresh();
     } catch (err) {
-      const message = getErrorMessage(err, "Could not create schedule");
+      const message = getErrorMessage(
+        err,
+        editing ? "Could not update schedule" : "Could not create schedule",
+      );
       setError(message);
       showToast({
-        title: "Could not create schedule",
+        title: editing ? "Could not update schedule" : "Could not create schedule",
         description: message,
         tone: "error",
       });
@@ -240,21 +300,90 @@ export default function RecurringPage() {
   }
 
   async function handlePost(schedule: RecurringSchedule) {
+    if (busyId) return;
+    setBusyId(schedule.id);
+    const postedFor = schedule.next_execution;
     try {
-      await executeRecurringSchedule(schedule.id);
+      const { queued } = await executeRecurringSchedule(schedule.id);
+      const remaining = recurringDueInfo(schedule).dueCount - 1;
       showToast({
-        title: "Scheduled transaction posted",
+        title: queued
+          ? "Will post when you're back online"
+          : `Posted ${schedule.name} for ${formatDate(postedFor)}`,
+        description: queued
+          ? undefined
+          : remaining > 0
+            ? `${remaining} more run${remaining === 1 ? " is" : "s are"} still due.`
+            : undefined,
         tone: "success",
       });
-      await refresh();
+      await refresh({ silent: true });
     } catch (err) {
       const message = getErrorMessage(err, "Execution could not run");
-      setError(message);
       showToast({
         title: "Could not post transaction",
         description: message,
         tone: "error",
       });
+      await refresh({ silent: true });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handlePostAll(schedule: RecurringSchedule, count: number) {
+    if (busyId) return;
+    setBusyId(schedule.id);
+    let posted = 0;
+    try {
+      for (let i = 0; i < count; i += 1) {
+        const { queued } = await executeRecurringSchedule(schedule.id);
+        if (queued) break;
+        posted += 1;
+      }
+      showToast({
+        title:
+          posted === count
+            ? `Posted ${posted} run${posted === 1 ? "" : "s"} of ${schedule.name}`
+            : `Posted ${posted} of ${count}; the rest will post when you're online`,
+        tone: "success",
+      });
+    } catch (err) {
+      showToast({
+        title: posted
+          ? `Posted ${posted} of ${count}, then stopped`
+          : "Could not post transactions",
+        description: getErrorMessage(err, "Execution could not run"),
+        tone: "error",
+      });
+    } finally {
+      setBusyId(null);
+      await refresh({ silent: true });
+    }
+  }
+
+  async function handleSkipMissed(schedule: RecurringSchedule) {
+    if (busyId) return;
+    setBusyId(schedule.id);
+    try {
+      const result = await skipMissedRecurringRuns(schedule.id);
+      showToast({
+        title: `Skipped ${result.skipped} missed run${result.skipped === 1 ? "" : "s"}`,
+        description: `Next run: ${formatDate(result.next_execution)}. Nothing was posted for the skipped dates.`,
+        tone: "success",
+      });
+    } catch (err) {
+      showToast({
+        title: "Could not skip missed runs",
+        description: getErrorMessage(
+          err,
+          "Skipping needs a connection. Try again when online.",
+        ),
+        tone: "error",
+      });
+    } finally {
+      setBusyId(null);
+      await refresh({ silent: true });
     }
   }
 
@@ -308,13 +437,7 @@ export default function RecurringPage() {
         ]}
         actions={
           perms.create ? (
-            <Button
-              className="shrink-0"
-              onClick={() => {
-                setForm({ ...EMPTY, start_date: todayISO() });
-                setOpen(true);
-              }}
-            >
+            <Button className="shrink-0" onClick={openCreate}>
               <Plus size={16} />
               New schedule
             </Button>
@@ -365,14 +488,7 @@ export default function RecurringPage() {
             title="No recurring schedules"
             description="Automate salary, rent, subscriptions, savings transfers, EMIs, and other predictable events."
             actionLabel={perms.create ? "Create schedule" : undefined}
-            onAction={
-              perms.create
-                ? () => {
-                    setForm({ ...EMPTY, start_date: todayISO() });
-                    setOpen(true);
-                  }
-                : undefined
-            }
+            onAction={perms.create ? openCreate : undefined}
           />
         </div>
       ) : visible.length === 0 ? (
@@ -389,7 +505,17 @@ export default function RecurringPage() {
               key={schedule.id}
               schedule={schedule}
               currency={user?.currency || "USD"}
+              busy={busyId === schedule.id}
               onPost={perms.update ? () => handlePost(schedule) : undefined}
+              onPostAll={
+                perms.update
+                  ? (count) => handlePostAll(schedule, count)
+                  : undefined
+              }
+              onSkipMissed={
+                perms.update ? () => handleSkipMissed(schedule) : undefined
+              }
+              onEdit={perms.update ? () => openEdit(schedule) : undefined}
               onPause={
                 perms.update ? () => handlePause(schedule) : undefined
               }
@@ -412,21 +538,36 @@ export default function RecurringPage() {
 
       <Modal
         open={open}
-        onClose={() => setOpen(false)}
-        title="New recurring schedule"
+        onClose={() => {
+          setOpen(false);
+          setEditing(null);
+        }}
+        title={editing ? "Edit recurring schedule" : "New recurring schedule"}
         className="max-w-3xl"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setOpen(false)}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setOpen(false);
+                setEditing(null);
+              }}
+            >
               Cancel
             </Button>
             <Button form="recurring-form" type="submit" loading={saving}>
-              Create schedule
+              {editing ? "Save changes" : "Create schedule"}
             </Button>
           </>
         }
       >
         <form id="recurring-form" onSubmit={create} className="space-y-4">
+          {editing ? (
+            <p className="rounded-[10px] bg-[var(--ds-gray-100)] px-3 py-2 text-[12px] leading-5 text-[var(--ds-gray-900)]">
+              Changes apply to upcoming runs. Transactions already posted by
+              this schedule stay as they are.
+            </p>
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Schedule name" id="recurring-name">
               <Input
@@ -508,7 +649,7 @@ export default function RecurringPage() {
             className={
               form.transaction_type === "transfer"
                 ? "grid gap-4 rounded-[10px] bg-[var(--ds-background-100)] p-3.5 sm:grid-cols-2"
-                : "contents"
+                : "grid gap-4"
             }
           >
           {form.transaction_type !== "income" ? (
@@ -612,6 +753,14 @@ export default function RecurringPage() {
                 }
               />
             </Field>
+            {pastStartRuns > 0 ? (
+              <p className="-mt-2 text-[11px] leading-4 text-[var(--ds-status-orange)] sm:col-span-2 sm:mt-0 sm:order-last">
+                Start date is in the past: {pastStartRuns} run
+                {pastStartRuns === 1 ? "" : "s"} will be due right away. Use
+                today&apos;s date (or the next billing date) to only track
+                upcoming payments.
+              </p>
+            ) : null}
             <Field label="End date (optional)" id="recurring-end">
               <Input
                 id="recurring-end"

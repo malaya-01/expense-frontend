@@ -328,28 +328,31 @@ html[data-theme-scheme="light"] body {
   font-variant-numeric: tabular-nums;
 }
 
-h1 {
-  font-size: 36px;
-  font-weight: 600;
-  line-height: 42px;
-  letter-spacing: -1.5px;
-  margin: 0;
-}
+/* Base heading scale; utilities on a heading (text-*, font-*) win. */
+@layer base {
+  h1 {
+    font-size: 36px;
+    font-weight: 600;
+    line-height: 42px;
+    letter-spacing: -1.5px;
+    margin: 0;
+  }
 
-h2 {
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 20px;
-  letter-spacing: -0.28px;
-  margin: 0;
-}
+  h2 {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 20px;
+    letter-spacing: -0.28px;
+    margin: 0;
+  }
 
-h3 {
-  font-size: 28px;
-  font-weight: 600;
-  line-height: 36px;
-  letter-spacing: -1px;
-  margin: 0;
+  h3 {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 36px;
+    letter-spacing: -1px;
+    margin: 0;
+  }
 }
 
 @layer base {
@@ -390,11 +393,15 @@ a.ds-btn-solid:hover {
   color: var(--ds-link-hover);
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
+/* In the base layer so text-* / font-* utilities on controls still apply
+   (unlayered, this reset beat every utility and buttons inherited 15px). */
+@layer base {
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
 }
 
 ::selection {
@@ -833,7 +840,7 @@ html.native-app .mb-6 {
   margin-bottom: 0.65rem !important;
 }
 
-html.native-app h1 {
+html.native-app main h1 {
   font-size: 1.2rem !important;
   line-height: 1.4rem !important;
 }
@@ -1191,4 +1198,12 @@ html[data-keyboard="open"] main[data-app-main="page"] {
 
 html[data-keyboard="open"] [data-save-bar] {
   bottom: calc(var(--kb-inset, 0px) + 0.5rem);
+}
+
+/* Phones: a KPI grid with an odd number of cards lets the last one span the
+   row instead of leaving an empty cell next to it. */
+@media (max-width: 639px) {
+  .grid-cols-2 > [data-kpi-card]:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
 }

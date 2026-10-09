@@ -311,8 +311,8 @@ export default function ExpensesPage() {
       />
 
       <Card className="mb-3 sm:mb-5">
-        <CardBody className="pt-3 sm:pt-5">
-          <div className="mb-2 flex items-center justify-between gap-2 sm:mb-3">
+        <CardBody className="p-2.5 sm:p-5">
+          <div className="mb-3 hidden items-center justify-between gap-2 sm:flex">
             <div className="flex min-w-0 items-center gap-2">
               <SlidersHorizontal
                 size={15}
@@ -330,34 +330,55 @@ export default function ExpensesPage() {
                   <span className="hidden sm:inline">Clear</span>
                 </Button>
               ) : null}
-              <Button
-                size="sm"
-                variant="secondary"
-                className="sm:hidden"
-                aria-expanded={filtersOpen}
-                onClick={() => setFiltersOpen((open) => !open)}
-              >
-                Filters
-              </Button>
             </div>
           </div>
 
           <div className="min-w-0">
             <label
               htmlFor="tx-search"
-              className="mb-1 block text-[11px] font-medium text-[var(--ds-gray-900)] sm:mb-1.5"
+              className="mb-1.5 hidden text-[11px] font-medium text-[var(--ds-gray-900)] sm:block"
             >
               Search
             </label>
-            <Input
-              id="tx-search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Merchant, category, account…"
-              aria-label="Search transactions"
-              startAdornment={<Search size={15} aria-hidden />}
-              className="h-9 sm:h-10"
-            />
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <Input
+                  id="tx-search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search merchant, category…"
+                  aria-label="Search transactions"
+                  startAdornment={<Search size={15} aria-hidden />}
+                  className="h-10"
+                />
+              </div>
+              <Button
+                variant="secondary"
+                className="h-10 shrink-0 gap-1.5 px-3 text-[12px] sm:hidden"
+                aria-expanded={filtersOpen}
+                aria-label={hasFilters ? "Filters (active)" : "Filters"}
+                onClick={() => setFiltersOpen((open) => !open)}
+              >
+                <SlidersHorizontal size={14} aria-hidden />
+                Filters
+                {hasFilters ? (
+                  <span
+                    aria-hidden
+                    className="size-1.5 rounded-full bg-[var(--ds-focus-color)]"
+                  />
+                ) : null}
+              </Button>
+              {hasFilters ? (
+                <Button
+                  variant="ghost"
+                  className="size-10 shrink-0 px-0 sm:hidden"
+                  aria-label="Clear filters"
+                  onClick={clearFilters}
+                >
+                  <X size={15} />
+                </Button>
+              ) : null}
+            </div>
           </div>
 
           <div

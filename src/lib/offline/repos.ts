@@ -17,6 +17,7 @@ import { enqueueOutbox } from "@/lib/offline/outbox";
 import { isOnline } from "@/lib/offline/network";
 import { scheduleSync } from "@/lib/offline/sync-engine";
 import { offlineDb, newId } from "@/lib/offline/db";
+import { invalidateHydrate, notifyDataUpdated } from "@/lib/offline/hydrate-cache";
 
 function normalizeAccount(row: any): FinancialContainer {
   return {
@@ -335,6 +336,34 @@ export async function loanPaymentLocal(
     payload,
   });
   if (isOnline()) scheduleSync("loan_payment");
+}
+
+/**
+ * After a schedule was posted on the server, copy its advanced
+ * next_execution into the device cache right away (the list reads Dexie, so
+ * otherwise the card keeps showing "Post now" until the next sync).
+ */
+export async function refreshRecurringFromServer(id: string) {
+  const res = await api.get("/recurring");
+  const data = unwrap<any[] | any>(res);
+  const rows = Array.isArray(data) ? data : data ? [data] : [];
+  const row = rows.find((r) => String(r?.id) === id);
+  const existing = await offlineDb.recurring.get(id);
+  if (row) {
+    await offlineDb.recurring.put({
+      ...(existing || {}),
+      ...genericNormalize(row),
+      id,
+      _pending: false,
+      _sync_failed: false,
+    });
+  }
+  invalidateHydrate("recurring");
+  // The posted transaction and balances changed on the server too.
+  invalidateHydrate("transactions");
+  invalidateHydrate("accounts");
+  scheduleSync("recurring_execute");
+  notifyDataUpdated();
 }
 
 export async function recurringExecuteLocal(id: string) {

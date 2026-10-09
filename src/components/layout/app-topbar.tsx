@@ -20,6 +20,7 @@ import {
   TrendingUp,
   UserRound,
   WalletCards,
+  UsersRound,
 } from "lucide-react";
 import { openCommandPalette } from "@/components/layout/command-palette";
 import { NotificationCenter } from "@/components/layout/notification-center";
@@ -44,6 +45,7 @@ const ROUTE_TITLES = [
   { route: "/reports", title: "Reports", icon: FileChartColumn },
   { route: "/ai", title: "AI Advisor", icon: Sparkles },
   { route: "/categories", title: "Categories", icon: Tags },
+  { route: "/spaces", title: "Spaces", icon: UsersRound },
   { route: "/documentation", title: "Documentation", icon: BookOpen },
   { route: "/settings", title: "Settings", icon: Settings },
   { route: "/admin", title: "Admin", icon: Settings },

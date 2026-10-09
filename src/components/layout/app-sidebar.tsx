@@ -227,7 +227,7 @@ function SidebarContents({
         >
           <Search size={14} />
           <span className="flex-1">Search</span>
-          <kbd className="text-[10px] text-[var(--ds-gray-700)]">Ctrl K</kbd>
+          <kbd className="hidden text-[10px] text-[var(--ds-gray-700)] md:inline">Ctrl K</kbd>
         </button>
         {canCreateTx ? (
           <button
