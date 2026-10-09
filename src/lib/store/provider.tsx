@@ -20,6 +20,7 @@ import {
   installHistoryDepthTracker,
   isExitAnchor,
 } from "@/lib/native/back-history";
+import { initLiveUpdates } from "@/lib/native/live-update";
 
 /**
  * Client-side navigation for the native back handler. On Android a full page
@@ -82,6 +83,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     // After hydration only — reading localStorage during render mismatches SSR.
     bootstrapAppState(store.dispatch);
+    // Independent of session restore so a slow login can't trigger rollback.
+    void initLiveUpdates();
 
     void (async () => {
       await markNativeAppChrome();

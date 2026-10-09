@@ -68,6 +68,26 @@ After **any** web change, run `npm run mobile:android` (or `npm run build:mobile
 followed by `npm run cap:sync`) **before** pressing Run / Build in Android Studio,
 otherwise the APK ships the previous web build.
 
+### Live updates (no APK rebuild for web changes)
+
+Every push to `main` runs `.github/workflows/mobile-ota.yml`, which builds the
+static export, zips it and publishes it with a `latest.json` manifest on the
+rolling `ota` GitHub release. Installed apps (`src/lib/native/live-update.ts`,
+via `@capgo/capacitor-updater` in self-hosted mode) check that manifest on
+launch and on resume, download newer bundles in the background, and switch to
+them the next time the app is backgrounded or restarted. A bundle that fails to
+start is rolled back automatically and not retried.
+
+Pages, components, styles and JS-only npm packages ship this way. **Build and
+distribute a new APK** when you add/upgrade a Capacitor plugin, change
+`android/` or `capacitor.config.ts`, or change the icon/name — and **bump
+`versionCode`** in `android/app/build.gradle` in the same commit. The manifest
+carries that `versionCode` as `minNativeBuild`, so older APKs keep their current
+bundle instead of receiving code that needs native pieces they don't have.
+
+To publish a bundle without pushing, run the workflow manually from the
+GitHub Actions tab.
+
 ### Release signing
 
 Release builds are signed only when `android/keystore.properties` exists

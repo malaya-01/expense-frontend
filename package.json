@@ -19,6 +19,7 @@
     "@capacitor/filesystem": "^7.1.4",
     "@capacitor/network": "^7.0.1",
     "@capacitor/preferences": "^7.0.1",
+    "@capgo/capacitor-updater": "^7.51.23",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
     "@reduxjs/toolkit": "^2.12.0",

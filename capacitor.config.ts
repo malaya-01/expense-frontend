@@ -24,6 +24,14 @@ const config: CapacitorConfig = {
     CapacitorHttp: {
       enabled: true,
     },
+    // Live updates are driven from src/lib/native/live-update.ts against our
+    // own GitHub release, so the plugin never talks to Capgo's servers.
+    CapacitorUpdater: {
+      autoUpdate: false,
+      statsUrl: "",
+      // Keep failed bundles so a broken release isn't retried every launch.
+      autoDeleteFailed: false,
+    },
   },
 };
 

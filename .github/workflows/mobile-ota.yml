@@ -1,0 +1,75 @@
+# Publishes the Android app's web bundle as an over-the-air update.
+# The app reads latest.json from the rolling `ota` release (see
+# src/lib/native/live-update.ts), so page/logic changes reach installed APKs
+# without rebuilding them. Native changes still need a new APK (MOBILE.md).
+name: Mobile OTA bundle
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mobile-ota
+  cancel-in-progress: false
+
+env:
+  OTA_TAG: ota
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Compute bundle version
+        run: echo "OTA_VERSION=${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Build static export
+        env:
+          NEXT_PUBLIC_OTA_VERSION: ${{ env.OTA_VERSION }}
+        run: npm run build:mobile
+
+      - name: Package bundle and manifest
+        run: |
+          ZIP="bundle-${OTA_VERSION}.zip"
+          (cd out && zip -qr "../${ZIP}" .)
+          CHECKSUM=$(sha256sum "${ZIP}" | cut -d' ' -f1)
+          # Bundles only go to APKs whose native layer is at least this build.
+          MIN_NATIVE=$(grep -oP 'versionCode\s+\K\d+' android/app/build.gradle)
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${OTA_TAG}/${ZIP}"
+          jq -n --arg version "$OTA_VERSION" --arg url "$URL" \
+                --arg checksum "$CHECKSUM" --argjson minNativeBuild "$MIN_NATIVE" \
+                '{version: $version, url: $url, checksum: $checksum, minNativeBuild: $minNativeBuild}' \
+                > latest.json
+          echo "ZIP=${ZIP}" >> "$GITHUB_ENV"
+          cat latest.json
+
+      - name: Publish to the ota release
+        run: |
+          if ! gh release view "$OTA_TAG" >/dev/null 2>&1; then
+            gh release create "$OTA_TAG" --target "$GITHUB_SHA" --latest=false \
+              --title "Mobile live update" \
+              --notes "Rolling over-the-air bundle for the Android app. Managed by .github/workflows/mobile-ota.yml."
+          fi
+          # Zip first, manifest last, so the app never sees a manifest
+          # pointing at a bundle that isn't uploaded yet.
+          gh release upload "$OTA_TAG" "$ZIP"
+          gh release upload "$OTA_TAG" latest.json --clobber
+
+      - name: Prune old bundles
+        run: |
+          gh release view "$OTA_TAG" --json assets -q '.assets[].name' \
+            | grep '^bundle-.*\.zip$' | sort -V | head -n -3 \
+            | while read -r name; do gh release delete-asset "$OTA_TAG" "$name" -y; done
