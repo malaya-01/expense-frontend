@@ -6,6 +6,7 @@ import {
   isLiabilityType,
   isLiquidType,
 } from "./types-meta";
+import { newestTransactionFirst } from "@/lib/transactions/order";
 
 export type AllocationSlice = {
   id: "cash" | "investments" | "liabilities";
@@ -373,7 +374,7 @@ export function recentAccountActivity(
 ) {
   const byId = containerMap(containers);
   return [...transactions]
-    .sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at))
+    .sort(newestTransactionFirst)
     .filter(
       (t) =>
         (t.source_container_id && byId.has(t.source_container_id)) ||

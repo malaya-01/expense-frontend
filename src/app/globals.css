@@ -1172,3 +1172,23 @@ samp {
     transform: translateY(0);
   }
 }
+
+/* On-screen keyboard (see src/lib/native/keyboard-state.ts): the bottom tab
+   bar and FAB stay behind the keyboard instead of riding up on top of it, and
+   the space reserved for them goes to the focused composer instead. */
+html[data-keyboard="open"] [data-mobile-nav],
+html[data-keyboard="open"] [data-mobile-fab] {
+  display: none !important;
+}
+
+html[data-keyboard="open"] main[data-app-main="workspace"] {
+  padding-bottom: var(--kb-inset, 0px) !important;
+}
+
+html[data-keyboard="open"] main[data-app-main="page"] {
+  padding-bottom: calc(var(--kb-inset, 0px) + 1rem) !important;
+}
+
+html[data-keyboard="open"] [data-save-bar] {
+  bottom: calc(var(--kb-inset, 0px) + 0.5rem);
+}

@@ -446,6 +446,7 @@ export function MobileNav() {
     <>
       <nav
         data-tour="mobile-nav"
+        data-mobile-nav
         className="fixed inset-x-0 bottom-0 z-40 flex gap-1 bg-[var(--ds-background-elevated)] px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden [box-shadow:0_-1px_0_0_color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]"
       >
         {items.map((item) => {

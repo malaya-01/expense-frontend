@@ -22,6 +22,7 @@ export function BudgetFormModal({
   initial,
   categories,
   defaultCurrency = "USD",
+  defaultCategoryId,
   onSubmit,
 }: {
   open: boolean;
@@ -29,6 +30,8 @@ export function BudgetFormModal({
   initial?: Budget | null;
   categories: Category[];
   defaultCurrency?: string;
+  /** Pre-selects the category when creating (e.g. from a category card). */
+  defaultCategoryId?: string | null;
   onSubmit: (input: CreateBudgetInput) => void | Promise<void>;
 }) {
   const [form, setForm] = useState<CreateBudgetInput>({
@@ -55,16 +58,22 @@ export function BudgetFormModal({
         notes: initial.notes || "",
       });
     } else {
+      const category = defaultCategoryId
+        ? categories.find((c) => c.id === defaultCategoryId)
+        : undefined;
       setForm({
-        name: "",
+        name: category?.name ?? "",
         amount: 0,
         period_type: "monthly",
-        category_id: "",
+        category_id: category?.id ?? "",
         currency: defaultCurrency.toUpperCase(),
         notes: "",
       });
     }
-  }, [open, initial, defaultCurrency]);
+    // categories is read once per open; a background refresh must not reset
+    // what the user has typed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initial, defaultCurrency, defaultCategoryId]);
 
   const [saving, setSaving] = useState(false);
 

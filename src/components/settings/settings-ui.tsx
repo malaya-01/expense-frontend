@@ -338,8 +338,10 @@ export function Segmented<T extends string | number>({
 }
 
 /**
- * Sticky bar shown while a section has unsaved edits. Sits above the
- * phone bottom navigation.
+ * Bar shown while a section has unsaved edits. Fixed to the viewport (via a
+ * portal, so no scroll container or card can clip it): above the phone tab
+ * bar, centred under the content column on desktop, and above the on-screen
+ * keyboard while typing (see globals.css [data-save-bar]).
  */
 export function SaveBar({
   dirty,
@@ -347,7 +349,7 @@ export function SaveBar({
   onSave,
   onDiscard,
   disabled,
-  message = "You have unsaved changes",
+  message = "Unsaved changes",
 }: {
   dirty: boolean;
   saving: boolean;
@@ -356,44 +358,56 @@ export function SaveBar({
   disabled?: boolean;
   message?: string;
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   if (!dirty && !saving) return null;
   return (
-    <div
-      role="region"
-      aria-label="Unsaved changes"
-      className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 mt-4 md:bottom-4"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-[12px] bg-[color-mix(in_srgb,var(--ds-background-elevated)_96%,transparent)] px-3.5 py-2.5 shadow-[var(--ds-shadow-menu)] backdrop-blur-xl sm:px-4">
-        <p
-          className="min-w-0 text-[12.5px] font-medium text-[var(--ds-gray-900)]"
-          aria-live="polite"
-        >
-          <span
-            aria-hidden
-            className="mr-2 inline-block size-2 rounded-full bg-[var(--ds-status-orange)] align-middle"
-          />
-          {message}
-        </p>
-        <div className="ml-auto flex shrink-0 gap-2">
-          <Button
-            variant="ghost"
-            size="md"
-            onClick={onDiscard}
-            disabled={saving}
-          >
-            Discard
-          </Button>
-          <Button
-            size="md"
-            loading={saving}
-            disabled={disabled}
-            onClick={onSave}
-          >
-            Save changes
-          </Button>
-        </div>
-      </div>
-    </div>
+    <>
+      {/* Keeps the last settings scrollable above the fixed bar. */}
+      <div aria-hidden className="h-20 md:h-16" />
+      {mounted
+        ? createPortal(
+            <div
+              role="region"
+              aria-label="Unsaved changes"
+              data-save-bar
+              className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[45] px-3 md:bottom-5 md:left-[var(--app-sidebar-offset)] md:px-8"
+            >
+              <div className="pointer-events-auto mx-auto flex max-w-[40rem] items-center gap-2 rounded-[14px] bg-[var(--ds-background-elevated)] py-2 pl-3.5 pr-2 shadow-[var(--ds-shadow-menu)] ds-border">
+                <p
+                  className="flex min-w-0 flex-1 items-center gap-2 text-[12.5px] font-medium text-[var(--ds-gray-900)]"
+                  aria-live="polite"
+                >
+                  <span
+                    aria-hidden
+                    className="size-2 shrink-0 rounded-full bg-[var(--ds-status-orange)]"
+                  />
+                  <span className="truncate">{message}</span>
+                </p>
+                <Button
+                  variant="ghost"
+                  size="md"
+                  className="h-9 shrink-0 px-3"
+                  onClick={onDiscard}
+                  disabled={saving}
+                >
+                  Discard
+                </Button>
+                <Button
+                  size="md"
+                  className="h-9 shrink-0 px-3.5"
+                  loading={saving}
+                  disabled={disabled}
+                  onClick={onSave}
+                >
+                  Save
+                </Button>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 

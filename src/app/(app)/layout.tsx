@@ -77,6 +77,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <AppTopbar />
             <AppSidebar />
             <main
+              data-app-main={isFullBleedWorkspace ? "workspace" : "page"}
               className={cn(
                 // Offset matches AppTopbar: 3rem + the top safe-area inset.
                 "h-[calc(100dvh-3rem-env(safe-area-inset-top))] translate-y-[calc(3rem+env(safe-area-inset-top))] transition-[margin-left] duration-200 md:ml-[var(--app-sidebar-offset)]",

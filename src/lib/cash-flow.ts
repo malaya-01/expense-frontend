@@ -9,6 +9,7 @@ import {
   toDateOnly,
 } from "@/lib/format";
 import type { LedgerTransaction } from "@/types";
+import { newestTransactionFirst } from "@/lib/transactions/order";
 
 export type CashFlowRange = "7d" | "30d" | "month" | "3m" | "6m" | "12m";
 export type CashFlowGranularity = "day" | "week" | "month";
@@ -204,5 +205,5 @@ export function filterCashFlowTransactions(
       if (options.series === "out") return flow.outflow > 0;
       return true;
     })
-    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    .sort(newestTransactionFirst);
 }

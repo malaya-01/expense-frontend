@@ -30,9 +30,18 @@ export type UserPreferences = {
   date_format: DateFormat;
   number_format: NumberFormat;
   week_start: WeekStart;
+  /** Legacy single defaults; superseded by the per-type keys below. */
   default_account_id: string | null;
   default_category_id: string | null;
+  /** Type "New transaction" opens with. */
   default_transaction_type: TransactionType;
+  /** Per-type defaults so each type keeps its own account / category. */
+  default_expense_account_id: string | null;
+  default_expense_category_id: string | null;
+  default_income_account_id: string | null;
+  default_income_category_id: string | null;
+  default_transfer_from_account_id: string | null;
+  default_transfer_to_account_id: string | null;
   remember_last_account: boolean;
   confirm_before_delete: boolean;
   density: Density;
@@ -48,6 +57,12 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   default_account_id: null,
   default_category_id: null,
   default_transaction_type: "expense",
+  default_expense_account_id: null,
+  default_expense_category_id: null,
+  default_income_account_id: null,
+  default_income_category_id: null,
+  default_transfer_from_account_id: null,
+  default_transfer_to_account_id: null,
   remember_last_account: true,
   confirm_before_delete: true,
   density: "comfortable",
@@ -95,6 +110,63 @@ const NUMBER_FORMATS = NUMBER_FORMAT_OPTIONS.map((o) => o.value);
 const WEEK_STARTS: WeekStart[] = [0, 1, 6];
 const TX_TYPES: TransactionType[] = ["expense", "income", "transfer"];
 
+export const TYPE_DEFAULT_KEYS = [
+  "default_expense_account_id",
+  "default_expense_category_id",
+  "default_income_account_id",
+  "default_income_category_id",
+  "default_transfer_from_account_id",
+  "default_transfer_to_account_id",
+] as const;
+
+/** Where the legacy single category lands, by the default type it was set for. */
+const LEGACY_CATEGORY_SLOT: Partial<
+  Record<TransactionType, (typeof TYPE_DEFAULT_KEYS)[number]>
+> = {
+  expense: "default_expense_category_id",
+  income: "default_income_category_id",
+};
+
+export type TransactionTypeDefaults = {
+  sourceId: string;
+  destinationId: string;
+  categoryId: string;
+};
+
+/**
+ * Pre-filled accounts / category for a new transaction of `type`.
+ * `lastSourceId` is the last-used paying account ("Remember last used
+ * account"); it wins over the configured default for expenses and transfers.
+ */
+export function transactionDefaultsFor(
+  prefs: UserPreferences,
+  type: TransactionType,
+  lastSourceId = "",
+): TransactionTypeDefaults {
+  const remembered = prefs.remember_last_account ? lastSourceId : "";
+  if (type === "income") {
+    return {
+      sourceId: "",
+      destinationId: prefs.default_income_account_id || "",
+      categoryId: prefs.default_income_category_id || "",
+    };
+  }
+  if (type === "transfer") {
+    const sourceId = remembered || prefs.default_transfer_from_account_id || "";
+    const to = prefs.default_transfer_to_account_id || "";
+    return {
+      sourceId,
+      destinationId: to && to !== sourceId ? to : "",
+      categoryId: "",
+    };
+  }
+  return {
+    sourceId: remembered || prefs.default_expense_account_id || "",
+    destinationId: "",
+    categoryId: prefs.default_expense_category_id || "",
+  };
+}
+
 /** Coerce stored / remote data into a complete, valid preferences object. */
 export function normalizePreferences(input: unknown): UserPreferences {
   const raw =
@@ -119,6 +191,20 @@ export function normalizePreferences(input: unknown): UserPreferences {
   if (TX_TYPES.includes(raw.default_transaction_type as TransactionType)) {
     out.default_transaction_type =
       raw.default_transaction_type as TransactionType;
+  }
+  const perTypeSaved = TYPE_DEFAULT_KEYS.some((key) => key in raw);
+  for (const key of TYPE_DEFAULT_KEYS) {
+    const value = raw[key];
+    if (typeof value === "string" && value) out[key] = value;
+  }
+  if (!perTypeSaved) {
+    // Saved before per-type defaults existed. The single account applied to
+    // every type; the category only to the default type.
+    out.default_expense_account_id = out.default_account_id;
+    out.default_income_account_id = out.default_account_id;
+    out.default_transfer_from_account_id = out.default_account_id;
+    const categorySlot = LEGACY_CATEGORY_SLOT[out.default_transaction_type];
+    if (categorySlot) out[categorySlot] = out.default_category_id;
   }
   for (const key of [
     "remember_last_account",

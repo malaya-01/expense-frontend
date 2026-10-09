@@ -74,7 +74,7 @@ export function getThemeBootstrapScript(): string {
     var fs=ok(tf.sans,"sans")?tf.sans:FD.sans;
     var fm=ok(tf.mono,"mono")?tf.mono:FD.mono;
     var fh=ok(tf.heading,"heading")?tf.heading:fs;
-    fv={"--font-app-sans":FONTS[fs].s,"--font-app-heading":FONTS[fh].s,"--font-geist-mono":FONTS[fm].s,"--font-app-features":FONTS[fs].f};
+    fv={"--font-app-sans":FONTS[fh].s,"--font-app-heading":FONTS[fh].s,"--font-geist-mono":FONTS[fm].s,"--font-app-features":FONTS[fh].f};
   }
   for(var k in fv){if(Object.prototype.hasOwnProperty.call(fv,k)){root.style.setProperty(k,fv[k]);}}
   function lin(v){v=v/255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4)}
