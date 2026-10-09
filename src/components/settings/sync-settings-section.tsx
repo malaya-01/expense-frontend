@@ -23,6 +23,7 @@ import {
 } from "@/lib/api/client";
 import { canCrud } from "@/lib/permissions";
 import { isNativeClient } from "@/lib/runtime-platform";
+import { BUNDLE_VERSION } from "@/lib/native/live-update";
 import { SettingRow, SettingsGroup, SwitchRow } from "./settings-ui";
 
 type NotifPrefs = {
@@ -295,6 +296,19 @@ export function SyncSettingsSection() {
               Save & test
             </Button>
           </div>
+        </SettingsGroup>
+      ) : null}
+
+      {native ? (
+        <SettingsGroup
+          title="App version"
+          description="Updates download automatically and apply the next time you reopen the app."
+        >
+          <SettingRow label="Web bundle">
+            <p className="font-mono text-[12.5px] text-[var(--ds-gray-900)] sm:text-right">
+              {BUNDLE_VERSION}
+            </p>
+          </SettingRow>
         </SettingsGroup>
       ) : null}
     </div>
