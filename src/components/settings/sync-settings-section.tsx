@@ -9,11 +9,8 @@ import { useToast } from "@/components/ui/toast";
 import { offlineDb } from "@/lib/offline/db";
 import { saveNotificationPreferences } from "@/lib/offline/repos";
 import { runSync } from "@/lib/offline/sync-engine";
-import {
-  listConflicts,
-  resolveKeepLocal,
-  resolveKeepRemote,
-} from "@/lib/offline/conflicts";
+import Link from "next/link";
+import { listConflicts } from "@/lib/offline/conflicts";
 import type { ConflictItem } from "@/lib/offline/db";
 import {
   api,
@@ -103,6 +100,7 @@ export function SyncSettingsSection() {
   const canSync = canCrud(user, "sync", "create");
   const { showToast } = useToast();
   const [conflicts, setConflicts] = useState<ConflictItem[]>([]);
+  const [failedCount, setFailedCount] = useState(0);
   const [apiUrl, setApiUrl] = useState(PRODUCTION_API);
   const [testing, setTesting] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -112,6 +110,11 @@ export function SyncSettingsSection() {
     setApiUrl(getApiBaseUrl());
     setNative(isNativeClient());
     void listConflicts().then(setConflicts);
+    void offlineDb.outbox
+      .where("status")
+      .equals("failed")
+      .count()
+      .then(setFailedCount);
   }, [user?.id]);
 
   async function saveAndTestApi() {
@@ -202,57 +205,27 @@ export function SyncSettingsSection() {
       </SettingsGroup>
 
       <SettingsGroup
-        title="Sync conflicts"
-        description="When the same item changed here and on another device, choose which version to keep."
+        title="Sync issues"
+        description="Changes that couldn't be saved, or that were made on two devices. Review them so your balances stay right."
         actions={
-          <Badge tone={conflicts.length ? "warning" : "neutral"}>
-            {conflicts.length} open
+          <Badge tone={conflicts.length + failedCount ? "warning" : "neutral"}>
+            {conflicts.length + failedCount} open
           </Badge>
         }
       >
-        {conflicts.length === 0 ? (
-          <p className="py-3.5 text-[12.5px] text-[var(--ds-gray-700)]">
-            No conflicts right now.
+        <div className="flex flex-wrap items-center justify-between gap-3 py-3.5">
+          <p className="min-w-0 text-[12.5px] leading-5 text-[var(--ds-gray-700)]">
+            {conflicts.length + failedCount
+              ? "Each one shows the entry, amount, date and account, with what's different."
+              : "Everything on this device is saved to your account."}
           </p>
-        ) : (
-          conflicts.map((c) => (
-            <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-              <p className="min-w-0 truncate text-[12.5px] text-[var(--ds-gray-900)]">
-                <span className="font-medium capitalize">
-                  {String(c.entity_type).replace(/_/g, " ")}
-                </span>{" "}
-                <span className="font-mono text-[11px] text-[var(--ds-gray-700)]">
-                  {c.entity_id}
-                </span>
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={async () => {
-                    if (c.id == null) return;
-                    await resolveKeepLocal(c.id);
-                    setConflicts(await listConflicts());
-                    void runSync("conflict-local");
-                  }}
-                >
-                  Keep this device&apos;s
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={async () => {
-                    if (c.id == null) return;
-                    await resolveKeepRemote(c.id);
-                    setConflicts(await listConflicts());
-                  }}
-                >
-                  Keep server&apos;s
-                </Button>
-              </div>
-            </div>
-          ))
-        )}
+          <Link
+            href="/sync-issues"
+            className="inline-flex h-9 items-center rounded-[9px] px-3 text-[13px] font-medium text-[var(--ds-gray-1000)] ds-border hover:bg-[var(--ds-gray-100)] ds-focus"
+          >
+            Open sync issues
+          </Link>
+        </div>
       </SettingsGroup>
 
       {native ? (

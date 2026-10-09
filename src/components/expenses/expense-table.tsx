@@ -4,7 +4,11 @@ import { MoreHorizontal } from "lucide-react";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { StatusDot } from "@/components/ui/status-dot";
 import { SortableTh } from "@/components/ui/sortable-th";
-import { formatCurrency, formatRelativeDate } from "@/lib/format";
+import {
+  formatCurrency,
+  formatRelativeDate,
+  formatRelativeDay,
+} from "@/lib/format";
 import { timeFromPaidAt } from "@/lib/receipts/defaults-from-parse";
 import type { SortDir } from "@/hooks/use-table-sort";
 import type { LedgerTransaction } from "@/types";
@@ -119,7 +123,7 @@ export function TransactionTable({
                     <p className="mt-0.5 truncate text-[10px] text-[var(--ds-gray-700)]">
                       {flow}
                       {" · "}
-                      {formatRelativeDate(tx.date)}
+                      {formatRelativeDay(tx.date)}
                       {timeFromPaidAt(tx.paid_at)
                         ? `, ${timeFromPaidAt(tx.paid_at)}`
                         : ""}

@@ -19,7 +19,14 @@ import { AccountCard } from "@/components/accounts/account-card";
 import { AccountFormModal } from "@/components/accounts/account-form-modal";
 import { AccountKpiCard } from "@/components/accounts/account-kpi-card";
 import { AccountsSidebar } from "@/components/accounts/accounts-sidebar";
-import { TRANSACTION_CREATED_EVENT } from "@/components/expenses/transaction-modal-provider";
+import {
+  TRANSACTION_CREATED_EVENT,
+  useTransactionModal,
+} from "@/components/expenses/transaction-modal-provider";
+import { useRouter } from "next/navigation";
+import { accountQuickActions } from "@/lib/accounts/quick-actions";
+import { selectPreferences } from "@/lib/preferences/slice";
+import { useAppSelector } from "@/lib/store/hooks";
 import { useReceiptCapture } from "@/components/receipts/receipt-capture-provider";
 import { summarizeTwin } from "@/lib/accounts/metrics";
 import {
@@ -82,6 +89,9 @@ export default function AccountsPage() {
   const { showToast } = useToast();
   const { startReceiptCapture } = useReceiptCapture();
   const [containers, setContainers] = useState<FinancialContainer[]>([]);
+  const router = useRouter();
+  const { openTransactionModal } = useTransactionModal();
+  const prefs = useAppSelector(selectPreferences);
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<FinancialContainer | null>(null);
@@ -444,6 +454,23 @@ export default function AccountsPage() {
                             perms.delete
                               ? () => setDeleteId(container.id)
                               : undefined
+                          }
+                          onLedger={() =>
+                            router.push(
+                              `/ledger?account=${encodeURIComponent(container.id)}`,
+                            )
+                          }
+                          quickActions={accountQuickActions(
+                            container,
+                            containers,
+                            prefs.default_expense_account_id,
+                          )}
+                          onQuickAction={(action) =>
+                            openTransactionModal({
+                              title: action.title,
+                              notice: action.notice,
+                              defaults: action.defaults,
+                            })
                           }
                         />
                       ))}

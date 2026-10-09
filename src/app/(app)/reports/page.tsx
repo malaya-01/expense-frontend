@@ -153,23 +153,25 @@ export default function ReportsPage() {
         title="Reports"
         description="What does my financial picture look like? Ledger, budgets, and portfolio in one view."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Select
-              aria-label="Report window"
-              value={String(months)}
-              onChange={(e) => setMonths(Number(e.target.value))}
-              className="w-[140px]"
-            >
-              <option value="3">Last 3 months</option>
-              <option value="6">Last 6 months</option>
-              <option value="12">Last 12 months</option>
-            </Select>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <div className="min-w-0 flex-1 sm:w-[140px] sm:flex-none">
+              <Select
+                aria-label="Report window"
+                value={String(months)}
+                onChange={(e) => setMonths(Number(e.target.value))}
+              >
+                <option value="3">Last 3 months</option>
+                <option value="6">Last 6 months</option>
+                <option value="12">Last 12 months</option>
+              </Select>
+            </div>
             <Button
               variant="secondary"
               onClick={() => refresh()}
               loading={loading}
               aria-label="Refresh reports"
               className="px-2.5 sm:px-3"
+              style={{ flex: "none" }}
             >
               <RefreshCw size={14} />
               <span className="hidden sm:inline">Refresh</span>
@@ -178,19 +180,21 @@ export default function ReportsPage() {
               variant="secondary"
               onClick={exportCsv}
               disabled={!report}
+              style={{ flex: "none" }}
             >
               <Download size={14} />
               CSV
             </Button>
-            <Button
-              variant="secondary"
-              onClick={exportJson}
-              disabled={!report}
-              className="hidden sm:inline-flex"
-            >
-              <Download size={14} />
-              JSON
-            </Button>
+            <div className="hidden sm:block">
+              <Button
+                variant="secondary"
+                onClick={exportJson}
+                disabled={!report}
+              >
+                <Download size={14} />
+                JSON
+              </Button>
+            </div>
           </div>
         }
       />
@@ -221,7 +225,7 @@ export default function ReportsPage() {
         </div>
       ) : (
         <>
-          <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mb-6 grid grid-cols-2 gap-2 sm:mb-8 sm:gap-4 xl:grid-cols-4">
             <MetricCard
               title="Net worth"
               value={formatCurrency(report.twin.net_worth, currency)}

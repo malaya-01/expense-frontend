@@ -16,6 +16,8 @@ export type ToastInput = {
   duration?: number;
   /** Live lockout countdown in the toast body. */
   lockedUntil?: string;
+  /** Optional link button, e.g. "View" on a notification toast. */
+  action?: { label: string; href: string };
 };
 
 export type ToastItem = ToastInput & { id: string };

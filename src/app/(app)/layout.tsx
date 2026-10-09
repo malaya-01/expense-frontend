@@ -6,6 +6,7 @@ import { AppSidebar, MobileNav } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { MobileCreateFab } from "@/components/layout/mobile-create-fab";
 import { CommandPalette } from "@/components/layout/command-palette";
+import { NotificationWatcher } from "@/components/layout/notification-watcher";
 import { TransactionModalProvider } from "@/components/expenses/transaction-modal-provider";
 import { ReceiptCaptureProvider } from "@/components/receipts/receipt-capture-provider";
 import { useAuth } from "@/lib/auth-context";
@@ -102,6 +103,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <MobileNav />
             <MobileCreateFab />
             <CommandPalette />
+            <NotificationWatcher />
           </div>
         </TutorialProvider>
       </ReceiptCaptureProvider>

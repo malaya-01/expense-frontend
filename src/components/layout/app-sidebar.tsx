@@ -25,6 +25,7 @@ import {
   Repeat2,
   Search,
   type LucideIcon,
+  BookText,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { resolveAvatarUrl } from "@/lib/api/user";
@@ -68,6 +69,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/accounts", label: "Accounts", icon: WalletCards },
   { href: "/expenses", label: "Transactions", icon: ArrowLeftRight },
+  { href: "/ledger", label: "Ledger", icon: BookText },
   { href: "/recurring", label: "Recurring", icon: Repeat2 },
   { href: "/investments", label: "Investments", icon: TrendingUp },
   { href: "/loans", label: "Loans & Debts", icon: Landmark },
@@ -227,7 +229,7 @@ function SidebarContents({
         >
           <Search size={14} />
           <span className="flex-1">Search</span>
-          <kbd className="text-[10px] text-[var(--ds-gray-700)]">Ctrl K</kbd>
+          <kbd className="hidden text-[10px] text-[var(--ds-gray-700)] md:inline">Ctrl K</kbd>
         </button>
         {canCreateTx ? (
           <button

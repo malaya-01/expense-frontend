@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { CloudOff, Wifi } from "lucide-react";
 import {
-  runSync,
   subscribeSyncStatus,
   type SyncStatusSnapshot,
 } from "@/lib/offline/sync-engine";
@@ -39,6 +39,7 @@ export function NetworkStatusBanner() {
     badApi ||
     !status.online ||
     status.failed > 0 ||
+    status.conflicts > 0 ||
     (Boolean(status.lastError) && !status.syncing);
 
   if (!show) return null;
@@ -67,20 +68,18 @@ export function NetworkStatusBanner() {
             ? `API is set to ${getApiBaseUrl()} — the phone cannot reach localhost. Open Settings → Offline & Sync → Use Render production.`
             : !status.online
               ? "You’re offline — changes are saved on this device and will sync when you’re back online."
-              : status.failed > 0
-                ? `${status.failed} change${status.failed === 1 ? "" : "s"} failed to sync — kept locally. ${status.lastError || "Tap Sync in the header or fix API URL in Settings."}`
+              : status.failed > 0 || status.conflicts > 0
+                ? `${status.failed + status.conflicts} change${status.failed + status.conflicts === 1 ? "" : "s"} need${status.failed + status.conflicts === 1 ? "s" : ""} your decision so your balances stay right.`
                 : status.lastError || "Connection issue — check Sync in the header."}
         </span>
       </div>
-      {status.online && status.failed > 0 && !badApi ? (
-        <button
-          type="button"
-          disabled={status.syncing}
-          onClick={() => void runSync("manual")}
-          className="shrink-0 rounded-[4px] px-2 py-0.5 font-medium text-[var(--ds-focus-color)] hover:underline disabled:opacity-50"
+      {(status.failed > 0 || status.conflicts > 0) && !badApi ? (
+        <Link
+          href="/sync-issues"
+          className="shrink-0 rounded-[4px] px-2 py-0.5 font-medium text-[var(--ds-focus-color)] hover:underline"
         >
-          Sync now
-        </button>
+          Review
+        </Link>
       ) : null}
     </div>
   );

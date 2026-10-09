@@ -15,6 +15,7 @@ import {
   updateTransaction,
 } from "@/lib/api/transactions";
 import { formatCurrency, requireDateOnly, todayISO } from "@/lib/format";
+import { BalanceImpact } from "@/components/expenses/balance-impact";
 import { getErrorMessage } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { getContainerMeta } from "@/lib/accounts/types-meta";
@@ -1008,6 +1009,22 @@ export function TransactionForm({
           />
         </FieldCard>
       </div>
+
+      <BalanceImpact
+        tx={{
+          type: form.type,
+          amount: Number(form.amount) || 0,
+          exchange_rate: crossCurrency
+            ? Number(form.exchange_rate || suggestedRate)
+            : 1,
+          source_container_id: needsSource ? form.source_container_id : null,
+          destination_container_id: needsDestination
+            ? form.destination_container_id
+            : null,
+        }}
+        accounts={containers}
+        replacing={mode === "edit" ? initial : null}
+      />
 
       <FieldCard label="Description" htmlFor="description">
         <Input

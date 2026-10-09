@@ -17,6 +17,7 @@ import {
   getContainerMeta,
   isLiabilityType,
 } from "@/lib/accounts/types-meta";
+import type { AccountQuickAction } from "@/lib/accounts/quick-actions";
 import type { FinancialContainer } from "@/types";
 import { SyncBadge } from "@/components/sync/sync-badge";
 
@@ -54,11 +55,18 @@ export function AccountCard({
   onEdit,
   onDelete,
   onScanReceipt,
+  onLedger,
+  quickActions,
+  onQuickAction,
 }: {
   container: FinancialContainer;
   onEdit?: () => void;
   onDelete?: () => void;
   onScanReceipt?: () => void;
+  onLedger?: () => void;
+  /** Guided entries for owed-money accounts (Pay back, Got paid back…). */
+  quickActions?: AccountQuickAction[];
+  onQuickAction?: (action: AccountQuickAction) => void;
 }) {
   const meta = getContainerMeta(container.type);
   const liability = isLiabilityType(container.type);
@@ -70,6 +78,7 @@ export function AccountCard({
     .join(" · ");
 
   const menuItems = [
+    onLedger ? { id: "ledger", label: "View ledger", onSelect: onLedger } : null,
     onScanReceipt
       ? { id: "scan-receipt", label: "Scan receipt", onSelect: onScanReceipt }
       : null,
@@ -136,6 +145,17 @@ export function AccountCard({
         >
           {liability ? "−" : ""}
           {formatCurrency(container.balance, container.currency)}
+          {container.type === "payable" ||
+          container.type === "receivable" ||
+          liability ? (
+            <span className="block text-[10px] font-normal text-[var(--ds-gray-700)]">
+              {container.type === "receivable"
+                ? "owed to you"
+                : container.type === "credit_card"
+                  ? "due"
+                  : "you owe"}
+            </span>
+          ) : null}
         </p>
 
         {onScanReceipt ? (
@@ -166,6 +186,20 @@ export function AccountCard({
           />
         ) : null}
       </div>
+      {quickActions?.length && onQuickAction ? (
+        <div className="flex gap-1.5 overflow-x-auto px-3 pb-3 pl-4 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-5 [&::-webkit-scrollbar]:hidden">
+          {quickActions.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              onClick={() => onQuickAction(action)}
+              className="shrink-0 rounded-full bg-[var(--ds-gray-100)] px-3 py-1.5 text-[12px] font-medium text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] ds-focus"
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </article>
   );
 }

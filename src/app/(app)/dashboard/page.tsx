@@ -272,7 +272,7 @@ export default function DashboardPage() {
         </CardBody>
       </Card>
 
-      <div className="grid min-w-0 grid-cols-2 gap-3 xl:grid-cols-3">
+      <div className="grid min-w-0 grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
         <MetricCard
           title="Net Worth"
           value={formatCurrency(twin.netWorth, baseCurrency)}

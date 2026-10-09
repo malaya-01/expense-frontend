@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -38,13 +37,8 @@ export function NotificationCenter() {
   const loaded = useAppSelector((state) => state.notifications.loaded);
   const visible = useAppSelector(selectVisibleNotifications);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void dispatch(fetchNotifications());
-    }, 800);
-    return () => window.clearTimeout(timer);
-  }, [dispatch]);
-
+  // Fetching / polling lives in NotificationWatcher (mounted once in the app
+  // layout); opening the bell still refreshes on demand.
   return (
     <Popover
       className="w-[min(360px,calc(100vw-1.5rem))] p-0"

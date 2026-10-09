@@ -8,6 +8,7 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { formatLockRemaining } from "@/lib/format";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
@@ -57,7 +58,7 @@ export function ToastViewport() {
       aria-label="Notifications"
       aria-live="polite"
       aria-atomic="false"
-      className="pointer-events-none fixed inset-x-3 bottom-20 z-[200] flex flex-col items-end gap-2.5 sm:left-auto sm:right-4 sm:w-[380px] md:bottom-4"
+      className="pointer-events-none fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[200] flex flex-col items-end gap-2.5 sm:left-auto sm:right-4 sm:w-[380px] md:bottom-4"
     >
       {items.map((item) => {
         const tone = item.tone ?? "info";
@@ -92,6 +93,15 @@ export function ToastViewport() {
                 <p className="mt-0.5 text-xs leading-[1.55] text-[var(--ds-gray-700)]">
                   {item.description}
                 </p>
+              ) : null}
+              {item.action ? (
+                <Link
+                  href={item.action.href}
+                  onClick={() => dispatch(dismissToast(item.id))}
+                  className="mt-1.5 inline-flex h-7 items-center rounded-[7px] bg-[var(--ds-gray-100)] px-2.5 text-[12px] font-medium text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] ds-focus"
+                >
+                  {item.action.label}
+                </Link>
               ) : null}
             </div>
             <button

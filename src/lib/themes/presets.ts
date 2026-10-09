@@ -35,7 +35,7 @@ export const PRESET_THEMES: ThemeDefinition[] = [
       gray900: "#b0b4c4",
       focusColor: "#8b7cf7",
     },
-    { sans: "jakarta", mono: "jetbrains-mono" },
+    { sans: "space-grotesk", heading: "space-grotesk", mono: "jetbrains-mono" },
   ),
   preset(
     "vercel-light",
@@ -48,7 +48,7 @@ export const PRESET_THEMES: ThemeDefinition[] = [
       gray900: "#4d4d4d",
       focusColor: "#0072f5",
     },
-    { sans: "geist", mono: "geist-mono" },
+    { sans: "inter", heading: "inter", mono: "plex-mono" },
   ),
   preset(
     "vercel-dark",
@@ -61,7 +61,7 @@ export const PRESET_THEMES: ThemeDefinition[] = [
       gray900: "#a1a1a1",
       focusColor: "#3291ff",
     },
-    { sans: "geist", mono: "geist-mono" },
+    { sans: "geist", heading: "geist", mono: "geist-mono" },
   ),
   preset(
     "ocean",
@@ -74,7 +74,7 @@ export const PRESET_THEMES: ThemeDefinition[] = [
       gray900: "#3d6573",
       focusColor: "#0891b2",
     },
-    { sans: "manrope", mono: "jetbrains-mono" },
+    { sans: "manrope", heading: "manrope", mono: "dm-mono" },
   ),
   preset(
     "forest",
@@ -87,7 +87,7 @@ export const PRESET_THEMES: ThemeDefinition[] = [
       gray900: "#4a5f4e",
       focusColor: "#2f855a",
     },
-    { sans: "dm-sans", heading: "fraunces", mono: "plex-mono" },
+    { sans: "newsreader", heading: "newsreader", mono: "inconsolata" },
   ),
   preset(
     "sunset",
@@ -100,7 +100,7 @@ export const PRESET_THEMES: ThemeDefinition[] = [
       gray900: "#7a5642",
       focusColor: "#ea580c",
     },
-    { sans: "dm-sans", heading: "space-grotesk", mono: "jetbrains-mono" },
+    { sans: "outfit", heading: "outfit", mono: "roboto-mono" },
   ),
   preset(
     "rose",
@@ -113,7 +113,7 @@ export const PRESET_THEMES: ThemeDefinition[] = [
       gray900: "#7a4a5c",
       focusColor: "#e11d48",
     },
-    { sans: "jakarta", heading: "fraunces", mono: "geist-mono" },
+    { sans: "fraunces", heading: "fraunces", mono: "fira-code" },
   ),
   preset(
     "lavender",
@@ -126,7 +126,7 @@ export const PRESET_THEMES: ThemeDefinition[] = [
       gray900: "#6b5b8a",
       focusColor: "#7c3aed",
     },
-    { sans: "manrope", heading: "space-grotesk", mono: "geist-mono" },
+    { sans: "sora", heading: "sora", mono: "azeret-mono" },
   ),
   preset(
     "slate",
@@ -139,7 +139,7 @@ export const PRESET_THEMES: ThemeDefinition[] = [
       gray900: "#475569",
       focusColor: "#2563eb",
     },
-    { sans: "plex-sans", mono: "plex-mono" },
+    { sans: "plex-sans", heading: "plex-sans", mono: "source-code-pro" },
   ),
   preset(
     "sand",
@@ -152,7 +152,7 @@ export const PRESET_THEMES: ThemeDefinition[] = [
       gray900: "#6b5f4f",
       focusColor: "#b45309",
     },
-    { sans: "plex-sans", heading: "fraunces", mono: "plex-mono" },
+    { sans: "lora", heading: "lora", mono: "ubuntu-mono" },
   ),
   preset(
     "nord",
@@ -165,7 +165,7 @@ export const PRESET_THEMES: ThemeDefinition[] = [
       gray900: "#4c566a",
       focusColor: "#5e81ac",
     },
-    { sans: "space-grotesk", mono: "jetbrains-mono" },
+    { sans: "jakarta", heading: "jakarta", mono: "pt-mono" },
   ),
   preset(
     "coffee",
@@ -178,7 +178,7 @@ export const PRESET_THEMES: ThemeDefinition[] = [
       gray900: "#6b4f3f",
       focusColor: "#92400e",
     },
-    { sans: "manrope", heading: "fraunces", mono: "jetbrains-mono" },
+    { sans: "merriweather", heading: "merriweather", mono: "red-hat-mono" },
   ),
   preset(
     "mint",
@@ -191,7 +191,7 @@ export const PRESET_THEMES: ThemeDefinition[] = [
       gray900: "#3f6b5c",
       focusColor: "#059669",
     },
-    { sans: "dm-sans", mono: "geist-mono" },
+    { sans: "dm-sans", heading: "dm-sans", mono: "space-mono" },
   ),
   preset(
     "charcoal",
@@ -219,7 +219,46 @@ export const PRESET_THEMES: ThemeDefinition[] = [
       gray700: "#333333",
       focusInput: "#0000cc",
     },
-    { sans: "plex-sans", mono: "jetbrains-mono" },
+    { sans: "atkinson", heading: "atkinson", mono: "victor-mono" },
+  ),
+  preset(
+    "emerald",
+    "Emerald",
+    "Prosperity — rich jewel greens",
+    {
+      background100: "#08140f",
+      backgroundElevated: "#0f2119",
+      gray1000: "#eaf6ef",
+      gray900: "#a5c4b5",
+      focusColor: "#34d399",
+    },
+    { sans: "bodoni", heading: "bodoni", mono: "martian-mono" },
+  ),
+  preset(
+    "bronze",
+    "Bronze",
+    "Heritage — bronze and copper on dark umber",
+    {
+      background100: "#15100b",
+      backgroundElevated: "#211910",
+      gray1000: "#f6ece1",
+      gray900: "#c4ad96",
+      focusColor: "#d4934e",
+    },
+    { sans: "cormorant", heading: "cormorant", mono: "cutive-mono" },
+  ),
+  preset(
+    "ruby",
+    "Ruby",
+    "Bold — deep ruby on red-black",
+    {
+      background100: "#14090c",
+      backgroundElevated: "#211015",
+      gray1000: "#fbedf0",
+      gray900: "#caa2ad",
+      focusColor: "#e3477a",
+    },
+    { sans: "archivo", heading: "archivo", mono: "oxygen-mono" },
   ),
 ];
 

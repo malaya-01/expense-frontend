@@ -23,6 +23,8 @@ import type {
 
 export type TransactionDraft = {
   defaults?: Partial<CreateTransactionInput>;
+  /** Modal title for guided entries (e.g. "Pay back Ravi"). */
+  title?: string;
   notice?: string;
   previewUrl?: string;
   previewName?: string;
@@ -159,7 +161,9 @@ export function TransactionModalProvider({
       <Modal
         open={open}
         onClose={closeTransactionModal}
-        title={editing ? "Edit transaction" : "New transaction"}
+        title={
+          editing ? "Edit transaction" : draft?.title || "New transaction"
+        }
         className={hasPreview ? undefined : "max-w-3xl"}
         flushBody={hasPreview}
         wide={hasPreview}
@@ -247,7 +251,7 @@ export function TransactionModalProvider({
               model={draft?.visionModel}
             />
             {draft?.notice ? (
-              <p className="mb-3 text-sm leading-6 text-[var(--ds-gray-700)]">
+              <p className="mb-3 rounded-[12px] bg-[color-mix(in_srgb,var(--ds-focus-color)_9%,var(--ds-background-100))] px-3 py-2.5 text-[13px] leading-5 text-[var(--ds-gray-900)]">
                 {draft.notice}
               </p>
             ) : null}

@@ -494,7 +494,9 @@ function CashFlowArea({
     return best;
   }
 
-  const tip = active >= 0 ? buckets[active] : null;
+  // Only while pointing at the chart: the selected bucket already has its own
+  // summary panel below, and a pinned tooltip would hide the lines.
+  const tip = hover != null && active >= 0 ? buckets[active] : null;
   const tipX = active >= 0 ? points[active]?.x ?? 0 : 0;
   const tipLeft = Math.min(Math.max(tipX - 78, 8), svgWidth - 164);
 

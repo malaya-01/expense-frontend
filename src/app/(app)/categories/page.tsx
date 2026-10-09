@@ -172,7 +172,21 @@ export default function CategoriesPage() {
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return categories.filter((category) => {
+    // Budgeted and active categories first, unused ones last.
+    const rank = (category: Category) => [
+      primaryCategoryBudget(category, budgetsByCategory.get(category.id)) ? 1 : 0,
+      Number(category.spent_amount || 0),
+      Number(category.transaction_count || 0),
+    ];
+    const ordered = [...categories].sort((a, b) => {
+      const ra = rank(a);
+      const rb = rank(b);
+      for (let i = 0; i < ra.length; i += 1) {
+        if (ra[i] !== rb[i]) return rb[i] - ra[i];
+      }
+      return a.name.localeCompare(b.name);
+    });
+    return ordered.filter((category) => {
       const hasBudget = Boolean(
         primaryCategoryBudget(category, budgetsByCategory.get(category.id)),
       );
