@@ -24,10 +24,16 @@ type OptionEl = ReactElement<{
   children?: ReactNode;
 }>;
 
+function nodeText(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(nodeText).join("");
+  return "";
+}
+
 function optionLabel(option: OptionEl): string {
-  const kids = option.props.children;
-  if (typeof kids === "string" || typeof kids === "number") return String(kids);
-  return String(option.props.value ?? "");
+  const text = nodeText(option.props.children).trim();
+  return text || String(option.props.value ?? "");
 }
 
 function optionValue(option: OptionEl): string {

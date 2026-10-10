@@ -5,6 +5,7 @@ import axios, {
 } from "axios";
 import type { ApiResponse } from "@/types";
 import { beginApiActivity, endApiActivity } from "@/lib/api/activity";
+import { resetHistoryDepth } from "@/lib/native/back-history";
 import { getClientPlatform } from "@/lib/runtime-platform";
 
 const ACCESS_COOKIE = "access_token";
@@ -349,6 +350,34 @@ async function refreshWithLock(): Promise<string> {
 }
 
 /**
+ * Client navigation after another device takes the account. A full page load
+ * on Android serves the root page for every path, and that page walks back
+ * into the app. The store provider registers a router.replace instead.
+ */
+let routeReplacer: ((href: string) => void) | null = null;
+
+export function registerRouteReplacer(replace: ((href: string) => void) | null) {
+  routeReplacer = replace;
+}
+
+/**
+ * Ask the server whether this device's session is still the signed-in one.
+ * A replaced session comes back as 401 and the interceptor signs out.
+ */
+let sessionProbe: Promise<void> | null = null;
+
+export function touchSession() {
+  if (typeof window === "undefined" || !getAccessToken() || sessionProbe) return;
+  sessionProbe = api
+    .get("/permissions/me")
+    .then(() => undefined)
+    .catch(() => undefined)
+    .finally(() => {
+      sessionProbe = null;
+    });
+}
+
+/**
  * Another device signed in. Credentials go; the offline outbox and durable
  * backup stay, so unsynced work uploads when the user signs in here again.
  */
@@ -358,9 +387,13 @@ function signOutReplaced() {
   if (typeof window === "undefined") return;
   localStorage.removeItem("expense-tracker:user");
   writeSession(SESSION_EXPIRED_FLAG_KEY, SESSION_REPLACED_FLAG);
-  if (!window.location.pathname.startsWith("/signin")) {
-    window.location.assign("/signin?session=replaced");
+  resetHistoryDepth();
+  if (window.location.pathname.startsWith("/signin")) return;
+  if (routeReplacer) {
+    routeReplacer("/signin?session=replaced");
+    return;
   }
+  window.location.replace("/signin?session=replaced");
 }
 
 let refreshInFlight: Promise<string> | null = null;
@@ -666,7 +699,9 @@ function createClient(): AxiosInstance {
           if (typeof window !== "undefined") {
             localStorage.removeItem("expense-tracker:user");
             writeSession(SESSION_EXPIRED_FLAG_KEY, "1");
-            window.location.assign("/signin?session=expired");
+            resetHistoryDepth();
+            if (routeReplacer) routeReplacer("/signin?session=expired");
+            else window.location.replace("/signin?session=expired");
           }
           return Promise.reject(error);
         }

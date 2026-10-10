@@ -3,13 +3,16 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
+import { Monitor, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardBody } from "@/components/ui/card";
+import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
-import { loginUser } from "@/lib/api/auth";
+import { getActiveSessions, loginUser, type OtherLogin } from "@/lib/api/auth";
+import { formatDateTime } from "@/lib/format";
 import {
   getErrorMessage,
   getAccessToken,
@@ -20,6 +23,44 @@ import { useAuth } from "@/lib/auth-context";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import { useGlobalLoader } from "@/components/brand/global-loader";
 import { userIdFromToken } from "@/lib/jwt";
+import type { AuthTokens, User } from "@/types";
+
+function sessionLabel(ua: string | null): { label: string; phone: boolean } {
+  const raw = ua || "";
+  const tag = raw.match(/^\[opal:([^\]]+)\]/)?.[1] || "";
+  const lower = raw.toLowerCase();
+  const os = /android/.test(lower)
+    ? "Android"
+    : /iphone|ipad|ipod/.test(lower)
+      ? "iOS"
+      : /windows/.test(lower)
+        ? "Windows"
+        : /mac os x|macintosh/.test(lower)
+          ? "macOS"
+          : /linux/.test(lower)
+            ? "Linux"
+            : "";
+  const phone =
+    tag.startsWith("native") || /mobile|phone/.test(tag) || /mobile/.test(lower);
+  if (tag.startsWith("native")) {
+    return { label: os ? `Opal app on ${os}` : "Opal app", phone: true };
+  }
+  const browser = /edg\//.test(lower)
+    ? "Edge"
+    : /firefox\//.test(lower)
+      ? "Firefox"
+      : /chrome\//.test(lower)
+        ? "Chrome"
+        : /safari\//.test(lower)
+          ? "Safari"
+          : "";
+  return {
+    label: browser
+      ? `${browser}${os ? ` on ${os}` : ""}`
+      : os || "Another device",
+    phone,
+  };
+}
 
 function SignInForm() {
   const router = useRouter();
@@ -31,6 +72,7 @@ function SignInForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [hasSession, setHasSession] = useState(false);
+  const [otherSessions, setOtherSessions] = useState<OtherLogin[] | null>(null);
   const sessionToastShown = useRef(false);
 
   useEffect(() => {
@@ -69,35 +111,50 @@ function SignInForm() {
     });
   }, [searchParams, showToast]);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function finishSignIn(tokens: AuthTokens & { user?: User }) {
+    const id = tokens.user?.id || userIdFromToken(tokens.accessToken);
+    if (!id) {
+      throw new Error("Sign-in succeeded but no user id was returned.");
+    }
+    await setSession({
+      id,
+      email: tokens.user?.email || email,
+      full_name: tokens.user?.full_name ?? null,
+      country: tokens.user?.country ?? null,
+      currency: tokens.user?.currency || "USD",
+      timezone: tokens.user?.timezone,
+      locale: tokens.user?.locale,
+      avatar_url: tokens.user?.avatar_url ?? null,
+      is_admin: tokens.user?.is_admin ?? false,
+      permissions: tokens.user?.permissions ?? [],
+    });
+    showToast({
+      title: "Signed in",
+      description: `Welcome back${tokens.user?.full_name ? `, ${tokens.user.full_name}` : ""}.`,
+      tone: "success",
+    });
+    router.replace("/dashboard");
+  }
+
+  async function attemptSignIn(replaceOtherSessions: boolean) {
     setLoading(true);
-    showPageLoader("Signing in");
+    showPageLoader(
+      replaceOtherSessions ? "Signing out other devices" : "Signing in",
+    );
     try {
-      const tokens = await loginUser({ email, password });
-      const id = tokens.user?.id || userIdFromToken(tokens.accessToken);
-      if (!id) {
-        throw new Error("Sign-in succeeded but no user id was returned.");
-      }
-      await setSession({
-        id,
-        email: tokens.user?.email || email,
-        full_name: tokens.user?.full_name ?? null,
-        country: tokens.user?.country ?? null,
-        currency: tokens.user?.currency || "USD",
-        timezone: tokens.user?.timezone,
-        locale: tokens.user?.locale,
-        avatar_url: tokens.user?.avatar_url ?? null,
-        is_admin: tokens.user?.is_admin ?? false,
-        permissions: tokens.user?.permissions ?? [],
+      const tokens = await loginUser({
+        email,
+        password,
+        replaceOtherSessions,
       });
-      showToast({
-        title: "Signed in",
-        description: `Welcome back${tokens.user?.full_name ? `, ${tokens.user.full_name}` : ""}.`,
-        tone: "success",
-      });
-      router.replace("/dashboard");
+      setOtherSessions(null);
+      await finishSignIn(tokens);
     } catch (err) {
+      const sessions = getActiveSessions(err);
+      if (sessions) {
+        setOtherSessions(sessions);
+        return;
+      }
       const message = getErrorMessage(err, "Invalid email or password");
       if (message.includes("EMAIL_NOT_VERIFIED")) {
         showToast({
@@ -112,7 +169,7 @@ function SignInForm() {
       const lockedUntil = getLockUntil(err);
       showToast({
         title: "Sign in failed",
-        description: message,
+        description: message.replace(/^ACTIVE_SESSION:\s*/, ""),
         tone: "error",
         duration: lockedUntil ? 12_000 : undefined,
         lockedUntil: lockedUntil ?? undefined,
@@ -121,6 +178,11 @@ function SignInForm() {
       setLoading(false);
       showPageLoader(null);
     }
+  }
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    await attemptSignIn(false);
   }
 
   return (
@@ -183,6 +245,64 @@ function SignInForm() {
           Sign up
         </Link>
       </p>
+      <Modal
+        open={otherSessions !== null}
+        onClose={() => {
+          if (!loading) setOtherSessions(null);
+        }}
+        title="Already signed in"
+        className="max-w-md"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              disabled={loading}
+              onClick={() => setOtherSessions(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              loading={loading}
+              onClick={() => void attemptSignIn(true)}
+            >
+              Log out and continue
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm leading-5 text-[var(--ds-gray-900)]">
+          This account is open on another device. Opal allows one signed-in
+          device at a time. Log that device out to continue here.
+        </p>
+        {otherSessions && otherSessions.length > 0 ? (
+          <ul className="mt-4 space-y-2">
+            {otherSessions.map((session, index) => {
+              const info = sessionLabel(session.user_agent);
+              const when = session.last_used_at || session.created_at;
+              const Icon = info.phone ? Smartphone : Monitor;
+              return (
+                <li
+                  key={`${session.created_at || "session"}-${index}`}
+                  className="flex items-center gap-3 rounded-[12px] bg-[var(--ds-background-200)] px-3 py-2.5"
+                >
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-[var(--ds-background-100)] text-[var(--ds-gray-900)]">
+                    <Icon size={18} aria-hidden />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px] font-medium text-[var(--ds-gray-1000)]">
+                      {info.label}
+                    </span>
+                    <span className="block text-[12px] text-[var(--ds-gray-900)]">
+                      {when ? `Last used ${formatDateTime(when)}` : "Still signed in"}
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+      </Modal>
       {hasSession ? (
         <p className="mt-3 text-center text-xs text-[var(--ds-gray-700)]">
           Session detected —{" "}

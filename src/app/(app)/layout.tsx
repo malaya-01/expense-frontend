@@ -10,7 +10,7 @@ import { NotificationWatcher } from "@/components/layout/notification-watcher";
 import { TransactionModalProvider } from "@/components/expenses/transaction-modal-provider";
 import { ReceiptCaptureProvider } from "@/components/receipts/receipt-capture-provider";
 import { useAuth } from "@/lib/auth-context";
-import { getAccessToken } from "@/lib/api/client";
+import { getAccessToken, touchSession } from "@/lib/api/client";
 import { fetchMyPermissions } from "@/lib/api/permissions";
 import { cn } from "@/lib/cn";
 import { bootstrapOfflineSync } from "@/lib/offline/sync-engine";
@@ -52,6 +52,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         });
     }
   }, [ready, isAuthenticated, router, user?.id, setPermissions]);
+
+  useEffect(() => {
+    // Back and tab changes do not otherwise ask the server if this phone
+    // was signed out by a login on the web.
+    touchSession();
+  }, [pathname]);
 
   useEffect(() => {
     if (!ready || !user) return;
