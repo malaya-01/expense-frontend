@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { ModuleHeader } from "@/components/ui/module-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { AccountCard } from "@/components/accounts/account-card";
+import { SettleAccountModal } from "@/components/accounts/settle-account-modal";
 import { AccountFormModal } from "@/components/accounts/account-form-modal";
 import { AccountKpiCard } from "@/components/accounts/account-kpi-card";
 import { AccountsSidebar } from "@/components/accounts/accounts-sidebar";
@@ -98,6 +99,10 @@ export default function AccountsPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [settle, setSettle] = useState<{
+    account: FinancialContainer;
+    mode: "people" | "card";
+  } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState<GroupFilter>("all");
@@ -465,13 +470,21 @@ export default function AccountsPage() {
                             containers,
                             prefs.default_expense_account_id,
                           )}
-                          onQuickAction={(action) =>
+                          onQuickAction={(action) => {
+                            if (action.settle) {
+                              setSettle({
+                                account: container,
+                                mode: action.settle,
+                              });
+                              return;
+                            }
                             openTransactionModal({
                               title: action.title,
                               notice: action.notice,
                               defaults: action.defaults,
-                            })
-                          }
+                              entryLock: action.lock,
+                            });
+                          }}
                         />
                       ))}
                     </div>
@@ -498,6 +511,17 @@ export default function AccountsPage() {
         </div>
       </div>
 
+      <SettleAccountModal
+        account={settle?.account ?? null}
+        mode={settle?.mode ?? "people"}
+        accounts={containers}
+        transactions={transactions}
+        onClose={() => setSettle(null)}
+        onSaved={() => {
+          setSettle(null);
+          void refresh({ silent: true });
+        }}
+      />
       <AccountFormModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}

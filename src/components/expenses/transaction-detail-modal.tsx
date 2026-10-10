@@ -17,6 +17,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/ui/status-dot";
 import { Badge } from "@/components/ui/feedback";
+import { visibleNotes } from "@/lib/accounts/settlement";
 import {
   formatCurrency,
   formatDate,
@@ -221,7 +222,7 @@ export function TransactionDetailModal({
             label="Platform reference"
             value={tx.platform_txn_id}
           />
-          <Row icon={NotebookPen} label="Notes" value={tx.notes} />
+          <Row icon={NotebookPen} label="Notes" value={visibleNotes(tx.notes)} />
           {tx.paid_at ? (
             <Row
               icon={CalendarDays}

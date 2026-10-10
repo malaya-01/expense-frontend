@@ -19,6 +19,11 @@ import { BalanceImpact } from "@/components/expenses/balance-impact";
 import { getErrorMessage } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { getContainerMeta } from "@/lib/accounts/types-meta";
+import type { EntryLock } from "@/lib/accounts/quick-actions";
+import {
+  joinSettlementNote,
+  splitSettlementNote,
+} from "@/lib/accounts/settlement";
 import { useToast } from "@/components/ui/toast";
 import { convertAmount, getRate } from "@/lib/currency/currency.data";
 import { parseReceipt } from "@/lib/api/ai";
@@ -72,6 +77,8 @@ type TransactionFormProps = {
   onBusyChange?: (busy: boolean) => void;
   onReceiptReading?: (label: string | null) => void;
   reading?: boolean;
+  /** Guided payable / receivable / card entries keep their accounts fixed. */
+  entryLock?: EntryLock;
   className?: string;
   onReceiptAttached?: (payload: {
     defaults: Partial<CreateTransactionInput>;
@@ -183,6 +190,7 @@ export function TransactionForm({
   onBusyChange,
   onReceiptReading,
   reading = false,
+  entryLock,
   className,
   onReceiptAttached,
 }: TransactionFormProps) {
@@ -218,6 +226,9 @@ export function TransactionForm({
         }
       : undefined,
   );
+  const settlementSlices = useRef(
+    splitSettlementNote(initial?.notes ?? defaults?.notes).slices,
+  );
   const [form, setForm] = useState<CreateTransactionInput>(() =>
     emptyTransaction({
       ...defaults,
@@ -233,7 +244,7 @@ export function TransactionForm({
       merchant: initial?.merchant ?? defaults?.merchant,
       currency: initial?.currency ?? defaults?.currency,
       exchange_rate: initial?.exchange_rate ?? defaults?.exchange_rate,
-      notes: initial?.notes ?? defaults?.notes,
+      notes: splitSettlementNote(initial?.notes ?? defaults?.notes).text,
       payment_method: initial?.payment_method ?? defaults?.payment_method,
       upi_vpa: initial?.upi_vpa ?? defaults?.upi_vpa,
       upi_txn_id: initial?.upi_txn_id ?? defaults?.upi_txn_id,
@@ -380,6 +391,7 @@ export function TransactionForm({
             sourceMatched.id !== destinationMatched.id,
         );
       if (
+        !entryLock?.type &&
         asTransfer &&
         prev.type !== "transfer" &&
         sourceMatched &&
@@ -389,6 +401,7 @@ export function TransactionForm({
         next = { ...next, type: "transfer" };
       }
       if (
+        !entryLock?.source &&
         sourceMatched &&
         (fromReceipt || !prev.source_container_id) &&
         prev.source_container_id !== sourceMatched.id &&
@@ -397,6 +410,7 @@ export function TransactionForm({
         next = { ...next, source_container_id: sourceMatched.id };
       }
       if (
+        !entryLock?.destination &&
         destinationMatched &&
         (fromReceipt || !prev.destination_container_id) &&
         prev.destination_container_id !== destinationMatched.id &&
@@ -406,7 +420,7 @@ export function TransactionForm({
       }
       return next;
     });
-  }, [containers, fromReceipt, receiptMatch]);
+  }, [containers, entryLock, fromReceipt, receiptMatch]);
 
   const source = containers.find((c) => c.id === form.source_container_id);
   const destination = containers.find(
@@ -420,18 +434,52 @@ export function TransactionForm({
     form.type === "income" || form.type === "transfer";
 
   const sourceOptions = useMemo(() => {
-    if (form.type !== "transfer" || !form.destination_container_id) {
-      return containers;
+    let options = containers;
+    if (entryLock?.sourceTypes?.length) {
+      options = options.filter(
+        (container) =>
+          !container.space_id &&
+          (entryLock.sourceTypes!.includes(container.type) ||
+            container.id === form.source_container_id),
+      );
     }
-    return containers.filter((c) => c.id !== form.destination_container_id);
-  }, [containers, form.type, form.destination_container_id]);
+    if (form.type === "transfer" && form.destination_container_id) {
+      options = options.filter(
+        (container) => container.id !== form.destination_container_id,
+      );
+    }
+    return options;
+  }, [
+    containers,
+    entryLock,
+    form.type,
+    form.destination_container_id,
+    form.source_container_id,
+  ]);
 
   const destinationOptions = useMemo(() => {
-    if (form.type !== "transfer" || !form.source_container_id) {
-      return containers;
+    let options = containers;
+    if (entryLock?.destinationTypes?.length) {
+      options = options.filter(
+        (container) =>
+          !container.space_id &&
+          (entryLock.destinationTypes!.includes(container.type) ||
+            container.id === form.destination_container_id),
+      );
     }
-    return containers.filter((c) => c.id !== form.source_container_id);
-  }, [containers, form.type, form.source_container_id]);
+    if (form.type === "transfer" && form.source_container_id) {
+      options = options.filter(
+        (container) => container.id !== form.source_container_id,
+      );
+    }
+    return options;
+  }, [
+    containers,
+    entryLock,
+    form.type,
+    form.source_container_id,
+    form.destination_container_id,
+  ]);
 
   const crossCurrency =
     form.type === "transfer" &&
@@ -564,7 +612,10 @@ export function TransactionForm({
         destination_container_id: form.destination_container_id || undefined,
         merchant: (form.merchant ||
           (isEdit ? null : undefined)) as CreateTransactionInput["merchant"],
-        notes: (form.notes ||
+        notes: (joinSettlementNote(
+          form.notes || "",
+          settlementSlices.current,
+        ) ||
           (isEdit ? null : undefined)) as CreateTransactionInput["notes"],
         // Match server: native currency comes from the primary container.
         currency: (
@@ -823,6 +874,7 @@ export function TransactionForm({
         <Select
           id="type"
           embedded
+          disabled={entryLock?.type}
           value={form.type}
           onChange={(e) => setType(e.target.value as TransactionType)}
         >
@@ -836,11 +888,22 @@ export function TransactionForm({
         <div className={cn(needsSource && needsDestination && "flex flex-col")}>
           {needsSource ? (
             <div>
-              <FieldCard label="From" htmlFor="source" className={needsDestination ? "pr-14" : undefined}>
+              <FieldCard
+                label="From"
+                htmlFor="source"
+                className={
+                  needsDestination &&
+                  !entryLock?.source &&
+                  !entryLock?.destination
+                    ? "pr-14"
+                    : undefined
+                }
+              >
                 <Select
                   id="source"
                   embedded
                   chevron={false}
+                  disabled={entryLock?.source}
                   value={form.source_container_id || ""}
                   onChange={(e) => {
                     const next = e.target.value;
@@ -863,11 +926,20 @@ export function TransactionForm({
                     </option>
                   ))}
                 </Select>
+                {entryLock?.sourceTypes?.length && sourceOptions.length === 0 ? (
+                  <p className="mt-1.5 text-[11px] text-[var(--ds-status-orange)]">
+                    This payment has to come from a cash, bank, or wallet
+                    account you already have.
+                  </p>
+                ) : null}
               </FieldCard>
             </div>
           ) : null}
 
-          {needsSource && needsDestination ? (
+          {needsSource &&
+          needsDestination &&
+          !entryLock?.source &&
+          !entryLock?.destination ? (
             <div className="relative z-10 -my-3 flex h-6 items-center justify-end pr-1">
               <button
                 type="button"
@@ -900,12 +972,17 @@ export function TransactionForm({
             <FieldCard
               label="To"
               htmlFor="destination"
-              className={needsSource ? "pr-14" : undefined}
+              className={
+                needsSource && !entryLock?.source && !entryLock?.destination
+                  ? "pr-14"
+                  : undefined
+              }
             >
                 <Select
                   id="destination"
                   embedded
                   chevron={false}
+                  disabled={entryLock?.destination}
                   value={form.destination_container_id || ""}
                   onChange={(e) => {
                     const next = e.target.value;
@@ -928,6 +1005,13 @@ export function TransactionForm({
                     </option>
                   ))}
                 </Select>
+                {entryLock?.destinationTypes?.length &&
+                destinationOptions.length === 0 ? (
+                  <p className="mt-1.5 text-[11px] text-[var(--ds-status-orange)]">
+                    This has to land in a cash, bank, or wallet account you
+                    already have.
+                  </p>
+                ) : null}
                 {form.type === "transfer" && containers.length < 2 ? (
                   <p className="mt-1.5 text-[11px] text-[var(--ds-status-orange)]">
                     You need a second container for transfers.{" "}

@@ -15,6 +15,7 @@ import { TransactionForm } from "@/components/expenses/transaction-form";
 import { VisionSourceBadge } from "@/components/receipts/vision-source-badge";
 import { ReceiptPreviewStage } from "@/components/receipts/receipt-preview-stage";
 import { useAuth } from "@/lib/auth-context";
+import type { EntryLock } from "@/lib/accounts/quick-actions";
 import type {
   CreateTransactionInput,
   LedgerTransaction,
@@ -26,6 +27,8 @@ export type TransactionDraft = {
   /** Modal title for guided entries (e.g. "Pay back Ravi"). */
   title?: string;
   notice?: string;
+  /** Keeps guided account entries on the right accounts. */
+  entryLock?: EntryLock;
   previewUrl?: string;
   previewName?: string;
   fromReceipt?: boolean;
@@ -238,6 +241,7 @@ export function TransactionModalProvider({
                   onBusyChange={setBusy}
                   onReceiptReading={setReadingLabel}
                   reading={Boolean(readingLabel)}
+                  entryLock={draft?.entryLock}
                   onReceiptAttached={attachReceiptPreview}
                   className="space-y-3.5 sm:space-y-4"
                 />
@@ -287,6 +291,7 @@ export function TransactionModalProvider({
                 onBusyChange={setBusy}
                 onReceiptReading={setReadingLabel}
                 reading={Boolean(readingLabel)}
+                entryLock={draft?.entryLock}
                 onReceiptAttached={attachReceiptPreview}
               />
             ) : null}
