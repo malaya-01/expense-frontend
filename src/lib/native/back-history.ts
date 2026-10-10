@@ -28,6 +28,11 @@ export function hasInAppHistory() {
   return depth > 0;
 }
 
+/** Drop the push count after a forced sign-out so Back does not replay it. */
+export function resetHistoryDepth() {
+  depth = 0;
+}
+
 function currentPath() {
   return (window.location.pathname || "/").replace(/\/$/, "") || "/";
 }
@@ -46,6 +51,11 @@ export function isExitAnchor(path = currentPath()) {
   return (
     isDashboardAnchor(path) || path === "/signin" || path === "/signup"
   );
+}
+
+/** Sign-in and sign-up. Back here leaves the app; it must not return to it. */
+export function isAuthEntry(path = currentPath()) {
+  return path === "/signin" || path === "/signup";
 }
 
 /** Where back should land when there is no history and we're not an anchor. */

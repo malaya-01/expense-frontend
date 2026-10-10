@@ -10,6 +10,8 @@ import {
   ensureSession,
   getAccessToken,
   registerAuthFailureHandler,
+  registerRouteReplacer,
+  touchSession,
 } from "@/lib/api/client";
 import { sessionExpired } from "./slices/authSlice";
 import { setAppStore } from "./store-ref";
@@ -18,7 +20,9 @@ import {
   backFallbackPath,
   hasInAppHistory,
   installHistoryDepthTracker,
+  isAuthEntry,
   isExitAnchor,
+  resetHistoryDepth,
 } from "@/lib/native/back-history";
 import { initLiveUpdates } from "@/lib/native/live-update";
 import { installKeyboardWatcher } from "@/lib/native/keyboard-state";
@@ -50,6 +54,22 @@ async function registerAndroidBackHandler() {
       if (closeTopOverlay()) return;
 
       window.dispatchEvent(new Event("finos:close-overlays"));
+
+      // A web login revokes this phone, but the WebView still has every
+      // screen from before that. history.back() reopens those screens, the
+      // app shell sends the user to sign-in, and the next Back does it again.
+      if (!getAccessToken()) {
+        resetHistoryDepth();
+        if (isAuthEntry()) {
+          window.dispatchEvent(new Event("finos:confirm-exit"));
+          return;
+        }
+        if (replaceRoute) replaceRoute("/signin");
+        else window.location.replace("/signin");
+        return;
+      }
+
+      touchSession();
 
       if (canGoBack || hasInAppHistory()) {
         window.history.back();
@@ -95,6 +115,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // Restore Preferences tokens + refresh expired access via 7d refresh token.
       await ensureSession();
       if (cancelled) return;
+      touchSession();
       bootstrapAppState(store.dispatch);
     })();
 
@@ -109,9 +130,41 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    replaceRoute = (href) => router.replace(href);
+    const replace = (href: string) => {
+      resetHistoryDepth();
+      router.replace(href);
+    };
+    replaceRoute = replace;
+    registerRouteReplacer(replace);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") touchSession();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    let nativeListener: { remove: () => Promise<void> } | null = null;
+    let dropped = false;
+    void (async () => {
+      try {
+        const { Capacitor } = await import("@capacitor/core");
+        if (!Capacitor.isNativePlatform() || dropped) return;
+        const { App } = await import("@capacitor/app");
+        const handle = await App.addListener("appStateChange", ({ isActive }) => {
+          if (isActive) touchSession();
+        });
+        if (dropped) {
+          void handle.remove();
+          return;
+        }
+        nativeListener = handle;
+      } catch {
+        /* web */
+      }
+    })();
     return () => {
+      dropped = true;
       replaceRoute = null;
+      registerRouteReplacer(null);
+      document.removeEventListener("visibilitychange", onVisible);
+      void nativeListener?.remove();
     };
   }, [router]);
 

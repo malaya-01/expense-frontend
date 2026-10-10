@@ -1,5 +1,23 @@
+import axios from "axios";
 import { api, setTokens, unwrap } from "./client";
 import type { AuthTokens, User } from "@/types";
+
+export type OtherLogin = {
+  user_agent: string | null;
+  created_at: string | null;
+  last_used_at: string | null;
+};
+
+/** Sessions still open after a correct password, before this device is signed in. */
+export function getActiveSessions(error: unknown): OtherLogin[] | null {
+  if (!axios.isAxiosError(error)) return null;
+  const body = error.response?.data as
+    | { data?: { code?: string; sessions?: OtherLogin[] } }
+    | undefined;
+  if (body?.data?.code !== "ACTIVE_SESSION") return null;
+  const sessions = body.data.sessions;
+  return Array.isArray(sessions) ? sessions : [];
+}
 
 export async function registerUser(payload: {
   full_name: string;
@@ -26,8 +44,14 @@ export async function registerUser(payload: {
 export async function loginUser(payload: {
   email: string;
   password: string;
+  /** Log out every other device. Only after the sign-in prompt. */
+  replaceOtherSessions?: boolean;
 }): Promise<AuthTokens & { user?: User }> {
-  const res = await api.post("/auth/login", payload);
+  const res = await api.post("/auth/login", {
+    email: payload.email,
+    password: payload.password,
+    ...(payload.replaceOtherSessions ? { replace_other_sessions: true } : {}),
+  });
   const data = unwrap<AuthTokens & { user?: User }>(res);
   setTokens(data.accessToken, data.refreshToken);
   return data;
