@@ -3,6 +3,7 @@ import { api, setTokens, unwrap } from "./client";
 import type { AuthTokens, User } from "@/types";
 
 export type OtherLogin = {
+  id: string;
   user_agent: string | null;
   created_at: string | null;
   last_used_at: string | null;
@@ -46,11 +47,16 @@ export async function loginUser(payload: {
   password: string;
   /** Log out every other device. Only after the sign-in prompt. */
   replaceOtherSessions?: boolean;
+  /** Sign out one device shown on the sign-in screen. */
+  revokeSessionId?: string;
 }): Promise<AuthTokens & { user?: User }> {
   const res = await api.post("/auth/login", {
     email: payload.email,
     password: payload.password,
     ...(payload.replaceOtherSessions ? { replace_other_sessions: true } : {}),
+    ...(payload.revokeSessionId
+      ? { revoke_session_id: payload.revokeSessionId }
+      : {}),
   });
   const data = unwrap<AuthTokens & { user?: User }>(res);
   setTokens(data.accessToken, data.refreshToken);

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardBody } from "@/components/ui/card";
-import { Modal } from "@/components/ui/modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { getActiveSessions, loginUser, type OtherLogin } from "@/lib/api/auth";
 import { formatDateTime } from "@/lib/format";
@@ -73,6 +73,8 @@ function SignInForm() {
   const [loading, setLoading] = useState(false);
   const [hasSession, setHasSession] = useState(false);
   const [otherSessions, setOtherSessions] = useState<OtherLogin[] | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [confirmOthers, setConfirmOthers] = useState(false);
   const sessionToastShown = useRef(false);
 
   useEffect(() => {
@@ -136,23 +138,40 @@ function SignInForm() {
     router.replace("/dashboard");
   }
 
-  async function attemptSignIn(replaceOtherSessions: boolean) {
-    setLoading(true);
-    showPageLoader(
-      replaceOtherSessions ? "Signing out other devices" : "Signing in",
-    );
+  async function attemptSignIn(action?: {
+    replaceOtherSessions?: boolean;
+    revokeSessionId?: string;
+  }) {
+    const replaceOtherSessions = Boolean(action?.replaceOtherSessions);
+    const revokeSessionId = action?.revokeSessionId;
+    if (revokeSessionId) setRevokingId(revokeSessionId);
+    else setLoading(true);
+    if (!revokeSessionId) {
+      showPageLoader(
+        replaceOtherSessions ? "Signing out other devices" : "Signing in",
+      );
+    }
     try {
       const tokens = await loginUser({
         email,
         password,
         replaceOtherSessions,
+        revokeSessionId,
       });
       setOtherSessions(null);
+      setConfirmOthers(false);
       await finishSignIn(tokens);
     } catch (err) {
       const sessions = getActiveSessions(err);
       if (sessions) {
         setOtherSessions(sessions);
+        if (revokeSessionId) {
+          showToast({
+            title: "Session signed out",
+            description: "That device will be asked to sign in again.",
+            tone: "success",
+          });
+        }
         return;
       }
       const message = getErrorMessage(err, "Invalid email or password");
@@ -175,6 +194,7 @@ function SignInForm() {
         lockedUntil: lockedUntil ?? undefined,
       });
     } finally {
+      setRevokingId(null);
       setLoading(false);
       showPageLoader(null);
     }
@@ -182,7 +202,7 @@ function SignInForm() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    await attemptSignIn(false);
+    await attemptSignIn();
   }
 
   return (
@@ -232,10 +252,75 @@ function SignInForm() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || Boolean(revokingId)}>
               Continue
             </Button>
           </form>
+          {otherSessions ? (
+            <div className="mt-6 border-t border-[color:color-mix(in_srgb,var(--ds-gray-1000)_10%,transparent)] pt-5">
+              <h4 className="text-[13px] font-medium text-[var(--ds-gray-1000)]">
+                Where you&apos;re signed in
+              </h4>
+              <p className="mt-1 text-[12px] leading-5 text-[var(--ds-gray-700)]">
+                This account is open on another device. Sign that device out to
+                continue on this screen.
+              </p>
+              {otherSessions.length > 0 ? (
+                <ul className="mt-3 divide-y divide-[color:color-mix(in_srgb,var(--ds-gray-1000)_7%,transparent)]">
+                  {otherSessions.map((session) => {
+                    const info = sessionLabel(session.user_agent);
+                    const when = session.last_used_at || session.created_at;
+                    const Icon = info.phone ? Smartphone : Monitor;
+                    return (
+                      <li
+                        key={session.id}
+                        className="flex items-center gap-3 py-3"
+                      >
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-[var(--ds-background-200)] text-[var(--ds-gray-900)]">
+                          <Icon size={18} aria-hidden />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] font-medium text-[var(--ds-gray-1000)]">
+                            {info.label}
+                          </span>
+                          <span className="mt-0.5 block text-[11.5px] leading-4 text-[var(--ds-gray-700)]">
+                            {when
+                              ? `Last active ${formatDateTime(when)}`
+                              : "Still signed in"}
+                          </span>
+                        </span>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          loading={revokingId === session.id}
+                          disabled={loading || (revokingId !== null && revokingId !== session.id)}
+                          onClick={() =>
+                            void attemptSignIn({ revokeSessionId: session.id })
+                          }
+                          aria-label={`Sign out ${info.label}`}
+                        >
+                          Sign out
+                        </Button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-3">
+                <p className="min-w-0 text-[12px] leading-5 text-[var(--ds-gray-700)]">
+                  Lost a phone or used a shared computer? End every open session,
+                  then continue on this screen.
+                </p>
+                <Button
+                  variant="danger"
+                  disabled={loading || revokingId !== null || otherSessions.length === 0}
+                  onClick={() => setConfirmOthers(true)}
+                >
+                  Sign out other devices
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </CardBody>
       </Card>
 
@@ -245,64 +330,22 @@ function SignInForm() {
           Sign up
         </Link>
       </p>
-      <Modal
-        open={otherSessions !== null}
-        onClose={() => {
-          if (!loading) setOtherSessions(null);
-        }}
-        title="Already signed in"
-        className="max-w-md"
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              disabled={loading}
-              onClick={() => setOtherSessions(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              loading={loading}
-              onClick={() => void attemptSignIn(true)}
-            >
-              Log out and continue
-            </Button>
-          </>
+      <ConfirmDialog
+        open={confirmOthers}
+        title="Sign out other devices?"
+        description={
+          otherSessions
+            ? `This ends ${otherSessions.length} other ${otherSessions.length === 1 ? "session" : "sessions"}. Those devices will need your password to sign in again. This screen will then sign in.`
+            : undefined
         }
-      >
-        <p className="text-sm leading-5 text-[var(--ds-gray-900)]">
-          This account is open on another device. Opal allows one signed-in
-          device at a time. Log that device out to continue here.
-        </p>
-        {otherSessions && otherSessions.length > 0 ? (
-          <ul className="mt-4 space-y-2">
-            {otherSessions.map((session, index) => {
-              const info = sessionLabel(session.user_agent);
-              const when = session.last_used_at || session.created_at;
-              const Icon = info.phone ? Smartphone : Monitor;
-              return (
-                <li
-                  key={`${session.created_at || "session"}-${index}`}
-                  className="flex items-center gap-3 rounded-[12px] bg-[var(--ds-background-200)] px-3 py-2.5"
-                >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-[var(--ds-background-100)] text-[var(--ds-gray-900)]">
-                    <Icon size={18} aria-hidden />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-[13px] font-medium text-[var(--ds-gray-1000)]">
-                      {info.label}
-                    </span>
-                    <span className="block text-[12px] text-[var(--ds-gray-900)]">
-                      {when ? `Last used ${formatDateTime(when)}` : "Still signed in"}
-                    </span>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        ) : null}
-      </Modal>
+        confirmLabel="Sign out others"
+        destructive
+        busy={loading}
+        onClose={() => {
+          if (!loading) setConfirmOthers(false);
+        }}
+        onConfirm={() => void attemptSignIn({ replaceOtherSessions: true })}
+      />
       {hasSession ? (
         <p className="mt-3 text-center text-xs text-[var(--ds-gray-700)]">
           Session detected —{" "}

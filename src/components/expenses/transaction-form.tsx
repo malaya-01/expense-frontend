@@ -12,16 +12,20 @@ import { listCategories } from "@/lib/api/categories";
 import { listAccounts } from "@/lib/api/accounts";
 import {
   createTransaction,
+  listTransactions,
   updateTransaction,
 } from "@/lib/api/transactions";
-import { formatCurrency, requireDateOnly, todayISO } from "@/lib/format";
+import { formatCurrency, formatDate, requireDateOnly, todayISO } from "@/lib/format";
 import { BalanceImpact } from "@/components/expenses/balance-impact";
 import { getErrorMessage } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
-import { getContainerMeta } from "@/lib/accounts/types-meta";
+import { getContainerMeta, isLiquidType } from "@/lib/accounts/types-meta";
 import type { EntryLock } from "@/lib/accounts/quick-actions";
 import {
+  allocateAmount,
+  balanceEffect,
   joinSettlementNote,
+  openEntries,
   splitSettlementNote,
 } from "@/lib/accounts/settlement";
 import { useToast } from "@/components/ui/toast";
@@ -229,6 +233,12 @@ export function TransactionForm({
   const settlementSlices = useRef(
     splitSettlementNote(initial?.notes ?? defaults?.notes).slices,
   );
+  const [settleAccountId, setSettleAccountId] = useState("");
+  const [settleSelected, setSettleSelected] = useState<string[]>([]);
+  const [ledger, setLedger] = useState<LedgerTransaction[] | null>(null);
+  const typeBeforeSettle = useRef<TransactionType | null>(null);
+  const settleInit = useRef(false);
+  const seededSettle = useRef(false);
   const [form, setForm] = useState<CreateTransactionInput>(() =>
     emptyTransaction({
       ...defaults,
@@ -362,7 +372,30 @@ export function TransactionForm({
   }, [containers, categories, prefDefaults]);
 
   useEffect(() => {
-    if (!containers.length || !receiptMatch) return;
+    if (settleInit.current || !containers.length) return;
+    settleInit.current = true;
+    if (form.type !== "transfer") return;
+    const dest = containers.find((c) => c.id === form.destination_container_id);
+    const src = containers.find((c) => c.id === form.source_container_id);
+    if (
+      dest &&
+      (dest.type === "payable" ||
+        dest.type === "loan" ||
+        dest.type === "credit_card")
+    ) {
+      setSettleAccountId(dest.id);
+      return;
+    }
+    if (src?.type === "receivable") setSettleAccountId(src.id);
+  }, [
+    containers,
+    form.destination_container_id,
+    form.source_container_id,
+    form.type,
+  ]);
+
+  useEffect(() => {
+    if (!containers.length || !receiptMatch || settleAccountId) return;
     const sourceMatched = matchExpenseSource(containers, {
       container_name: receiptMatch.container_name,
       bank_name: receiptMatch.bank_name,
@@ -420,12 +453,35 @@ export function TransactionForm({
       }
       return next;
     });
-  }, [containers, entryLock, fromReceipt, receiptMatch]);
+  }, [containers, entryLock, fromReceipt, receiptMatch, settleAccountId]);
 
   const source = containers.find((c) => c.id === form.source_container_id);
   const destination = containers.find(
     (c) => c.id === form.destination_container_id,
   );
+  const debtAccounts = useMemo(
+    () =>
+      containers
+        .filter(
+          (account) =>
+            account.type === "payable" ||
+            account.type === "receivable" ||
+            account.type === "loan" ||
+            account.type === "credit_card",
+        )
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [containers],
+  );
+  const settleAccount = containers.find((c) => c.id === settleAccountId) || null;
+  const peopleSettle =
+    settleAccount?.type === "payable" || settleAccount?.type === "receivable";
+  const settleEntries = useMemo(() => {
+    if (!settleAccount || !peopleSettle || !ledger) return [];
+    return openEntries(
+      settleAccount,
+      ledger.filter((tx) => tx.id !== initial?.id),
+    );
+  }, [initial?.id, ledger, peopleSettle, settleAccount]);
   const category = categories.find((c) => c.id === form.category_id);
 
   const needsSource =
@@ -448,6 +504,15 @@ export function TransactionForm({
         (container) => container.id !== form.destination_container_id,
       );
     }
+    if (settleAccount && settleAccount.type !== "receivable") {
+      options = options.filter(
+        (container) =>
+          container.id === form.source_container_id ||
+          isLiquidType(container.type) ||
+          (container.type === "credit_card" &&
+            settleAccount.type !== "credit_card"),
+      );
+    }
     return options;
   }, [
     containers,
@@ -455,6 +520,7 @@ export function TransactionForm({
     form.type,
     form.destination_container_id,
     form.source_container_id,
+    settleAccount,
   ]);
 
   const destinationOptions = useMemo(() => {
@@ -472,6 +538,13 @@ export function TransactionForm({
         (container) => container.id !== form.source_container_id,
       );
     }
+    if (settleAccount?.type === "receivable") {
+      options = options.filter(
+        (container) =>
+          container.id === form.destination_container_id ||
+          isLiquidType(container.type),
+      );
+    }
     return options;
   }, [
     containers,
@@ -479,6 +552,7 @@ export function TransactionForm({
     form.type,
     form.source_container_id,
     form.destination_container_id,
+    settleAccount,
   ]);
 
   const crossCurrency =
@@ -517,6 +591,12 @@ export function TransactionForm({
   }
 
   function setType(type: TransactionType) {
+    if (settleAccountId) {
+      typeBeforeSettle.current = null;
+      setSettleAccountId("");
+      setSettleSelected([]);
+      settlementSlices.current = [];
+    }
     setForm((prev) => {
       // New transactions: swap the previous type's defaults (Settings >
       // Transactions) for the new type's; values the user picked stay.
@@ -546,6 +626,106 @@ export function TransactionForm({
           picked(prev.category_id, before?.categoryId) ||
           after?.categoryId ||
           "",
+        exchange_rate: undefined,
+      };
+    });
+  }
+
+  useEffect(() => {
+    if (!peopleSettle || ledger) return;
+    let cancelled = false;
+    listTransactions()
+      .then((rows) => {
+        if (!cancelled) setLedger(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setLedger([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ledger, peopleSettle]);
+
+  useEffect(() => {
+    if (!peopleSettle || !settleEntries.length || seededSettle.current) return;
+    const known = settlementSlices.current
+      .map((slice) => slice.id)
+      .filter((id) => settleEntries.some((entry) => entry.id === id));
+    if (!known.length) return;
+    seededSettle.current = true;
+    setSettleSelected(known);
+  }, [peopleSettle, settleEntries]);
+
+  function debtChoiceLabel(account: FinancialContainer) {
+    const amount = formatCurrency(
+      Math.abs(Number(account.balance) || 0),
+      account.currency,
+    );
+    if (account.type === "payable") return `Pay back ${account.name} · ${amount} owed`;
+    if (account.type === "receivable") {
+      return `${account.name} paid me back · ${amount} open`;
+    }
+    if (account.type === "credit_card") return `Pay ${account.name} bill · ${amount} due`;
+    return `Pay ${account.name} · ${amount} left`;
+  }
+
+  function applySettlement(accountId: string) {
+    if (!accountId) {
+      const back = typeBeforeSettle.current;
+      typeBeforeSettle.current = null;
+      setSettleAccountId("");
+      setSettleSelected([]);
+      settlementSlices.current = [];
+      if (back && back !== "transfer") {
+        setForm((prev) => ({
+          ...prev,
+          type: back,
+          destination_container_id:
+            back === "expense" ? "" : prev.destination_container_id,
+          source_container_id: back === "income" ? "" : prev.source_container_id,
+        }));
+      }
+      return;
+    }
+    const account = containers.find((c) => c.id === accountId);
+    if (!account) return;
+    if (!typeBeforeSettle.current) typeBeforeSettle.current = form.type;
+    setSettleAccountId(accountId);
+    setSettleSelected([]);
+    settlementSlices.current = [];
+    setForm((prev) => {
+      if (account.type === "receivable") {
+        const landingId =
+          [prev.destination_container_id, prev.source_container_id].find(
+            (id) => {
+              const candidate = containers.find((c) => c.id === id);
+              return (
+                candidate &&
+                candidate.id !== account.id &&
+                isLiquidType(candidate.type)
+              );
+            },
+          ) || "";
+        return {
+          ...prev,
+          type: "transfer" as const,
+          source_container_id: account.id,
+          destination_container_id: landingId,
+          exchange_rate: undefined,
+        };
+      }
+      const paying = containers.find(
+        (c) =>
+          c.id === prev.source_container_id &&
+          c.id !== account.id &&
+          (isLiquidType(c.type) ||
+            (c.type === "credit_card" && account.type !== "credit_card")),
+      );
+      return {
+        ...prev,
+        type: "transfer" as const,
+        source_container_id: paying?.id || "",
+        destination_container_id: account.id,
         exchange_rate: undefined,
       };
     });
@@ -585,6 +765,44 @@ export function TransactionForm({
     if (form.type === "transfer" && containers.length < 2) {
       setError("Transfers need at least two containers. Create another in Accounts.");
       return;
+    }
+    if (settleAccount) {
+      const paying = Number(form.amount);
+      let due = Math.max(0, Number(settleAccount.balance) || 0);
+      if (initial) {
+        const effect = balanceEffect(initial, settleAccount);
+        if (effect < 0) due += -effect;
+      }
+      if (paying - due > 0.009) {
+        setError("That is more than what is still owed.");
+        return;
+      }
+      if (peopleSettle) {
+        if (!ledger) {
+          setError("Still loading what this debt has open.");
+          return;
+        }
+        if (settleEntries.length && !settleSelected.length) {
+          setError("Choose the entries this payment settles.");
+          return;
+        }
+        const chosen = settleEntries.filter((entry) =>
+          settleSelected.includes(entry.id),
+        );
+        const chosenTotal = chosen.reduce(
+          (sum, entry) => sum + entry.remaining,
+          0,
+        );
+        if (chosen.length && paying - chosenTotal > 0.009) {
+          setError("That is more than the entries you selected.");
+          return;
+        }
+        settlementSlices.current = allocateAmount(chosen, paying);
+      } else {
+        settlementSlices.current = [];
+      }
+    } else if (mode !== "edit") {
+      settlementSlices.current = [];
     }
     if (crossCurrency && (!form.exchange_rate || form.exchange_rate <= 0)) {
       setError("Enter an exchange rate for this cross-currency transfer.");
@@ -884,6 +1102,85 @@ export function TransactionForm({
         </Select>
       </FieldCard>
 
+      {!entryLock && debtAccounts.length > 0 ? (
+        <FieldCard label="This payment settles" htmlFor="settle-debt">
+          <Select
+            id="settle-debt"
+            embedded
+            value={settleAccountId}
+            onChange={(e) => applySettlement(e.target.value)}
+          >
+            <option value="">Not a settlement</option>
+            {debtAccounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {debtChoiceLabel(account)}
+              </option>
+            ))}
+          </Select>
+          <p className="mt-1.5 text-[11px] leading-4 text-[var(--ds-gray-700)]">
+            {fromReceipt
+              ? "Use this when the scanned receipt is paying a debt, not a new purchase. The amount leaves the account you paid from and closes the entries you pick."
+              : "Paying back a payable, loan, or card bill is a settlement, not a new expense."}
+          </p>
+          {peopleSettle ? (
+            ledger === null ? (
+              <p className="mt-2 text-[12px] text-[var(--ds-gray-700)]">
+                Loading open entries…
+              </p>
+            ) : settleEntries.length ? (
+              <ul className="mt-2 max-h-52 space-y-1.5 overflow-y-auto overscroll-contain">
+                {settleEntries.map((entry) => {
+                  const on = settleSelected.includes(entry.id);
+                  return (
+                    <li key={entry.id}>
+                      <label className="flex cursor-pointer items-start gap-2.5 rounded-[12px] bg-[var(--ds-background-100)] px-2.5 py-2">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 size-4 accent-[var(--ds-focus-color)]"
+                          checked={on}
+                          onChange={() =>
+                            setSettleSelected((current) =>
+                              current.includes(entry.id)
+                                ? current.filter((id) => id !== entry.id)
+                                : [...current, entry.id],
+                            )
+                          }
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] font-medium text-[var(--ds-gray-1000)]">
+                            {entry.description}
+                          </span>
+                          <span className="block text-[11px] text-[var(--ds-gray-700)]">
+                            {entry.date ? formatDate(entry.date) : "Open"}
+                            {" · "}
+                            {formatCurrency(
+                              entry.remaining,
+                              settleAccount?.currency || "USD",
+                            )}{" "}
+                            left
+                          </span>
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="mt-2 text-[12px] text-[var(--ds-gray-700)]">
+                Nothing itemized is still open. The payment still reduces the
+                balance.
+              </p>
+            )
+          ) : settleAccount ? (
+            <p className="mt-2 text-[12px] text-[var(--ds-gray-700)]">
+              {settleAccount.type === "credit_card"
+                ? "A card bill is one balance. This payment lowers the amount due. It is not a new purchase."
+                : "This payment lowers what is left on the loan. It is not a new expense."}
+            </p>
+          ) : null}
+        </FieldCard>
+      ) : null}
+
       {(needsSource || needsDestination) && (
         <div className={cn(needsSource && needsDestination && "flex flex-col")}>
           {needsSource ? (
@@ -894,7 +1191,8 @@ export function TransactionForm({
                 className={
                   needsDestination &&
                   !entryLock?.source &&
-                  !entryLock?.destination
+                  !entryLock?.destination &&
+                  !settleAccountId
                     ? "pr-14"
                     : undefined
                 }
@@ -903,7 +1201,9 @@ export function TransactionForm({
                   id="source"
                   embedded
                   chevron={false}
-                  disabled={entryLock?.source}
+                  disabled={
+                    entryLock?.source || settleAccount?.type === "receivable"
+                  }
                   value={form.source_container_id || ""}
                   onChange={(e) => {
                     const next = e.target.value;
@@ -932,6 +1232,13 @@ export function TransactionForm({
                     account you already have.
                   </p>
                 ) : null}
+                {settleAccount &&
+                settleAccount.type !== "receivable" &&
+                !form.source_container_id ? (
+                  <p className="mt-1.5 text-[11px] text-[var(--ds-status-orange)]">
+                    Choose the account this payment left.
+                  </p>
+                ) : null}
               </FieldCard>
             </div>
           ) : null}
@@ -939,7 +1246,8 @@ export function TransactionForm({
           {needsSource &&
           needsDestination &&
           !entryLock?.source &&
-          !entryLock?.destination ? (
+          !entryLock?.destination &&
+          !settleAccountId ? (
             <div className="relative z-10 -my-3 flex h-6 items-center justify-end pr-1">
               <button
                 type="button"
@@ -973,7 +1281,10 @@ export function TransactionForm({
               label="To"
               htmlFor="destination"
               className={
-                needsSource && !entryLock?.source && !entryLock?.destination
+                needsSource &&
+                !entryLock?.source &&
+                !entryLock?.destination &&
+                !settleAccountId
                   ? "pr-14"
                   : undefined
               }
@@ -982,7 +1293,11 @@ export function TransactionForm({
                   id="destination"
                   embedded
                   chevron={false}
-                  disabled={entryLock?.destination}
+                  disabled={
+                    entryLock?.destination ||
+                    (Boolean(settleAccount) &&
+                      settleAccount?.type !== "receivable")
+                  }
                   value={form.destination_container_id || ""}
                   onChange={(e) => {
                     const next = e.target.value;
