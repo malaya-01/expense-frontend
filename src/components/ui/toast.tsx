@@ -58,7 +58,7 @@ export function ToastViewport() {
       aria-label="Notifications"
       aria-live="polite"
       aria-atomic="false"
-      className="pointer-events-none fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[200] flex flex-col items-end gap-2.5 sm:left-auto sm:right-4 sm:w-[380px] md:bottom-4"
+      className="pointer-events-none fixed inset-x-3 bottom-[calc(76px+env(safe-area-inset-bottom))] z-[200] flex flex-col items-end gap-2.5 sm:left-auto sm:right-4 sm:w-[380px] md:bottom-4"
     >
       {items.map((item) => {
         const tone = item.tone ?? "info";

@@ -11,17 +11,24 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useTheme } from "@/lib/theme-context";
 import { cn } from "@/lib/cn";
+import { useOverlayBack } from "@/lib/native/overlay-back";
 
 type ThemeMenuProps = {
   /** Hide "Create custom theme…" (auth pages). Default true in app. */
   showCreateLink?: boolean;
   /** Icon-only compact control for auth headers. */
   compact?: boolean;
+  /**
+   * When set, the button hands off instead of opening an anchored menu.
+   * The mobile sidebar uses this so the drawer can close first.
+   */
+  onActivate?: () => void;
 };
 
 export function ThemeMenu({
   showCreateLink = true,
   compact = false,
+  onActivate,
 }: ThemeMenuProps) {
   const { ready, activeTheme, allThemes, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
@@ -88,12 +95,16 @@ export function ThemeMenu({
         ref={triggerRef}
         type="button"
         onClick={() => {
+          if (onActivate) {
+            onActivate();
+            return;
+          }
           updatePosition();
           setOpen((v) => !v);
         }}
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        aria-controls={listboxId}
+        aria-expanded={onActivate ? undefined : open}
+        aria-haspopup={onActivate ? "dialog" : "listbox"}
+        aria-controls={onActivate ? undefined : listboxId}
         title={ready ? activeTheme.name : "Theme"}
         className={cn(
           "inline-flex items-center justify-center rounded-[9px] text-[var(--ds-gray-900)] ds-focus",
@@ -113,7 +124,7 @@ export function ThemeMenu({
         ) : null}
       </button>
 
-      {open && typeof document !== "undefined"
+      {open && !onActivate && typeof document !== "undefined"
         ? createPortal(
             <div
               ref={panelRef}
@@ -168,5 +179,119 @@ export function ThemeMenu({
           )
         : null}
     </div>
+  );
+}
+
+/**
+ * Theme picker shown after the mobile sidebar closes. It lives outside the
+ * drawer so the drawer can unmount without taking the picker with it.
+ */
+export function ThemeMenuSheet({
+  open,
+  onClose,
+  showCreateLink = true,
+}: {
+  open: boolean;
+  onClose: () => void;
+  showCreateLink?: boolean;
+}) {
+  const { activeTheme, allThemes, setTheme } = useTheme();
+  const titleId = useId();
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useOverlayBack(open, () => onCloseRef.current());
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCloseRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[115]">
+      <button
+        type="button"
+        aria-label="Close theme"
+        onClick={() => onCloseRef.current()}
+        className="absolute inset-0 bg-black/55 backdrop-blur-[2px] ds-backdrop-enter"
+      />
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="absolute inset-x-0 bottom-0 flex max-h-[min(70dvh,32rem)] flex-col rounded-t-[16px] bg-[var(--ds-background-elevated)] ds-overlay-enter"
+      >
+        <header className="flex shrink-0 items-center justify-between px-4 pt-4 pb-2">
+          <h2 id={titleId} className="text-[15px] font-semibold">
+            Theme
+          </h2>
+          <button
+            type="button"
+            onClick={() => onCloseRef.current()}
+            className="rounded-[8px] px-2 py-1 text-[13px] text-[var(--ds-gray-900)] ds-focus"
+          >
+            Done
+          </button>
+        </header>
+        <div
+          role="listbox"
+          aria-label="Theme"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        >
+          {allThemes.map((theme) => (
+            <button
+              key={theme.id}
+              type="button"
+              role="option"
+              aria-selected={theme.id === activeTheme.id}
+              onClick={() => {
+                setTheme(theme.id);
+                onCloseRef.current();
+              }}
+              className={cn(
+                "flex min-h-11 w-full items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-[14px] ds-focus",
+                "hover:bg-[var(--ds-background-100)]",
+                theme.id === activeTheme.id &&
+                  "bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)]",
+              )}
+            >
+              <span className="flex size-5 shrink-0 overflow-hidden rounded-[4px] ds-border">
+                <span
+                  className="flex-1"
+                  style={{ background: theme.tokens.background100 }}
+                />
+                <span
+                  className="w-1.5"
+                  style={{ background: theme.tokens.focusColor }}
+                />
+              </span>
+              <span className="min-w-0 truncate">{theme.name}</span>
+            </button>
+          ))}
+          {showCreateLink ? (
+            <div className="mt-1 pt-1 ds-header-rule">
+              <Link
+                href="/settings?section=appearance"
+                onClick={() => onCloseRef.current()}
+                className="link-accent block rounded-[8px] px-2.5 py-2.5 text-[14px] hover:bg-[var(--ds-background-100)]"
+              >
+                Browse all themes…
+              </Link>
+            </div>
+          ) : null}
+        </div>
+      </section>
+    </div>,
+    document.body,
   );
 }

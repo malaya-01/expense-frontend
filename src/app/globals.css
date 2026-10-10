@@ -816,7 +816,7 @@ html.native-app main.app-scrollbar {
   padding-left: 0.625rem !important;
   padding-right: 0.625rem !important;
   padding-top: 0.5rem !important;
-  padding-bottom: calc(6.25rem + env(safe-area-inset-bottom)) !important;
+  padding-bottom: calc(100px + env(safe-area-inset-bottom)) !important;
 }
 
 html.native-app [data-kpi-card] {
@@ -1093,6 +1093,15 @@ html[data-theme-scheme="dark"] .receipt-read-backdrop {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* The signed-in shell is the only scroller. Font scale must not grow the
+   WebView document and drag the whole screen. */
+html:has([data-app-shell]),
+html:has([data-app-shell]) body {
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /* ---- User appearance preferences (Settings > Appearance) ---------------- */
