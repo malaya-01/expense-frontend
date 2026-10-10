@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/auth-context";
@@ -172,13 +172,99 @@ export function AppearanceSection() {
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">(
     "idle",
   );
+  const sliderRef = useRef<HTMLInputElement>(null);
+  const scaleDrag = useRef<{
+    main: HTMLElement | null;
+    anchorTop: number;
+  } | null>(null);
+  const endScaleDrag = useRef<(() => void) | null>(null);
+  const keyLockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pinning = useRef(false);
+
+  function stabilizeFontSlider() {
+    const slider = sliderRef.current;
+    const drag = scaleDrag.current;
+    if (!slider || !drag || pinning.current) return;
+    const delta = slider.getBoundingClientRect().top - drag.anchorTop;
+    if (Math.abs(delta) < 1) return;
+    pinning.current = true;
+    try {
+      if (drag.main) drag.main.scrollTop += delta;
+      let rest = slider.getBoundingClientRect().top - drag.anchorTop;
+      if (Math.abs(rest) >= 1) {
+        document.documentElement.scrollTop += rest;
+        rest = slider.getBoundingClientRect().top - drag.anchorTop;
+      }
+      if (Math.abs(rest) >= 1) document.body.scrollTop += rest;
+    } finally {
+      pinning.current = false;
+    }
+  }
+
+  useLayoutEffect(() => {
+    stabilizeFontSlider();
+  }, [prefs.font_scale]);
 
   useEffect(
     () => () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
+      if (keyLockTimer.current) clearTimeout(keyLockTimer.current);
+      endScaleDrag.current?.();
     },
     [],
   );
+
+  function beginScaleDrag() {
+    const slider = sliderRef.current;
+    if (!slider || scaleDrag.current) return;
+    const main = slider.closest("main");
+    const dragMain = main instanceof HTMLElement ? main : null;
+    scaleDrag.current = {
+      main: dragMain,
+      anchorTop: slider.getBoundingClientRect().top,
+    };
+    const prevMainAnchor = dragMain?.style.overflowAnchor ?? "";
+    if (dragMain) dragMain.style.overflowAnchor = "none";
+    const root = document.documentElement;
+    const prevAnchor = root.style.overflowAnchor;
+    const prevBehavior = root.style.scrollBehavior;
+    root.style.overflowAnchor = "none";
+    root.style.scrollBehavior = "auto";
+
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        stabilizeFontSlider();
+      });
+    };
+    document.addEventListener("scroll", onScroll, true);
+
+    const end = () => {
+      if (frame) cancelAnimationFrame(frame);
+      document.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      if (dragMain) dragMain.style.overflowAnchor = prevMainAnchor;
+      root.style.overflowAnchor = prevAnchor;
+      root.style.scrollBehavior = prevBehavior;
+      scaleDrag.current = null;
+      if (endScaleDrag.current === end) endScaleDrag.current = null;
+    };
+    endScaleDrag.current = end;
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+  }
+
+  function noteKeyAdjust() {
+    beginScaleDrag();
+    if (keyLockTimer.current) clearTimeout(keyLockTimer.current);
+    keyLockTimer.current = setTimeout(() => {
+      keyLockTimer.current = null;
+      endScaleDrag.current?.();
+    }, 500);
+  }
 
   const sample = formatCurrency(12450, user?.currency || "INR");
   const activeCustom = customThemes.find((t) => t.id === activeThemeId);
@@ -323,6 +409,7 @@ export function AppearanceSection() {
               A
             </span>
             <input
+              ref={sliderRef}
               id={scaleId}
               type="range"
               min={FONT_SCALE_MIN}
@@ -330,10 +417,21 @@ export function AppearanceSection() {
               step={FONT_SCALE_STEP}
               value={prefs.font_scale}
               aria-valuetext={`${prefs.font_scale}%`}
-              onChange={(e) =>
-                changeDisplay({ font_scale: Number(e.target.value) })
-              }
-              className="h-11 min-w-0 flex-1 cursor-pointer accent-[var(--ds-focus-color)]"
+              onPointerDown={() => {
+                if (keyLockTimer.current) {
+                  clearTimeout(keyLockTimer.current);
+                  keyLockTimer.current = null;
+                }
+                beginScaleDrag();
+              }}
+              onKeyDown={noteKeyAdjust}
+              onBlur={() => endScaleDrag.current?.()}
+              onChange={(e) => {
+                changeDisplay({ font_scale: Number(e.target.value) });
+                queueMicrotask(stabilizeFontSlider);
+                requestAnimationFrame(stabilizeFontSlider);
+              }}
+              className="h-11 min-w-0 flex-1 cursor-pointer touch-none accent-[var(--ds-focus-color)]"
             />
             <span aria-hidden className="text-[17px] text-[var(--ds-gray-700)]">
               A

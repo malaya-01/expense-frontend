@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -31,7 +31,7 @@ import { cn } from "@/lib/cn";
 import { resolveAvatarUrl } from "@/lib/api/user";
 import { Drawer } from "@/components/ui/drawer";
 import { NotificationCenter } from "@/components/layout/notification-center";
-import { ThemeMenu } from "@/components/layout/theme-menu";
+import { ThemeMenu, ThemeMenuSheet } from "@/components/layout/theme-menu";
 import { openCommandPalette } from "@/components/layout/command-palette";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { SpacesSidebarSection } from "@/components/layout/spaces-sidebar-section";
@@ -180,11 +180,14 @@ function SidebarContents({
   onHide,
   onPin,
   pinned,
+  onOpenTheme,
 }: {
   onNavigate?: () => void;
   onHide?: () => void;
   onPin?: () => void;
   pinned?: boolean;
+  /** Mobile drawer: close the sidebar and open the theme sheet. */
+  onOpenTheme?: () => void;
 }) {
   const router = useRouter();
   const { openTransactionModal } = useTransactionModal();
@@ -273,7 +276,7 @@ function SidebarContents({
       <div className="shrink-0 space-y-1 border-t border-[var(--ds-gray-200)] p-2">
         <div className="flex items-center gap-1">
           <NotificationCenter />
-          <ThemeMenu showCreateLink />
+          <ThemeMenu showCreateLink onActivate={onOpenTheme} />
         </div>
         <div className="flex items-center gap-2 rounded-[8px] px-2 py-2">
           <button
@@ -375,7 +378,7 @@ export function AppSidebar() {
     <>
       {!pinned ? (
         <div
-          className="fixed bottom-0 left-0 top-[calc(2.75rem+env(safe-area-inset-top))] z-40 hidden w-2 md:block"
+          className="fixed bottom-0 left-0 top-[calc(44px+env(safe-area-inset-top))] z-40 hidden w-2 md:block"
           onPointerEnter={() => dispatch(setSidebarPeeking(true))}
           aria-hidden
         />
@@ -389,8 +392,8 @@ export function AppSidebar() {
         className={cn(
           "fixed z-50 hidden flex-col overflow-hidden bg-[var(--ds-background-elevated)] transition-[transform,opacity,border-radius] duration-200 md:flex",
           pinned
-            ? "bottom-0 left-0 top-[calc(2.75rem+env(safe-area-inset-top))] rounded-none [box-shadow:1px_0_0_0_color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]"
-            : "bottom-3 left-2 top-[calc(3.25rem+env(safe-area-inset-top))] rounded-[12px] border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]",
+            ? "bottom-0 left-0 top-[calc(44px+env(safe-area-inset-top))] rounded-none [box-shadow:1px_0_0_0_color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]"
+            : "bottom-3 left-2 top-[calc(52px+env(safe-area-inset-top))] rounded-[12px] border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]",
           !visible && "-translate-x-[110%] opacity-0",
           peeking &&
             !pinned &&
@@ -428,6 +431,7 @@ export function AppSidebar() {
 export function MobileNav() {
   const dispatch = useAppDispatch();
   const moreOpen = useAppSelector((state) => state.ui.mobileNavOpen);
+  const [themeOpen, setThemeOpen] = useState(false);
   const { user } = useAuth();
   const candidates = [
     PRIMARY_NAV.find((item) => item.href === "/dashboard")!,
@@ -449,7 +453,7 @@ export function MobileNav() {
       <nav
         data-tour="mobile-nav"
         data-mobile-nav
-        className="fixed inset-x-0 bottom-0 z-40 flex gap-1 bg-[var(--ds-background-elevated)] px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden [box-shadow:0_-1px_0_0_color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]"
+        className="fixed inset-x-0 bottom-0 z-40 flex gap-1 bg-[var(--ds-background-elevated)] px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-[8px] md:hidden [box-shadow:0_-1px_0_0_color-mix(in_srgb,var(--ds-gray-1000)_14%,transparent)]"
       >
         {items.map((item) => {
           const active =
@@ -460,7 +464,7 @@ export function MobileNav() {
               href={item.href}
               data-tour={`mobile-nav-${item.href.replace(/^\//, "")}`}
               className={cn(
-                "flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-[9px] px-1 py-1.5 text-[11px]",
+                "flex min-h-[48px] flex-1 flex-col items-center justify-center gap-1 rounded-[9px] px-1 py-1.5 text-[11px]",
                 active
                   ? "bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)]"
                   : "text-[var(--ds-gray-900)]",
@@ -475,7 +479,7 @@ export function MobileNav() {
           type="button"
           onClick={() => dispatch(setMobileNavOpen(true))}
           data-tour="mobile-nav-more"
-          className="flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-[9px] px-1 py-1.5 text-[11px] text-[var(--ds-gray-900)]"
+          className="flex min-h-[48px] flex-1 flex-col items-center justify-center gap-1 rounded-[9px] px-1 py-1.5 text-[11px] text-[var(--ds-gray-900)]"
           aria-label="Open all modules"
         >
           <Menu size={17} strokeWidth={1.8} />
@@ -491,9 +495,14 @@ export function MobileNav() {
         <div className="-m-5 flex h-[calc(100dvh-4rem)] flex-col">
           <SidebarContents
             onNavigate={() => dispatch(setMobileNavOpen(false))}
+            onOpenTheme={() => {
+              dispatch(setMobileNavOpen(false));
+              setThemeOpen(true);
+            }}
           />
         </div>
       </Drawer>
+      <ThemeMenuSheet open={themeOpen} onClose={() => setThemeOpen(false)} />
     </>
   );
 }

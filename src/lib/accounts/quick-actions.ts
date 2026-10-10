@@ -1,19 +1,41 @@
 import { isLiquidType } from "@/lib/accounts/types-meta";
-import type { CreateTransactionInput, FinancialContainer } from "@/types";
+import type {
+  ContainerType,
+  CreateTransactionInput,
+  FinancialContainer,
+} from "@/types";
 
 /**
- * One-tap actions for accounts that track money owed (payables, receivables,
- * credit cards, loans). Each opens "New transaction" already set up as the
- * right kind of entry, so a debt payment can't accidentally be recorded as a
- * plain expense that never reduces what you owe.
+ * One-tap actions for accounts that track money owed.
+ *
+ * Payable: entries someone covered for you. Settling pays those entries
+ * from an account you already have.
+ * Receivable: money you paid for someone, taken from an account you already
+ * have. Settling is them paying those entries back into one of your accounts.
+ * Credit card: purchases sit on the card. Paying the bill is one payment
+ * from your account, not a checklist of those purchases.
  */
+export type EntryLock = {
+  type?: boolean;
+  source?: boolean;
+  destination?: boolean;
+  sourceTypes?: ContainerType[];
+  destinationTypes?: ContainerType[];
+};
+
 export type AccountQuickAction = {
   id: string;
   label: string;
   title: string;
   notice: string;
   defaults: Partial<CreateTransactionInput>;
+  /** People settle named entries. A card pays down the amount due. */
+  settle?: "people" | "card";
+  /** Keep the transaction form on the accounts this entry is allowed to use. */
+  lock?: EntryLock;
 };
+
+const LIQUID: ContainerType[] = ["cash", "wallet", "bank"];
 
 /** Where everyday money comes from / goes to: preferred, else the richest bank/cash. */
 export function everydayAccount(
@@ -44,22 +66,19 @@ export function accountQuickActions(
     case "payable":
       return [
         {
-          id: "pay-back",
-          label: "Pay back",
-          title: `Pay back ${name}`,
-          notice: `Money leaves ${bankName} and what you owe ${name} goes down by the same amount.`,
-          defaults: {
-            type: "transfer",
-            source_container_id: bankId,
-            destination_container_id: account.id,
-            description: `Paid back ${name}`,
-          },
+          id: "settle",
+          label: "Settle",
+          settle: "people",
+          title: `Settle ${name}`,
+          notice: `Pay back the entries ${name} covered, from an account you already have.`,
+          defaults: {},
         },
         {
           id: "owe-more",
           label: "They paid for me",
           title: `${name} paid for something`,
-          notice: `Use this when ${name} paid on your behalf. Pick what it was for as the category — it counts as your spending and what you owe ${name} goes up.`,
+          notice: `This is an entry ${name} covered for you. Pick what it was for. It counts as your spending, and it is one of the entries you settle later from your own account.`,
+          lock: { type: true, source: true },
           defaults: {
             type: "expense",
             source_container_id: account.id,
@@ -70,7 +89,8 @@ export function accountQuickActions(
           id: "borrow-cash",
           label: "Borrowed cash",
           title: `Borrowed from ${name}`,
-          notice: `The money arrives in ${bankName} and what you owe ${name} goes up.`,
+          notice: `The cash lands in ${bankName}, an account you already have. What you owe ${name} goes up, and that entry is what you settle later.`,
+          lock: { type: true, source: true, destinationTypes: LIQUID },
           defaults: {
             type: "transfer",
             source_container_id: account.id,
@@ -82,27 +102,24 @@ export function accountQuickActions(
     case "receivable":
       return [
         {
-          id: "got-back",
-          label: "Got paid back",
-          title: `${name} paid you back`,
-          notice: `The money arrives in ${bankName} and what ${name} owes you goes down.`,
-          defaults: {
-            type: "transfer",
-            source_container_id: account.id,
-            destination_container_id: bankId,
-            description: `Received from ${name}`,
-          },
+          id: "settle",
+          label: "Settle",
+          settle: "people",
+          title: `Settle ${name}`,
+          notice: `Record them paying back the entries you funded, into an account you already have.`,
+          defaults: {},
         },
         {
           id: "lend",
-          label: "Lend / paid for them",
-          title: `Lend to ${name}`,
-          notice: `Money leaves ${bankName} and what ${name} owes you goes up. Use this too when you paid for ${name}'s share.`,
+          label: "I paid for them",
+          title: `Paid for ${name}`,
+          notice: `The money leaves ${bankName}, an account you already have. ${name} owes you that amount. This is not recorded as your own spending.`,
+          lock: { type: true, destination: true, sourceTypes: LIQUID },
           defaults: {
             type: "transfer",
             source_container_id: bankId,
             destination_container_id: account.id,
-            description: `Lent to ${name}`,
+            description: `Paid for ${name}`,
           },
         },
       ];
@@ -111,20 +128,17 @@ export function accountQuickActions(
         {
           id: "pay-bill",
           label: "Pay bill",
+          settle: "card",
           title: `Pay ${name} bill`,
-          notice: `Money leaves ${bankName} and the amount due on ${name} goes down. This is a transfer, not spending — the spending was recorded when you used the card.`,
-          defaults: {
-            type: "transfer",
-            source_container_id: bankId,
-            destination_container_id: account.id,
-            description: `${name} bill payment`,
-          },
+          notice: `Moves money from ${bankName} and lowers the amount due. The purchases were already recorded when you used the card.`,
+          defaults: {},
         },
         {
           id: "card-spend",
-          label: "Card spend",
+          label: "Card purchase",
           title: `Spent on ${name}`,
-          notice: `Counts as your spending and the amount due on ${name} goes up.`,
+          notice: `This is spending on the card. Your bank is not charged yet, and the amount due goes up. Paying the bill later is a separate payment, not another expense.`,
+          lock: { type: true, source: true },
           defaults: {
             type: "expense",
             source_container_id: account.id,

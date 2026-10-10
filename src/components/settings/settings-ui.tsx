@@ -371,7 +371,7 @@ export function SaveBar({
               role="region"
               aria-label="Unsaved changes"
               data-save-bar
-              className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[45] px-3 md:bottom-5 md:left-[var(--app-sidebar-offset)] md:px-8"
+              className="pointer-events-none fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom))] z-[45] px-3 md:bottom-5 md:left-[var(--app-sidebar-offset)] md:px-8"
             >
               <div className="pointer-events-auto mx-auto flex max-w-[40rem] items-center gap-2 rounded-[14px] bg-[var(--ds-background-elevated)] py-2 pl-3.5 pr-2 shadow-[var(--ds-shadow-menu)] ds-border">
                 <p
