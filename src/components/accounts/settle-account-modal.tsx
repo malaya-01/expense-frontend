@@ -275,7 +275,7 @@ export function SettleAccountModal({
               )}
               {funds.map((fund) => (
                 <option key={fund.id} value={fund.id}>
-                  {fund.name} · {formatCurrency(fund.balance, fund.currency)}
+                  {`${fund.name} · ${formatCurrency(fund.balance, fund.currency)}`}
                 </option>
               ))}
             </Select>
