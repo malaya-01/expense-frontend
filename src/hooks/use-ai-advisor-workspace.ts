@@ -109,6 +109,8 @@ export function useAiAdvisorWorkspace() {
   const recognitionRef = useRef<{ stop: () => void } | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
   const lastFocusRefresh = useRef(0);
+  const autoActivateStarted = useRef(false);
+  const [autoActivating, setAutoActivating] = useState(false);
 
   const clearError = useCallback(() => {
     setError("");
@@ -356,9 +358,6 @@ export function useAiAdvisorWorkspace() {
               } else if (event.type === "meta") {
                 setActiveId(event.conversation_id);
               } else if (event.type === "context") {
-                setStatus(
-                  humanizeAdvisorStatus("Finding a free Opal route…"),
-                );
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === streamMsgId
@@ -381,8 +380,19 @@ export function useAiAdvisorWorkspace() {
                 );
               } else if (event.type === "done") {
                 setActiveId(event.conversation_id);
+                const proposalIds = (event.proposals || [])
+                  .map((proposal) => proposal.id)
+                  .filter(Boolean);
+                const message = {
+                  ...event.message,
+                  proposal_ids:
+                    Array.isArray(event.message.proposal_ids) &&
+                    event.message.proposal_ids.length
+                      ? event.message.proposal_ids
+                      : proposalIds,
+                };
                 setMessages((prev) =>
-                  prev.map((m) => (m.id === streamMsgId ? event.message : m)),
+                  prev.map((m) => (m.id === streamMsgId ? message : m)),
                 );
                 setProposals((prev) => {
                   const map = new Map(prev.map((p) => [p.id, p]));
@@ -974,6 +984,29 @@ export function useAiAdvisorWorkspace() {
     }
   }, [clearError, refreshLists, reportError, settings?.providers]);
 
+  // Opal Free needs no key. If nothing is selected yet, turn it on so the
+  // advisor opens ready to chat instead of stopping on the connect screen.
+  useEffect(() => {
+    if (pageLoading || settings?.active_provider || autoActivateStarted.current) {
+      return;
+    }
+    const free = settings?.providers?.find(
+      (provider) =>
+        provider.provider === "omniroute" ||
+        provider.platform_free ||
+        provider.credentials_meta?.no_auth_required,
+    );
+    if (!free) return;
+    autoActivateStarted.current = true;
+    setAutoActivating(true);
+    void activateSavedProvider().finally(() => setAutoActivating(false));
+  }, [
+    activateSavedProvider,
+    pageLoading,
+    settings?.active_provider,
+    settings?.providers,
+  ]);
+
   const pendingProposals = useMemo(() => {
     const map = new Map<string, AiActionProposal>();
     for (const item of pendingGlobal) map.set(item.id, item);
@@ -989,7 +1022,8 @@ export function useAiAdvisorWorkspace() {
     return pendingProposals.filter((p) => allow.has(p.id));
   }, [batchReviewIds, pendingProposals]);
 
-  const needsProvider = !settings?.active_provider;
+  const needsProvider =
+    Boolean(settings) && !settings?.active_provider && !autoActivating;
   const savedProvider =
     settings?.providers.find(
       (provider) =>
@@ -1039,7 +1073,7 @@ export function useAiAdvisorWorkspace() {
     dragActive,
     setDragActive,
     loading,
-    pageLoading,
+    pageLoading: pageLoading || autoActivating,
     streamingId,
     confirming,
     setConfirming,

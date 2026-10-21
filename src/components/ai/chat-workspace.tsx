@@ -52,6 +52,20 @@ import type {
 
 const NEAR_BOTTOM_PX = 96;
 
+function proposalIdsOf(message: AiMessage): string[] {
+  const raw = message.proposal_ids as unknown;
+  if (Array.isArray(raw)) return raw.map((id) => String(id));
+  if (typeof raw === "string" && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map((id) => String(id));
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 export const ChatWorkspace = memo(function ChatWorkspace({
   messages,
   proposals,
@@ -335,7 +349,7 @@ export const ChatWorkspace = memo(function ChatWorkspace({
                     streaming={message.id === streamingId}
                     status={message.id === streamingId ? status : undefined}
                     proposals={proposals.filter((p) =>
-                      (message.proposal_ids || []).includes(p.id),
+                      proposalIdsOf(message).includes(p.id),
                     )}
                     onConfirm={onConfirm}
                     onReject={onReject}
