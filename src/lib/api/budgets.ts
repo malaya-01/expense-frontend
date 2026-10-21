@@ -37,8 +37,10 @@ async function enrich(payload: Partial<CreateBudgetInput>) {
   };
 }
 
-export async function listBudgets(): Promise<Budget[]> {
-  const rows = await budgetsRepo.list();
+export async function listBudgets(options?: {
+  localOnly?: boolean;
+}): Promise<Budget[]> {
+  const rows = await budgetsRepo.list(options);
   return rows.map(normalize);
 }
 

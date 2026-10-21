@@ -16,7 +16,7 @@ import { useGlobalLoader } from "@/components/brand/global-loader";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
 import { parseReceipt } from "@/lib/api/ai";
 import { listAccounts } from "@/lib/api/accounts";
-import { listTransactions } from "@/lib/api/transactions";
+import { hasPaymentReference } from "@/lib/api/transactions";
 import { getErrorMessage } from "@/lib/api/client";
 import { fileToReceiptPayload } from "@/lib/receipts/compress-image";
 import {
@@ -58,7 +58,7 @@ function base64ToFile(payload: SharedReceiptPayload): File | null {
 
 export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
   const { openTransactionModal } = useTransactionModal();
-  const { show: showGlobalLoader } = useGlobalLoader();
+  const { showScan } = useGlobalLoader();
   const { showToast } = useToast();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -66,29 +66,56 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const handlingShareRef = useRef(false);
+  const scanAbortRef = useRef<AbortController | null>(null);
 
   const ingestFile = useCallback(
     async (file: File, sourceContainerId?: string) => {
+      scanAbortRef.current?.abort();
+      const controller = new AbortController();
+      scanAbortRef.current = controller;
       setBusy(true);
-      showGlobalLoader("Reading receipt");
+      setPickerOpen(false);
+      showScan({
+        uploadProgress: 0,
+        onCancel: () => controller.abort(),
+      });
       let previewUrl = "";
       try {
         const payload = await fileToReceiptPayload(file);
         previewUrl = payload.preview_url;
+        showScan({
+          previewUrl: payload.mime_type.startsWith("image/") ? previewUrl : undefined,
+        });
+        // Accounts come from the device cache; load them while the AI reads.
+        const accountsPromise = listAccounts().catch(
+          () => [] as Awaited<ReturnType<typeof listAccounts>>,
+        );
         let parsed: ReceiptParseResult | null = null;
         let notice = "Review the fields before saving.";
         try {
-          parsed = await parseReceipt({
-            name: payload.name,
-            mime_type: payload.mime_type,
-            data_base64: payload.data_base64,
-          });
+          parsed = await parseReceipt(
+            {
+              name: payload.name,
+              mime_type: payload.mime_type,
+              data_base64: payload.data_base64,
+            },
+            {
+              signal: controller.signal,
+              onUploadProgress: (fraction) =>
+                showScan({ uploadProgress: fraction }),
+            },
+          );
           if (parsed.stored && parsed.receipt_id) {
             notice =
               "Review the fields before saving. The scan will be attached to this transaction.";
           }
           if (parsed.warning) notice = parsed.warning;
         } catch (err) {
+          if (controller.signal.aborted) {
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            showToast({ title: "Receipt scan cancelled" });
+            return;
+          }
           notice = getErrorMessage(
             err,
             "Could not read this receipt. Fill the form yourself.",
@@ -110,30 +137,15 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const dupId =
-          parsed?.extracted?.upi_txn_id || parsed?.extracted?.platform_txn_id;
-        if (dupId) {
-          try {
-            const rows = await listTransactions();
-            const dup = rows.some(
-              (row) =>
-                (row.upi_txn_id && row.upi_txn_id === parsed?.extracted.upi_txn_id) ||
-                (row.platform_txn_id &&
-                  row.platform_txn_id === parsed?.extracted.platform_txn_id),
-            );
-            if (dup) {
-              notice = `${notice} This payment reference already exists in your ledger.`;
-            }
-          } catch {
-            /* ignore duplicate lookup failures */
-          }
-        }
-
-        let accounts: Awaited<ReturnType<typeof listAccounts>> = [];
-        try {
-          accounts = await listAccounts();
-        } catch {
-          accounts = [];
+        const [accounts, duplicate] = await Promise.all([
+          accountsPromise,
+          hasPaymentReference(
+            parsed?.extracted?.upi_txn_id,
+            parsed?.extracted?.platform_txn_id,
+          ).catch(() => false),
+        ]);
+        if (duplicate) {
+          notice = `${notice} This payment reference already exists in your ledger.`;
         }
         const forced = sourceContainerId || parsed?.source_container_id || undefined;
 
@@ -158,12 +170,14 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
           tone: "error",
         });
       } finally {
-        setBusy(false);
-        showGlobalLoader(null);
-        setPickerOpen(false);
+        if (scanAbortRef.current === controller) {
+          scanAbortRef.current = null;
+          setBusy(false);
+          showScan(null);
+        }
       }
     },
-    [openTransactionModal, showGlobalLoader, showToast],
+    [openTransactionModal, showScan, showToast],
   );
 
   const startReceiptCapture = useCallback((options?: ReceiptCaptureOptions) => {

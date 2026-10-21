@@ -5,8 +5,9 @@ import { emitTutorialSignal } from "@/lib/tutorial/signals";
 
 export async function listAccounts(
   _userId?: string,
+  options?: { localOnly?: boolean },
 ): Promise<FinancialContainer[]> {
-  const rows = (await accountsRepo.list()) as FinancialContainer[];
+  const rows = (await accountsRepo.list(options)) as FinancialContainer[];
   return personalAccounts(rows);
 }
 

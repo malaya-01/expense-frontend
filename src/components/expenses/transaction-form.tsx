@@ -200,7 +200,8 @@ export function TransactionForm({
 }: TransactionFormProps) {
   const router = useRouter();
   const { showToast } = useToast();
-  const { show: showGlobalLoader } = useGlobalLoader();
+  const { show: showGlobalLoader, showScan } = useGlobalLoader();
+  const scanAbortRef = useRef<AbortController | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [containers, setContainers] = useState<FinancialContainer[]>([]);
   const [error, setError] = useState("");
@@ -909,24 +910,41 @@ export function TransactionForm({
     setVisionSource(null);
     setReceiptNotice("");
     reportReading("Reading receipt");
+    scanAbortRef.current?.abort();
+    const controller = new AbortController();
+    scanAbortRef.current = controller;
+    showScan({ uploadProgress: 0, onCancel: () => controller.abort() });
     let previewUrl = "";
     try {
       const payload = await fileToReceiptPayload(file);
       previewUrl = payload.preview_url;
+      showScan({
+        previewUrl: payload.mime_type.startsWith("image/") ? previewUrl : undefined,
+      });
       let parsed: Awaited<ReturnType<typeof parseReceipt>> | null = null;
       let notice = "Receipt fields filled. Review before saving.";
       try {
-        parsed = await parseReceipt({
-          name: payload.name,
-          mime_type: payload.mime_type,
-          data_base64: payload.data_base64,
-        });
+        parsed = await parseReceipt(
+          {
+            name: payload.name,
+            mime_type: payload.mime_type,
+            data_base64: payload.data_base64,
+          },
+          {
+            signal: controller.signal,
+            onUploadProgress: (fraction) => showScan({ uploadProgress: fraction }),
+          },
+        );
         if (parsed.stored && parsed.receipt_id) {
           notice =
             "Receipt fields filled. The scan will be attached to this transaction.";
         }
         if (parsed.warning) notice = parsed.warning;
       } catch (err) {
+        if (controller.signal.aborted) {
+          if (previewUrl) URL.revokeObjectURL(previewUrl);
+          return;
+        }
         notice = getErrorMessage(
           err,
           "Could not read this receipt. Fill the form yourself.",
@@ -1015,7 +1033,10 @@ export function TransactionForm({
         getErrorMessage(err, "Could not read this receipt. Fill the form yourself."),
       );
     } finally {
-      reportReading(null);
+      if (scanAbortRef.current === controller) {
+        scanAbortRef.current = null;
+        reportReading(null);
+      }
     }
   }
 

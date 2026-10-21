@@ -653,11 +653,27 @@ export async function bulkDecideAiProposals(payload: {
   return unwrap(res);
 }
 
-export async function parseReceipt(payload: {
-  name: string;
-  mime_type: string;
-  data_base64: string;
-}): Promise<ReceiptParseResult> {
-  const res = await api.post("/ai/receipts/parse", payload);
+export async function parseReceipt(
+  payload: {
+    name: string;
+    mime_type: string;
+    data_base64: string;
+  },
+  options?: {
+    signal?: AbortSignal;
+    /** 0–1 as the image uploads. */
+    onUploadProgress?: (fraction: number) => void;
+  },
+): Promise<ReceiptParseResult> {
+  const res = await api.post("/ai/receipts/parse", payload, {
+    signal: options?.signal,
+    // Server reads within ~40 s; leave room for upload on slow mobile data.
+    timeout: 75_000,
+    onUploadProgress: options?.onUploadProgress
+      ? (event) => {
+          if (event.total) options.onUploadProgress?.(event.loaded / event.total);
+        }
+      : undefined,
+  });
   return unwrap<ReceiptParseResult>(res);
 }
