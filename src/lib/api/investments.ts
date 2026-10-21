@@ -96,9 +96,11 @@ function summarize(
   };
 }
 
-export async function listInvestments(): Promise<InvestmentsPayload> {
+export async function listInvestments(options?: {
+  localOnly?: boolean;
+}): Promise<InvestmentsPayload> {
   const baseCurrency = storedBaseCurrency();
-  const holdings = (await investmentsRepo.list()).map((row) =>
+  const holdings = (await investmentsRepo.list(options)).map((row) =>
     normalizeHolding(row, baseCurrency),
   );
   return summarize(holdings, baseCurrency);

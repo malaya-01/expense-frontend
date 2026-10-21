@@ -189,9 +189,31 @@ async function backfillDisplayFields(tx: TxRow): Promise<TxRow> {
   };
 }
 
-export async function listTransactions(): Promise<LedgerTransaction[]> {
-  const rows = (await transactionsRepo.list()) as TxRow[];
+export async function listTransactions(options?: {
+  localOnly?: boolean;
+}): Promise<LedgerTransaction[]> {
+  const rows = (await transactionsRepo.list(options)) as TxRow[];
   return Promise.all(rows.map((tx) => backfillDisplayFields(tx)));
+}
+
+/**
+ * Duplicate check for a scanned payment, against the on-device ledger only
+ * (no network: fetching every transaction slowed each receipt scan).
+ */
+export async function hasPaymentReference(
+  upiTxnId?: string | null,
+  platformTxnId?: string | null,
+): Promise<boolean> {
+  if (!upiTxnId && !platformTxnId) return false;
+  const match = await offlineDb.transactions
+    .filter(
+      (row) =>
+        !row.deleted_at &&
+        ((Boolean(upiTxnId) && row.upi_txn_id === upiTxnId) ||
+          (Boolean(platformTxnId) && row.platform_txn_id === platformTxnId)),
+    )
+    .first();
+  return Boolean(match);
 }
 
 export async function getTransaction(id: string): Promise<LedgerTransaction> {

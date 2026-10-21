@@ -43,8 +43,10 @@ async function enrich(payload: Partial<CreateGoalInput>) {
   };
 }
 
-export async function listGoals(): Promise<Goal[]> {
-  const rows = await goalsRepo.list();
+export async function listGoals(options?: {
+  localOnly?: boolean;
+}): Promise<Goal[]> {
+  const rows = await goalsRepo.list(options);
   return rows.map(normalize);
 }
 

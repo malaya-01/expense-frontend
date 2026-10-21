@@ -26,6 +26,8 @@ import { listBudgets } from "@/lib/api/budgets";
 import { listGoals } from "@/lib/api/goals";
 import { listInvestments } from "@/lib/api/investments";
 import { listTransactions } from "@/lib/api/transactions";
+import { refreshDashboard } from "@/lib/api/dashboard";
+import { isOnline } from "@/lib/offline/network";
 import { summarizeTwin } from "@/lib/accounts/metrics";
 import { getContainerMeta, isLiabilityType } from "@/lib/accounts/types-meta";
 import { useAuth } from "@/lib/auth-context";
@@ -65,20 +67,19 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!ready || !user?.id) return;
     let alive = true;
-    const load = async (showSpinner: boolean) => {
-      if (showSpinner) setLoading(true);
-      void import("@/lib/offline/sync-engine").then(({ bootstrapOfflineSync }) =>
-        bootstrapOfflineSync(user.id).catch(() => undefined),
-      );
-      if (!alive) return;
+    const userId = user.id;
+    // Paint from the device cache: no network, so this is instant.
+    // (localOnly false = the old per-list calls, for a server without /dashboard.)
+    const readLocal = async (localOnly = true) => {
+      const local = { localOnly };
       const results = await Promise.allSettled([
-        listTransactions(),
-        listAccounts(user.id),
-        listBudgets(),
-        listGoals(),
-        listInvestments(),
+        listTransactions(local),
+        listAccounts(userId, local),
+        listBudgets(local),
+        listGoals(local),
+        listInvestments(local),
       ]);
-      if (!alive) return;
+      if (!alive) return false;
       const [tx, account, budget, goal, investment] = results;
       if (tx.status === "fulfilled") setTransactions(tx.value);
       if (account.status === "fulfilled") setContainers(account.value);
@@ -87,19 +88,63 @@ export default function DashboardPage() {
       if (investment.status === "fulfilled") {
         setInvestSummary(investment.value.summary);
       }
-      setLoadError(results.some((result) => result.status === "rejected"));
-      setLoading(false);
+      return (
+        (tx.status === "fulfilled" && tx.value.length > 0) ||
+        (account.status === "fulfilled" && account.value.length > 0)
+      );
     };
-    void load(true);
-    const onRefresh = () => void load(false);
-    window.addEventListener("finos:sync-complete", onRefresh);
-    window.addEventListener("finos:data-updated", onRefresh);
-    window.addEventListener(TRANSACTION_CREATED_EVENT, onRefresh);
+
+    // One /dashboard request refreshes the cache, then repaint from it.
+    let refreshing: Promise<void> | null = null;
+    const refresh = () => {
+      if (!isOnline()) return Promise.resolve();
+      if (refreshing) return refreshing;
+      refreshing = refreshDashboard()
+        .then(async ({ failed }) => {
+          if (!alive) return;
+          await readLocal();
+          setLoadError(failed.length > 0);
+        })
+        .catch(async (error) => {
+          if (!alive) return;
+          if ((error as { response?: { status?: number } })?.response?.status === 404) {
+            await readLocal(false);
+            return;
+          }
+          setLoadError(true);
+        })
+        .finally(() => {
+          refreshing = null;
+          if (alive) setLoading(false);
+        });
+      return refreshing;
+    };
+
+    void (async () => {
+      const hasCache = await readLocal();
+      if (!alive) return;
+      if (hasCache || !isOnline()) setLoading(false);
+      await refresh();
+      if (alive) setLoading(false);
+    })();
+
+    // Server-side figures (budget progress, balances) change after a save or
+    // sync; other cache updates only need a local repaint.
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    const onRemoteChange = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => void refresh(), 400);
+    };
+    const onLocalChange = () => void readLocal();
+    window.addEventListener("finos:sync-complete", onRemoteChange);
+    window.addEventListener(TRANSACTION_CREATED_EVENT, onRemoteChange);
+    window.addEventListener("finos:data-updated", onLocalChange);
     return () => {
       alive = false;
-      window.removeEventListener("finos:sync-complete", onRefresh);
-      window.removeEventListener("finos:data-updated", onRefresh);
-      window.removeEventListener(TRANSACTION_CREATED_EVENT, onRefresh);
+      if (refreshTimer) clearTimeout(refreshTimer);
+      window.removeEventListener("finos:sync-complete", onRemoteChange);
+      window.removeEventListener(TRANSACTION_CREATED_EVENT, onRemoteChange);
+      window.removeEventListener("finos:data-updated", onLocalChange);
     };
   }, [ready, user?.id]);
 

@@ -1,6 +1,11 @@
-/** Compress a receipt photo so it fits the API body without storing the file. */
-const MAX_EDGE = 1400;
-const JPEG_QUALITY = 0.72;
+/**
+ * Compress a receipt photo so it fits the API body without storing the file.
+ * Sized for OCR: 1400px / q0.72 made long thermal receipts (e.g. 1000x4000)
+ * about 350px wide, too small for the model to read totals and dates.
+ */
+const MAX_EDGE = 2200;
+const MAX_PIXELS = 2_400_000;
+const JPEG_QUALITY = 0.82;
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -40,7 +45,11 @@ export async function fileToReceiptPayload(file: File): Promise<{
 
   try {
     const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(
+      1,
+      MAX_EDGE / Math.max(bitmap.width, bitmap.height),
+      Math.sqrt(MAX_PIXELS / (bitmap.width * bitmap.height)),
+    );
     const width = Math.max(1, Math.round(bitmap.width * scale));
     const height = Math.max(1, Math.round(bitmap.height * scale));
     const canvas = document.createElement("canvas");

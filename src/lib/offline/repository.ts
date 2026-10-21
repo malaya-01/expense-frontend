@@ -98,7 +98,8 @@ export function createRepository<T extends SyncedRecord>(
     if (next.length) await table.bulkPut(next);
   }
 
-  async function list(): Promise<T[]> {
+  /** `localOnly`: device cache only, no background refresh from the server. */
+  async function list(options?: { localOnly?: boolean }): Promise<T[]> {
     const readLocal = async () =>
       activeOnly(
         (await offlineDb.table(config.table).toArray()) as T[],
@@ -111,7 +112,9 @@ export function createRepository<T extends SyncedRecord>(
       );
 
     const local = await readLocal();
-    if (!isOnline() || isHydrateFresh(config.table)) return local;
+    if (options?.localOnly || !isOnline() || isHydrateFresh(config.table)) {
+      return local;
+    }
 
     const refresh = runHydrate(config.table, hydrateFromRemote);
     if (!local.length) {

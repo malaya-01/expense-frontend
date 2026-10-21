@@ -926,10 +926,17 @@ export async function bootstrapOfflineSync(userId?: string | null): Promise<void
         (await offlineDb.accounts.count()) +
           (await offlineDb.transactions.count()) >
         0;
-      const hydrate = hydrateViaRestLists().catch(() => undefined);
-      // Only block first paint when the device has nothing to show yet.
-      if (!hasLocal) await hydrate;
-      else void hydrate;
+      // With a pull cursor the boot sync below fetches only what changed;
+      // re-downloading 8 full lists on every app open was the bulk of the
+      // startup requests. Pages still refresh their own server-computed data.
+      const canPullDelta =
+        hasLocal && !useRestFallback && Boolean(await getMeta("pull_cursor"));
+      if (!canPullDelta) {
+        const hydrate = hydrateViaRestLists().catch(() => undefined);
+        // Only block first paint when the device has nothing to show yet.
+        if (!hasLocal) await hydrate;
+        else void hydrate;
+      }
       await restoreDurableBackup(userId, { restoreEntities: false });
     } else {
       const result = await restoreDurableBackup(userId);
