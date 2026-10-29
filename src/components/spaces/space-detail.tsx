@@ -43,6 +43,8 @@ import {
   createSpaceExpense,
   createSpaceGoal,
   createSpaceSettlement,
+  deleteSpaceExpense,
+  deleteSpaceSettlement,
   getSpaceDashboard,
   getSpaceReports,
   inviteToSpace,
@@ -50,10 +52,14 @@ import {
   moveSpaceWallet,
   removeSpaceMember,
   setSpaceFavorite,
+  updateSpaceExpense,
   updateSpaceMemberRole,
   type SpaceDashboard,
+  type SpaceExpense,
   type SpaceMember,
 } from "@/lib/api/spaces";
+import { previewPositions, type SplitMethod } from "@/lib/spaces/split";
+import { fileToReceiptPayload } from "@/lib/receipts/compress-image";
 import { enqueueSpaceDraft } from "@/lib/spaces/offline-outbox";
 
 type Tab =
@@ -95,13 +101,25 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
 
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
+  const [expenseDate, setExpenseDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [notes, setNotes] = useState("");
   const [payerId, setPayerId] = useState("");
-  const [splitMethod, setSplitMethod] = useState<
-    "equal" | "exact" | "percentage" | "shares"
-  >("equal");
+  const [multiPayer, setMultiPayer] = useState(false);
+  const [payerAmounts, setPayerAmounts] = useState<Record<string, string>>({});
+  const [splitMethod, setSplitMethod] = useState<SplitMethod>("equal");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-  // Per-participant exact amount / percent / share weight for non-equal splits.
   const [shareValues, setShareValues] = useState<Record<string, string>>({});
+  const [lineItems, setLineItems] = useState<
+    Array<{ name: string; amount: string; memberIds: string[] }>
+  >([{ name: "", amount: "", memberIds: [] }]);
+  const [receiptFile, setReceiptFile] = useState<{
+    name: string;
+    mime_type: string;
+    data_base64: string;
+  } | null>(null);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [linkPersonal, setLinkPersonal] = useState(false);
   const [personalContainerId, setPersonalContainerId] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
@@ -147,51 +165,151 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
   const currency = data?.space.currency || "USD";
   const accent = data?.space.color || "var(--ds-status-blue)";
 
-  function splitError(total: number): string | null {
-    if (!(total > 0)) return "Enter an amount greater than zero.";
-    if (!selectedMembers.length) return "Select at least one participant.";
-    if (splitMethod === "equal") return null;
-    const values = selectedMembers.map((id) => Number(shareValues[id] || 0));
-    if (values.some((v) => !Number.isFinite(v) || v < 0)) {
-      return "Split values cannot be negative.";
+  const preview = useMemo(() => {
+    const total = Number(amount);
+    const payers = multiPayer
+      ? Object.entries(payerAmounts)
+          .filter(([, value]) => Number(value) > 0)
+          .map(([memberId, value]) => ({ memberId, amount: Number(value) }))
+      : payerId
+        ? [{ memberId: payerId, amount: total }]
+        : [];
+    return previewPositions({
+      method: splitMethod,
+      total,
+      participantIds: selectedMembers,
+      shareValues,
+      payers,
+      items: lineItems.map((item) => ({
+        amount: Number(item.amount || 0),
+        memberIds: item.memberIds,
+      })),
+    });
+  }, [
+    amount,
+    lineItems,
+    multiPayer,
+    payerAmounts,
+    payerId,
+    selectedMembers,
+    shareValues,
+    splitMethod,
+  ]);
+
+  const actorPaid = data
+    ? preview.rows.find((row) => row.memberId === data.membership.id)?.paid || 0
+    : 0;
+
+  function resetExpenseForm() {
+    setTitle("");
+    setAmount("");
+    setNotes("");
+    setExpenseDate(new Date().toISOString().slice(0, 10));
+    setSplitMethod("equal");
+    setShareValues({});
+    setMultiPayer(false);
+    setPayerAmounts({});
+    setLineItems([{ name: "", amount: "", memberIds: [] }]);
+    setReceiptFile(null);
+    setEditingExpenseId(null);
+    setLinkPersonal(false);
+    if (data) {
+      setPayerId(data.membership.id);
+      setSelectedMembers(data.members.map((m) => m.id));
     }
-    const sum = values.reduce((a, b) => a + b, 0);
-    if (splitMethod === "exact" && Math.abs(sum - total) > 0.01) {
-      return `Exact amounts must add up to ${total.toFixed(2)} (currently ${sum.toFixed(2)}).`;
+  }
+
+  function openExpense(expense?: SpaceExpense) {
+    if (!data) return;
+    if (!expense) {
+      resetExpenseForm();
+      setExpenseOpen(true);
+      return;
     }
-    if (splitMethod === "percentage" && Math.abs(sum - 100) > 0.01) {
-      return `Percentages must add up to 100 (currently ${sum.toFixed(2)}).`;
-    }
-    if (splitMethod === "shares" && !(sum > 0)) {
-      return "Give at least one participant a share.";
-    }
-    return null;
+    setEditingExpenseId(expense.id);
+    setTitle(expense.title);
+    setAmount(String(expense.amount));
+    setExpenseDate(expense.expense_date || new Date().toISOString().slice(0, 10));
+    setNotes(expense.notes || "");
+    setSplitMethod((expense.split_method as SplitMethod) || "equal");
+    const payers = expense.payers?.length
+      ? expense.payers
+      : [{ member_id: expense.payer_member_id, paid_amount: expense.amount }];
+    setPayerId(payers[0]?.member_id || data.membership.id);
+    setMultiPayer(payers.length > 1);
+    setPayerAmounts(
+      Object.fromEntries(payers.map((p) => [p.member_id, String(p.paid_amount)])),
+    );
+    setSelectedMembers(expense.splits.map((s) => s.member_id));
+    setShareValues(
+      Object.fromEntries(
+        expense.splits.map((s) => [s.member_id, String(s.share_value ?? s.owed_amount)]),
+      ),
+    );
+    setLineItems(
+      expense.line_items?.length
+        ? expense.line_items.map((item) => ({
+            name: item.name || "",
+            amount: String(item.amount),
+            memberIds: item.member_ids || [],
+          }))
+        : [{ name: "", amount: "", memberIds: [] }],
+    );
+    setReceiptFile(null);
+    setLinkPersonal(false);
+    setExpenseOpen(true);
   }
 
   async function onCreateExpense(e?: FormEvent) {
     e?.preventDefault();
     if (!data || !title.trim() || !amount) return;
-    const total = Number(amount);
-    const invalid = splitError(total);
-    if (invalid) {
-      showToast({ title: "Check the split", description: invalid, tone: "warning" });
+    if (preview.error) {
+      showToast({ title: "Check the split", description: preview.error, tone: "warning" });
       return;
     }
+    const total = Number(amount);
     setBusy(true);
+    const payers = multiPayer
+      ? Object.entries(payerAmounts)
+          .filter(([, value]) => Number(value) > 0)
+          .map(([member_id, value]) => ({
+            member_id,
+            paid_amount: Number(value),
+          }))
+      : undefined;
     const payload = {
       title: title.trim(),
       amount: total,
+      expense_date: expenseDate,
+      notes: notes.trim() || undefined,
       payer_member_id: payerId,
+      payers,
       split_method: splitMethod,
-      participants: selectedMembers.map((member_id) =>
-        splitMethod === "equal"
-          ? { member_id }
-          : { member_id, share_value: Number(shareValues[member_id] || 0) },
-      ),
-      link_to_personal: linkPersonal,
-      personal_container_id: linkPersonal
-        ? personalContainerId || undefined
-        : undefined,
+      participants:
+        splitMethod === "itemized"
+          ? undefined
+          : selectedMembers.map((member_id) =>
+              splitMethod === "equal"
+                ? { member_id }
+                : { member_id, share_value: Number(shareValues[member_id] || 0) },
+            ),
+      line_items:
+        splitMethod === "itemized"
+          ? lineItems.map((item) => ({
+              name: item.name.trim() || undefined,
+              amount: Number(item.amount),
+              member_ids: item.memberIds,
+            }))
+          : undefined,
+      receipt_name: receiptFile?.name,
+      receipt_mime_type: receiptFile?.mime_type,
+      receipt_base64: receiptFile?.data_base64,
+      link_to_personal: Boolean(editingExpenseId) ? false : linkPersonal,
+      personal_container_id:
+        !editingExpenseId && linkPersonal
+          ? personalContainerId || undefined
+          : undefined,
+      client_op_id: editingExpenseId ? undefined : `expense-${Date.now()}`,
     };
     try {
       if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -210,7 +328,25 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
         return;
       }
       try {
-        await createSpaceExpense(spaceId, payload);
+        const saved = editingExpenseId
+          ? await updateSpaceExpense(spaceId, editingExpenseId, payload)
+          : await createSpaceExpense(spaceId, payload);
+        const effect = saved?.ledger_effect;
+        showToast({
+          title: editingExpenseId ? "Expense updated" : "Expense added",
+          description: effect
+            ? `Your account is down ${formatCurrency(effect.paid || 0, currency)}. ${
+                effect.receivable
+                  ? `${formatCurrency(effect.receivable, currency)} is waiting from the others.`
+                  : "Nothing is waiting back."
+              }`
+            : "The group balance is updated. No personal account was changed.",
+          tone: "success",
+        });
+        setExpenseOpen(false);
+        resetExpenseForm();
+        await refresh();
+        return;
       } catch (err) {
         // Only queue when the server never processed the request; validation
         // errors would otherwise sit in the outbox and never sync.
@@ -229,12 +365,6 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
         setExpenseOpen(false);
         return;
       }
-      setExpenseOpen(false);
-      setTitle("");
-      setAmount("");
-      setShareValues({});
-      showToast({ title: "Expense added", tone: "success" });
-      await refresh();
     } catch (err) {
       showToast({
         title: "Expense failed",
@@ -348,7 +478,7 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
             <Users size={14} />
             Invite
           </Button>
-          <Button size="sm" onClick={() => setExpenseOpen(true)}>
+          <Button size="sm" onClick={() => openExpense()}>
             <Plus size={14} />
             Add expense
           </Button>
@@ -442,6 +572,40 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
             />
           </div>
 
+          <Panel
+            title="Who owes whom"
+            action={
+              <Button size="sm" variant="secondary" onClick={() => setTab("settle")}>
+                Settle
+              </Button>
+            }
+          >
+            {data.suggested_settlements.length ? (
+              <ul className="space-y-2">
+                {data.suggested_settlements.map((s, idx) => (
+                  <li
+                    key={`${s.from_member_id}-${s.to_member_id}-${idx}`}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span className="min-w-0 truncate text-[var(--ds-gray-1000)]">
+                      {memberName(s.from_member_id)} pays {memberName(s.to_member_id)}
+                    </span>
+                    <span className="shrink-0 font-semibold tabular-nums">
+                      {formatCurrency(s.amount, currency)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-[var(--ds-gray-700)]">
+                Everyone is settled. New shared bills will show the shortest way to pay each other back.
+              </p>
+            )}
+            <p className="mt-3 text-xs text-[var(--ds-gray-700)]">
+              These are suggestions. A balance changes only when a settlement is recorded. Paying outside the app does not, until someone records it here.
+            </p>
+          </Panel>
+
           <div className="grid gap-3 lg:grid-cols-5">
             <Panel className="lg:col-span-3" title="Recent activity">
               {data.activity.length ? (
@@ -512,7 +676,9 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
         <ExpensesPanel
           data={data}
           memberName={memberName}
-          onAdd={() => setExpenseOpen(true)}
+          onAdd={() => openExpense()}
+          onEdit={(expense) => openExpense(expense)}
+          onChanged={refresh}
         />
       ) : null}
 
@@ -555,7 +721,7 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
       <Modal
         open={expenseOpen}
         onClose={() => setExpenseOpen(false)}
-        title="Add shared expense"
+        title={editingExpenseId ? "Edit shared expense" : "Add shared expense"}
         className="max-w-lg"
         footer={
           <>
@@ -569,6 +735,9 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
         }
       >
         <form className="space-y-4" onSubmit={onCreateExpense}>
+          <p className="text-xs text-[var(--ds-gray-700)]">
+            The space keeps who paid and who owes. A personal account changes only if you authorize it below.
+          </p>
           <div>
             <Label>Title</Label>
             <Input
@@ -591,7 +760,39 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
               />
             </div>
             <div>
-              <Label>Paid by</Label>
+              <Label>Date</Label>
+              <Input
+                type="date"
+                value={expenseDate}
+                onChange={(e) => setExpenseDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <div>
+            <Label>Paid by</Label>
+            {multiPayer ? (
+              <div className="mt-1.5 space-y-1">
+                {data.members.map((m) => (
+                  <label key={m.id} className="flex items-center gap-2 text-xs">
+                    <span className="min-w-0 flex-1 truncate">
+                      {m.display_name || m.full_name || m.email}
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      placeholder="Paid"
+                      className="w-28 rounded-[8px] border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] bg-transparent px-2 py-1 text-base sm:text-xs"
+                      value={payerAmounts[m.id] ?? ""}
+                      onChange={(e) =>
+                        setPayerAmounts((prev) => ({ ...prev, [m.id]: e.target.value }))
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+            ) : (
               <Select value={payerId} onChange={(e) => setPayerId(e.target.value)}>
                 {data.members.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -599,94 +800,254 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
                   </option>
                 ))}
               </Select>
-            </div>
+            )}
+            <button
+              type="button"
+              className="mt-1 text-xs text-[var(--ds-gray-700)] underline-offset-2 hover:underline"
+              onClick={() => {
+                setMultiPayer((on) => !on);
+                if (!multiPayer && payerId) {
+                  setPayerAmounts({ [payerId]: amount });
+                }
+              }}
+            >
+              {multiPayer ? "One person paid" : "More than one person paid"}
+            </button>
           </div>
           <div>
-            <Label>Split method</Label>
+            <Label>Split</Label>
             <Select
               value={splitMethod}
-              onChange={(e) => setSplitMethod(e.target.value as any)}
+              onChange={(e) => setSplitMethod(e.target.value as SplitMethod)}
             >
               <option value="equal">Equal</option>
               <option value="exact">Exact amount</option>
               <option value="percentage">Percentage</option>
               <option value="shares">Shares</option>
+              <option value="itemized">By receipt line</option>
             </Select>
           </div>
-          <div>
-            <Label>Participants</Label>
-            <div className="mt-1.5 max-h-40 space-y-1 overflow-y-auto rounded-[10px] border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] p-2">
-              {data.members.map((m) => {
-                const checked = selectedMembers.includes(m.id);
-                return (
-                  <label
-                    key={m.id}
-                    className="flex cursor-pointer items-center gap-2 rounded-[8px] px-2 py-1.5 text-xs hover:bg-[var(--ds-gray-100)]"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() =>
-                        setSelectedMembers((prev) =>
-                          checked
-                            ? prev.filter((id) => id !== m.id)
-                            : [...prev, m.id],
+          {splitMethod === "itemized" ? (
+            <div className="space-y-2">
+              <Label>Receipt lines</Label>
+              {lineItems.map((item, index) => (
+                <div
+                  key={index}
+                  className="space-y-2 rounded-[10px] border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] p-2"
+                >
+                  <div className="grid grid-cols-[1fr_6.5rem] gap-2">
+                    <Input
+                      value={item.name}
+                      placeholder="Item"
+                      onChange={(e) =>
+                        setLineItems((prev) =>
+                          prev.map((row, i) =>
+                            i === index ? { ...row, name: e.target.value } : row,
+                          ),
                         )
                       }
                     />
-                    <span className="min-w-0 flex-1 truncate">
-                      {m.display_name || m.full_name || m.email}
-                    </span>
-                    {checked && splitMethod !== "equal" ? (
+                    <Input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      placeholder="Amount"
+                      value={item.amount}
+                      onChange={(e) =>
+                        setLineItems((prev) =>
+                          prev.map((row, i) =>
+                            i === index ? { ...row, amount: e.target.value } : row,
+                          ),
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {data.members.map((m) => {
+                      const on = item.memberIds.includes(m.id);
+                      const label = m.display_name || m.full_name || m.email || "Member";
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          className={cn(
+                            "rounded-full px-2 py-1 text-[11px]",
+                            on
+                              ? "bg-[var(--ds-gray-1000)] text-[var(--ds-background)]"
+                              : "bg-[var(--ds-background-100)] text-[var(--ds-gray-700)]",
+                          )}
+                          onClick={() =>
+                            setLineItems((prev) =>
+                              prev.map((row, i) =>
+                                i === index
+                                  ? {
+                                      ...row,
+                                      memberIds: on
+                                        ? row.memberIds.filter((id) => id !== m.id)
+                                        : [...row.memberIds, m.id],
+                                    }
+                                  : row,
+                              ),
+                            )
+                          }
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() =>
+                  setLineItems((prev) => [...prev, { name: "", amount: "", memberIds: [] }])
+                }
+              >
+                Add line
+              </Button>
+            </div>
+          ) : (
+            <div>
+              <Label>Who shares it</Label>
+              <p className="mb-1 text-[11px] text-[var(--ds-gray-700)]">
+                Leave someone out if they were not part of this bill. The person who paid can be left out too.
+              </p>
+              <div className="max-h-40 space-y-1 overflow-y-auto rounded-[10px] border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] p-2">
+                {data.members.map((m) => {
+                  const checked = selectedMembers.includes(m.id);
+                  const label = m.display_name || m.full_name || m.email;
+                  return (
+                    <label
+                      key={m.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-[8px] px-2 py-1.5 text-xs hover:bg-[var(--ds-gray-100)]"
+                    >
                       <input
-                        type="number"
-                        inputMode="decimal"
-                        min="0"
-                        step="0.01"
-                        aria-label={`${splitMethod} for ${m.display_name || m.full_name || m.email}`}
-                        placeholder={
-                          splitMethod === "exact"
-                            ? "Amount"
-                            : splitMethod === "percentage"
-                              ? "%"
-                              : "Shares"
-                        }
-                        className="w-24 rounded-[8px] border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] bg-transparent px-2 py-1 text-base sm:text-xs"
-                        value={shareValues[m.id] ?? ""}
-                        onClick={(e) => e.preventDefault()}
-                        onChange={(e) =>
-                          setShareValues((prev) => ({
-                            ...prev,
-                            [m.id]: e.target.value,
-                          }))
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setSelectedMembers((prev) =>
+                            checked ? prev.filter((id) => id !== m.id) : [...prev, m.id],
+                          )
                         }
                       />
-                    ) : null}
-                  </label>
-                );
-              })}
+                      <span className="min-w-0 flex-1 truncate">{label}</span>
+                      {checked && splitMethod !== "equal" ? (
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          step="0.01"
+                          aria-label={`${splitMethod} for ${label}`}
+                          placeholder={
+                            splitMethod === "exact"
+                              ? "Amount"
+                              : splitMethod === "percentage"
+                                ? "%"
+                                : "Shares"
+                          }
+                          className="w-24 rounded-[8px] border border-[color:color-mix(in_srgb,var(--ds-gray-1000)_12%,transparent)] bg-transparent px-2 py-1 text-base sm:text-xs"
+                          value={shareValues[m.id] ?? ""}
+                          onClick={(e) => e.preventDefault()}
+                          onChange={(e) =>
+                            setShareValues((prev) => ({ ...prev, [m.id]: e.target.value }))
+                          }
+                        />
+                      ) : null}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-          <label className="flex items-center gap-2 text-xs text-[var(--ds-gray-900)]">
-            <input
-              type="checkbox"
-              checked={linkPersonal}
-              onChange={(e) => setLinkPersonal(e.target.checked)}
+          )}
+          {preview.rows.length ? (
+            <div className="rounded-[10px] bg-[var(--ds-background-100)] px-3 py-2 text-xs">
+              <p className="font-medium text-[var(--ds-gray-1000)]">This bill</p>
+              <ul className="mt-1 space-y-1">
+                {preview.rows.map((row) => (
+                  <li key={row.memberId} className="flex justify-between gap-2">
+                    <span className="truncate">{memberName(row.memberId)}</span>
+                    <span className="shrink-0 tabular-nums text-[var(--ds-gray-700)]">
+                      {row.net > 0.009
+                        ? `gets back ${formatCurrency(row.net, currency)}`
+                        : row.net < -0.009
+                          ? `owes ${formatCurrency(Math.abs(row.net), currency)}`
+                          : `share ${formatCurrency(row.share, currency)}`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : preview.error && amount ? (
+            <p className="text-xs text-[var(--ds-status-orange)]">{preview.error}</p>
+          ) : null}
+          <div>
+            <Label>Notes</Label>
+            <Input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Optional"
             />
-            Link my share to a personal account
-          </label>
-          {linkPersonal ? (
-            <Select
-              value={personalContainerId}
-              onChange={(e) => setPersonalContainerId(e.target.value)}
-            >
-              <option value="">Select account</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </Select>
+          </div>
+          <div>
+            <Label>Receipt</Label>
+            <Input
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) {
+                  setReceiptFile(null);
+                  return;
+                }
+                void fileToReceiptPayload(file)
+                  .then((payload) =>
+                    setReceiptFile({
+                      name: payload.name,
+                      mime_type: payload.mime_type,
+                      data_base64: payload.data_base64,
+                    }),
+                  )
+                  .catch((err) =>
+                    showToast({
+                      title: "Receipt not added",
+                      description: err instanceof Error ? err.message : "Try a smaller photo",
+                      tone: "warning",
+                    }),
+                  );
+              }}
+            />
+          </div>
+          {!editingExpenseId && actorPaid > 0 ? (
+            <>
+              <label className="flex items-start gap-2 text-xs text-[var(--ds-gray-900)]">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={linkPersonal}
+                  onChange={(e) => setLinkPersonal(e.target.checked)}
+                />
+                <span>
+                  Record the {formatCurrency(actorPaid, currency)} I paid on my account.
+                  What the others owe is kept as money owed to me, and comes back to this account when they settle.
+                </span>
+              </label>
+              {linkPersonal ? (
+                <Select
+                  value={personalContainerId}
+                  onChange={(e) => setPersonalContainerId(e.target.value)}
+                >
+                  <option value="">Account the money left</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </Select>
+              ) : null}
+            </>
           ) : null}
         </form>
       </Modal>
@@ -760,10 +1121,14 @@ function ExpensesPanel({
   data,
   memberName,
   onAdd,
+  onEdit,
+  onChanged,
 }: {
   data: SpaceDashboard;
   memberName: (id: string) => string;
   onAdd: () => void;
+  onEdit: (expense: SpaceExpense) => void;
+  onChanged: () => Promise<void>;
 }) {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -777,6 +1142,9 @@ function ExpensesPanel({
   }, [data.space.id, data.metrics.total_spent]);
 
   const list = useInfiniteList(expenses, { pageSize: 20 });
+  const { showToast } = useToast();
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   return (
     <Panel
@@ -806,14 +1174,83 @@ function ExpensesPanel({
                     {expense.title}
                   </p>
                   <p className="mt-1 text-xs text-[var(--ds-gray-700)]">
-                    Paid by {memberName(expense.payer_member_id)} ·{" "}
-                    <span className="capitalize">{expense.split_method}</span> ·{" "}
+                    Paid by{" "}
+                    {(expense.payers?.length
+                      ? expense.payers
+                      : [
+                          {
+                            member_id: expense.payer_member_id,
+                            paid_amount: expense.amount,
+                          },
+                        ]
+                    )
+                      .map(
+                        (p: { member_id: string; paid_amount: number }) =>
+                          `${memberName(p.member_id)} ${formatCurrency(Number(p.paid_amount), data.space.currency)}`,
+                      )
+                      .join(", ")}{" "}
+                    · <span className="capitalize">{expense.split_method}</span> ·{" "}
                     {expense.expense_date}
                   </p>
                 </div>
                 <p className="shrink-0 text-sm font-semibold tabular-nums text-[var(--ds-gray-1000)]">
                   {formatCurrency(Number(expense.amount), data.space.currency)}
                 </p>
+              </div>
+              {expense.splits?.length ? (
+                <ul className="mt-2 space-y-1">
+                  {expense.splits.map((split: { member_id: string; owed_amount: number }) => {
+                    const paid =
+                      expense.payers?.find(
+                        (p: { member_id: string }) => p.member_id === split.member_id,
+                      )?.paid_amount ||
+                      (expense.payer_member_id === split.member_id && !expense.payers?.length
+                        ? Number(expense.amount)
+                        : 0);
+                    const net = Number(paid) - Number(split.owed_amount);
+                    return (
+                      <li
+                        key={split.member_id}
+                        className="flex justify-between gap-2 text-xs text-[var(--ds-gray-700)]"
+                      >
+                        <span className="truncate">{memberName(split.member_id)}</span>
+                        <span className="shrink-0 tabular-nums">
+                          share {formatCurrency(Number(split.owed_amount), data.space.currency)}
+                          {net > 0.009
+                            ? ` · gets back ${formatCurrency(net, data.space.currency)}`
+                            : net < -0.009
+                              ? ` · owes ${formatCurrency(Math.abs(net), data.space.currency)}`
+                              : ""}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+              {(expense.payers || [])
+                .filter(
+                  (p: { member_id: string }) =>
+                    !expense.splits?.some(
+                      (s: { member_id: string }) => s.member_id === p.member_id,
+                    ),
+                )
+                .map((p: { member_id: string; paid_amount: number }) => (
+                  <p key={p.member_id} className="mt-1 text-xs text-[var(--ds-gray-700)]">
+                    {memberName(p.member_id)} paid and does not share it · gets back{" "}
+                    {formatCurrency(Number(p.paid_amount), data.space.currency)}
+                  </p>
+                ))}
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" variant="secondary" onClick={() => onEdit(expense)}>
+                  Edit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setPendingDelete(expense.id)}
+                >
+                  Delete
+                </Button>
               </div>
             </li>
           ))}
@@ -822,6 +1259,33 @@ function ExpensesPanel({
           hasMore={list.hasMore}
           loading={list.loadingMore}
           onLoadMore={list.loadMore}
+        />
+        <ConfirmDialog
+          open={Boolean(pendingDelete)}
+          title="Delete this bill?"
+          description="The group balance drops this bill. Any account postings that were authorized for it are reversed too."
+          confirmLabel="Delete bill"
+          destructive
+          busy={deleting}
+          onClose={() => setPendingDelete(null)}
+          onConfirm={() => {
+            if (!pendingDelete) return;
+            setDeleting(true);
+            void deleteSpaceExpense(data.space.id, pendingDelete)
+              .then(async () => {
+                setPendingDelete(null);
+                showToast({ title: "Bill removed", tone: "success" });
+                await onChanged();
+              })
+              .catch((err) =>
+                showToast({
+                  title: "Could not delete",
+                  description: getErrorMessage(err, "Try again"),
+                  tone: "error",
+                }),
+              )
+              .finally(() => setDeleting(false));
+          }}
         />
         </>
       ) : (
@@ -901,7 +1365,7 @@ function SettlePanel({
               </span>
               <span
                 className={cn(
-                  "text-sm font-semibold tabular-nums",
+                  "text-right text-sm font-semibold tabular-nums",
                   b.net > 0
                     ? "text-[var(--ds-status-green)]"
                     : b.net < 0
@@ -909,7 +1373,11 @@ function SettlePanel({
                       : "text-[var(--ds-gray-700)]",
                 )}
               >
-                {formatCurrency(b.net, data.space.currency)}
+                {b.net > 0.009
+                  ? `gets back ${formatCurrency(b.net, data.space.currency)}`
+                  : b.net < -0.009
+                    ? `owes ${formatCurrency(Math.abs(b.net), data.space.currency)}`
+                    : "settled"}
               </span>
             </li>
           ))}
@@ -979,15 +1447,26 @@ function SettlePanel({
               onChange={(e) => setAmount(e.target.value)}
             />
           </div>
-          <label className="flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
-              checked={linkPersonal}
-              onChange={(e) => setLinkPersonal(e.target.checked)}
-            />
-            Pay from personal account
-          </label>
-          {linkPersonal ? (
+          {fromId === data.membership.id || toId === data.membership.id ? (
+            <label className="flex items-start gap-2 text-xs">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={linkPersonal}
+                onChange={(e) => setLinkPersonal(e.target.checked)}
+              />
+              <span>
+                {fromId === data.membership.id
+                  ? "Take this out of my account. I am paying them."
+                  : "Add this to my account. If this space already shows money owed to me, that receivable goes down by the same amount."}
+              </span>
+            </label>
+          ) : (
+            <p className="text-xs text-[var(--ds-gray-700)]">
+              The group balance updates either way. A personal account changes only for the person paying or the person receiving, and only if they choose it.
+            </p>
+          )}
+          {linkPersonal && (fromId === data.membership.id || toId === data.membership.id) ? (
             <Select
               value={containerId}
               onChange={(e) => setContainerId(e.target.value)}
@@ -1013,17 +1492,38 @@ function SettlePanel({
                 return;
               }
               setBusy(true);
+              const actorSide =
+                fromId === data.membership.id || toId === data.membership.id;
               void createSpaceSettlement(spaceId, {
                 from_member_id: fromId,
                 to_member_id: toId,
                 amount: Number(amount),
-                link_to_personal: linkPersonal,
-                personal_container_id: linkPersonal ? containerId : undefined,
+                link_to_personal: actorSide && linkPersonal,
+                personal_container_id:
+                  actorSide && linkPersonal ? containerId : undefined,
+                client_op_id: `settlement-${Date.now()}`,
               })
-                .then(() => {
-                  // Clear so the same settlement isn't recorded twice by accident.
+                .then((saved: {
+                  ledger_effect?: { direction?: string; amount?: number } | null;
+                  counterparty_collected?: boolean;
+                }) => {
                   setAmount("");
-                  showToast({ title: "Settlement recorded", tone: "success" });
+                  const effect = saved?.ledger_effect;
+                  showToast({
+                    title: "Settlement recorded",
+                    description: effect
+                      ? effect.direction === "received"
+                        ? `${formatCurrency(effect.amount || 0, data.space.currency)} was added to your account.`
+                        : `${formatCurrency(effect.amount || 0, data.space.currency)} left your account.${
+                            saved?.counterparty_collected
+                              ? " The person you paid already connected an account, so theirs was updated too."
+                              : ""
+                          }`
+                      : saved?.counterparty_collected
+                        ? "The group balance is updated. The person who was owed already connected an account, so that repayment went back to them."
+                        : "The group balance is updated. No personal account was changed.",
+                    tone: "success",
+                  });
                   return onSettled();
                 })
                 .catch((err) =>
@@ -1038,6 +1538,38 @@ function SettlePanel({
           >
             Record settlement
           </Button>
+          {data.recent_settlements?.length ? (
+            <ul className="space-y-1.5 border-t border-[color:color-mix(in_srgb,var(--ds-gray-1000)_8%,transparent)] pt-3">
+              {data.recent_settlements.slice(0, 5).map((row: any) => (
+                <li key={row.id} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="min-w-0 truncate text-[var(--ds-gray-700)]">
+                    {memberName(row.from_member_id)} paid {memberName(row.to_member_id)}{" "}
+                    {formatCurrency(Number(row.amount), data.space.currency)}
+                  </span>
+                  <button
+                    type="button"
+                    className="shrink-0 text-[var(--ds-gray-700)] underline-offset-2 hover:underline"
+                    onClick={() => {
+                      void deleteSpaceSettlement(spaceId, row.id)
+                        .then(() => {
+                          showToast({ title: "Settlement removed", tone: "success" });
+                          return onSettled();
+                        })
+                        .catch((err) =>
+                          showToast({
+                            title: "Could not remove settlement",
+                            description: getErrorMessage(err, "Try again"),
+                            tone: "error",
+                          }),
+                        );
+                    }}
+                  >
+                    Undo
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       </Panel>
 
