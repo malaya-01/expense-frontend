@@ -52,12 +52,20 @@ export type SpaceExpense = {
   category?: string | null;
   expense_date: string;
   notes?: string | null;
+  payers?: Array<{ member_id: string; paid_amount: number }>;
   splits: Array<{
     id?: string;
     member_id: string;
     share_value?: number | null;
     owed_amount: number;
   }>;
+  line_items?: Array<{ name?: string; amount: number; member_ids: string[] }>;
+  ledger_effect?: {
+    paid?: number;
+    receivable?: number;
+    direction?: "paid" | "received";
+    amount?: number;
+  } | null;
 };
 
 export type SpaceDashboard = {
@@ -167,16 +175,48 @@ export async function listSpaceExpenses(spaceId: string): Promise<SpaceExpense[]
   return unwrap(res);
 }
 
-export async function createSpaceExpense(spaceId: string, payload: Record<string, unknown>) {
+export async function createSpaceExpense(
+  spaceId: string,
+  payload: Record<string, unknown>,
+): Promise<SpaceExpense> {
   const res = await api.post(`/spaces/${spaceId}/expenses`, payload);
+  return unwrap<SpaceExpense>(res);
+}
+
+export async function updateSpaceExpense(
+  spaceId: string,
+  expenseId: string,
+  payload: Record<string, unknown>,
+): Promise<SpaceExpense> {
+  const res = await api.patch(`/spaces/${spaceId}/expenses/${expenseId}`, payload);
+  return unwrap<SpaceExpense>(res);
+}
+
+export async function deleteSpaceExpense(spaceId: string, expenseId: string) {
+  const res = await api.delete(`/spaces/${spaceId}/expenses/${expenseId}`);
   return unwrap(res);
 }
+
+export type SpaceSettlementResult = {
+  id?: string;
+  amount?: number;
+  ledger_effect?: {
+    direction?: "paid" | "received";
+    amount?: number;
+  } | null;
+  counterparty_collected?: boolean;
+};
 
 export async function createSpaceSettlement(
   spaceId: string,
   payload: Record<string, unknown>,
-) {
+): Promise<SpaceSettlementResult> {
   const res = await api.post(`/spaces/${spaceId}/settlements`, payload);
+  return unwrap<SpaceSettlementResult>(res);
+}
+
+export async function deleteSpaceSettlement(spaceId: string, settlementId: string) {
+  const res = await api.delete(`/spaces/${spaceId}/settlements/${settlementId}`);
   return unwrap(res);
 }
 
