@@ -175,18 +175,21 @@ export async function listSpaceExpenses(spaceId: string): Promise<SpaceExpense[]
   return unwrap(res);
 }
 
-export async function createSpaceExpense(spaceId: string, payload: Record<string, unknown>) {
+export async function createSpaceExpense(
+  spaceId: string,
+  payload: Record<string, unknown>,
+): Promise<SpaceExpense> {
   const res = await api.post(`/spaces/${spaceId}/expenses`, payload);
-  return unwrap(res);
+  return unwrap<SpaceExpense>(res);
 }
 
 export async function updateSpaceExpense(
   spaceId: string,
   expenseId: string,
   payload: Record<string, unknown>,
-) {
+): Promise<SpaceExpense> {
   const res = await api.patch(`/spaces/${spaceId}/expenses/${expenseId}`, payload);
-  return unwrap(res);
+  return unwrap<SpaceExpense>(res);
 }
 
 export async function deleteSpaceExpense(spaceId: string, expenseId: string) {
@@ -194,12 +197,22 @@ export async function deleteSpaceExpense(spaceId: string, expenseId: string) {
   return unwrap(res);
 }
 
+export type SpaceSettlementResult = {
+  id?: string;
+  amount?: number;
+  ledger_effect?: {
+    direction?: "paid" | "received";
+    amount?: number;
+  } | null;
+  counterparty_collected?: boolean;
+};
+
 export async function createSpaceSettlement(
   spaceId: string,
   payload: Record<string, unknown>,
-) {
+): Promise<SpaceSettlementResult> {
   const res = await api.post(`/spaces/${spaceId}/settlements`, payload);
-  return unwrap(res);
+  return unwrap<SpaceSettlementResult>(res);
 }
 
 export async function deleteSpaceSettlement(spaceId: string, settlementId: string) {

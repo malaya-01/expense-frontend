@@ -57,6 +57,7 @@ import {
   type SpaceDashboard,
   type SpaceExpense,
   type SpaceMember,
+  type SpaceSettlementResult,
 } from "@/lib/api/spaces";
 import { previewPositions, type SplitMethod } from "@/lib/spaces/split";
 import { fileToReceiptPayload } from "@/lib/receipts/compress-image";
@@ -1503,10 +1504,7 @@ function SettlePanel({
                   actorSide && linkPersonal ? containerId : undefined,
                 client_op_id: `settlement-${Date.now()}`,
               })
-                .then((saved: {
-                  ledger_effect?: { direction?: string; amount?: number } | null;
-                  counterparty_collected?: boolean;
-                }) => {
+                .then((saved: SpaceSettlementResult) => {
                   setAmount("");
                   const effect = saved?.ledger_effect;
                   showToast({
