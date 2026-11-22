@@ -9,7 +9,6 @@ import { CommandPalette } from "@/components/layout/command-palette";
 import { NotificationWatcher } from "@/components/layout/notification-watcher";
 import { TransactionModalProvider } from "@/components/expenses/transaction-modal-provider";
 import { ReceiptCaptureProvider } from "@/components/receipts/receipt-capture-provider";
-import { MirageDownloadPrompt } from "@/components/receipts/mirage-download-prompt";
 import { useAuth } from "@/lib/auth-context";
 import { getAccessToken, touchSession } from "@/lib/api/client";
 import { fetchMyPermissions } from "@/lib/api/permissions";
@@ -110,7 +109,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </main>
             <MobileNav />
             <MobileCreateFab />
-            <MirageDownloadPrompt />
             <CommandPalette />
             <NotificationWatcher />
           </div>
