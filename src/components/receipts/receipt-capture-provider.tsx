@@ -14,11 +14,10 @@ import { Camera, ImageUp, Sparkles } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useGlobalLoader } from "@/components/brand/global-loader";
 import { useTransactionModal } from "@/components/expenses/transaction-modal-provider";
-import { parseReceipt } from "@/lib/api/ai";
 import { listAccounts } from "@/lib/api/accounts";
 import { hasPaymentReference } from "@/lib/api/transactions";
 import { getErrorMessage } from "@/lib/api/client";
-import { fileToReceiptPayload } from "@/lib/receipts/compress-image";
+import { isMirageDownloaded, readReceiptForForm } from "@/lib/receipts/mirage-device";
 import {
   defaultsFromReceiptParse,
   isBlockedReceiptParse,
@@ -57,7 +56,7 @@ function base64ToFile(payload: SharedReceiptPayload): File | null {
 }
 
 export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
-  const { openTransactionModal } = useTransactionModal();
+  const { openTransactionModal, noteStoredReceipt } = useTransactionModal();
   const { showScan } = useGlobalLoader();
   const { showToast } = useToast();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -81,46 +80,34 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
       });
       let previewUrl = "";
       try {
-        const payload = await fileToReceiptPayload(file);
-        previewUrl = payload.preview_url;
+        const onPhone = await isMirageDownloaded();
         showScan({
-          previewUrl: payload.mime_type.startsWith("image/") ? previewUrl : undefined,
+          uploadProgress: 0,
+          onCancel: () => controller.abort(),
         });
-        // Accounts come from the device cache; load them while the AI reads.
+        const read = await readReceiptForForm(file, {
+          signal: controller.signal,
+          onUploadProgress: (fraction) => showScan({ uploadProgress: fraction }),
+        });
+        previewUrl = read.previewUrl;
+        showScan({
+          previewUrl:
+            read.previewName && !/\.pdf$/i.test(read.previewName)
+              ? previewUrl
+              : undefined,
+        });
         const accountsPromise = listAccounts().catch(
           () => [] as Awaited<ReturnType<typeof listAccounts>>,
         );
-        let parsed: ReceiptParseResult | null = null;
-        let notice = "Review the fields before saving.";
-        try {
-          parsed = await parseReceipt(
-            {
-              name: payload.name,
-              mime_type: payload.mime_type,
-              data_base64: payload.data_base64,
-            },
-            {
-              signal: controller.signal,
-              onUploadProgress: (fraction) =>
-                showScan({ uploadProgress: fraction }),
-            },
-          );
-          if (parsed.stored && parsed.receipt_id) {
-            notice =
-              "Review the fields before saving. The scan will be attached to this transaction.";
-          }
-          if (parsed.warning) notice = parsed.warning;
-        } catch (err) {
-          if (controller.signal.aborted) {
-            if (previewUrl) URL.revokeObjectURL(previewUrl);
-            showToast({ title: "Receipt scan cancelled" });
-            return;
-          }
-          notice = getErrorMessage(
-            err,
-            "Could not read this receipt. Fill the form yourself.",
-          );
+        const parsed: ReceiptParseResult | null = read.parsed;
+        let notice = onPhone
+          ? "Read on this phone. Review the fields before saving."
+          : "Review the fields before saving.";
+        if (parsed.stored && parsed.receipt_id) {
+          notice =
+            "Review the fields before saving. The scan will be attached to this transaction.";
         }
+        if (parsed.warning) notice = parsed.warning;
 
         if (isBlockedReceiptParse(parsed)) {
           if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -157,10 +144,13 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
           visionModel: parsed?.used_model,
           notice,
           previewUrl,
-          previewName: payload.name,
+          previewName: read.previewName,
           receiptId: parsed?.receipt_id,
           receiptUrl: parsed?.receipt_url,
-          receiptMime: payload.mime_type,
+          receiptMime: parsed?.receipt_id ? "image/jpeg" : null,
+        });
+        void read.stored.then((saved) => {
+          if (saved) noteStoredReceipt(saved);
         });
       } catch (err) {
         if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -177,7 +167,7 @@ export function ReceiptCaptureProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [openTransactionModal, showScan, showToast],
+    [noteStoredReceipt, openTransactionModal, showScan, showToast],
   );
 
   const startReceiptCapture = useCallback((options?: ReceiptCaptureOptions) => {

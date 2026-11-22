@@ -45,6 +45,12 @@ type TransactionModalContextValue = {
   openEditTransactionModal: (transaction: LedgerTransaction) => void;
   closeTransactionModal: () => void;
   attachReceiptPreview: (draft: TransactionDraft) => void;
+  /** Attach a scan that finished uploading after the form was already open. */
+  noteStoredReceipt: (receipt: {
+    id: string;
+    url?: string | null;
+    mime?: string | null;
+  }) => void;
 };
 
 const TransactionModalContext =
@@ -109,21 +115,56 @@ export function TransactionModalProvider({
     setReadingLabel(null);
   }, [releasePreview]);
 
-  const attachReceiptPreview = useCallback((next: TransactionDraft) => {
-    if (previewUrlRef.current && previewUrlRef.current !== next.previewUrl) {
-      URL.revokeObjectURL(previewUrlRef.current);
-    }
-    previewUrlRef.current = next.previewUrl || null;
-    setDraft((prev) => ({
-      ...prev,
-      ...next,
-      fromReceipt: true,
-      defaults: next.defaults || prev?.defaults,
-    }));
-    // Remount the form so it re-reads the receipt defaults. Image receipts
-    // already remount via the preview layout switch; PDFs keep the same tree.
-    setFormKey((key) => key + 1);
-  }, []);
+  const attachReceiptPreview = useCallback(
+    (next: TransactionDraft & {
+      stored?: Promise<{ id: string; url?: string | null; mime?: string | null } | null>;
+    }) => {
+      if (previewUrlRef.current && previewUrlRef.current !== next.previewUrl) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+      previewUrlRef.current = next.previewUrl || null;
+      const { stored, ...draftFields } = next;
+      setDraft((prev) => ({
+        ...prev,
+        ...draftFields,
+        fromReceipt: true,
+        defaults: next.defaults || prev?.defaults,
+      }));
+      void stored?.then((saved) => {
+        if (!saved) return;
+        setDraft((prev) =>
+          prev
+            ? {
+                ...prev,
+                receiptId: saved.id,
+                receiptUrl: saved.url ?? prev.receiptUrl,
+                receiptMime: saved.mime ?? prev.receiptMime,
+              }
+            : prev,
+        );
+      });
+      // Remount the form so it re-reads the receipt defaults. Image receipts
+      // already remount via the preview layout switch; PDFs keep the same tree.
+      setFormKey((key) => key + 1);
+    },
+    [],
+  );
+
+  const noteStoredReceipt = useCallback(
+    (receipt: { id: string; url?: string | null; mime?: string | null }) => {
+      setDraft((prev) =>
+        prev
+          ? {
+              ...prev,
+              receiptId: receipt.id,
+              receiptUrl: receipt.url ?? prev.receiptUrl,
+              receiptMime: receipt.mime ?? prev.receiptMime,
+            }
+          : prev,
+      );
+    },
+    [],
+  );
 
   const clearReceiptPreview = useCallback(() => {
     releasePreview();
@@ -138,10 +179,12 @@ export function TransactionModalProvider({
       openEditTransactionModal,
       closeTransactionModal,
       attachReceiptPreview,
+      noteStoredReceipt,
     }),
     [
       attachReceiptPreview,
       closeTransactionModal,
+      noteStoredReceipt,
       openEditTransactionModal,
       openTransactionModal,
     ],
