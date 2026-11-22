@@ -31,7 +31,7 @@ import {
 import { useToast } from "@/components/ui/toast";
 import { convertAmount, getRate } from "@/lib/currency/currency.data";
 import { parseReceipt } from "@/lib/api/ai";
-import { fileToReceiptPayload } from "@/lib/receipts/compress-image";
+import { isMirageDownloaded, readReceiptForForm } from "@/lib/receipts/mirage-device";
 import {
   defaultsFromReceiptParse,
   isBlockedReceiptParse,
@@ -95,6 +95,11 @@ type TransactionFormProps = {
     receiptId?: string | null;
     receiptUrl?: string | null;
     receiptMime?: string | null;
+    stored?: Promise<{
+      id: string;
+      url: string | null;
+      mime: string;
+    } | null>;
   }) => void;
 };
 
@@ -916,39 +921,24 @@ export function TransactionForm({
     showScan({ uploadProgress: 0, onCancel: () => controller.abort() });
     let previewUrl = "";
     try {
-      const payload = await fileToReceiptPayload(file);
-      previewUrl = payload.preview_url;
-      showScan({
-        previewUrl: payload.mime_type.startsWith("image/") ? previewUrl : undefined,
+      const onPhone = await isMirageDownloaded();
+      reportReading(onPhone ? "Reading on this phone" : "Reading receipt");
+      const read = await readReceiptForForm(file, {
+        signal: controller.signal,
+        onUploadProgress: (fraction) => showScan({ uploadProgress: fraction }),
       });
-      let parsed: Awaited<ReturnType<typeof parseReceipt>> | null = null;
-      let notice = "Receipt fields filled. Review before saving.";
-      try {
-        parsed = await parseReceipt(
-          {
-            name: payload.name,
-            mime_type: payload.mime_type,
-            data_base64: payload.data_base64,
-          },
-          {
-            signal: controller.signal,
-            onUploadProgress: (fraction) => showScan({ uploadProgress: fraction }),
-          },
-        );
-        if (parsed.stored && parsed.receipt_id) {
-          notice =
-            "Receipt fields filled. The scan will be attached to this transaction.";
-        }
-        if (parsed.warning) notice = parsed.warning;
-      } catch (err) {
-        if (controller.signal.aborted) {
-          if (previewUrl) URL.revokeObjectURL(previewUrl);
-          return;
-        }
-        notice = getErrorMessage(
-          err,
-          "Could not read this receipt. Fill the form yourself.",
-        );
+      previewUrl = read.previewUrl;
+      if (controller.signal.aborted) {
+        URL.revokeObjectURL(previewUrl);
+        return;
+      }
+      showScan({
+        previewUrl: read.previewName && !/\.pdf$/i.test(read.previewName) ? previewUrl : undefined,
+      });
+      let parsed: Awaited<ReturnType<typeof parseReceipt>> | null = read.parsed;
+      let notice = read.parsed.warning || "Receipt fields filled. Review before saving.";
+      if (read.parsed.stored && read.parsed.receipt_id) {
+        notice = "Receipt fields filled. The scan will be attached to this transaction.";
       }
 
       if (isBlockedReceiptParse(parsed)) {
@@ -987,26 +977,35 @@ export function TransactionForm({
         onReceiptAttached({
           defaults: merged,
           previewUrl,
-          previewName: payload.name,
+          previewName: read.previewName,
           notice,
           visionProvider: parsed?.used_provider,
           visionModel: parsed?.used_model,
           receiptMatch: parsed?.extracted,
           receiptId: parsed?.receipt_id,
           receiptUrl: parsed?.receipt_url,
-          receiptMime: payload.mime_type,
+          receiptMime: parsed?.receipt_id ? "image/jpeg" : null,
+          stored: read.stored,
         });
         return;
       }
+      void read.stored.then((saved) => {
+        if (!saved || scanAbortRef.current) return;
+        setAttachedReceipt({
+          id: saved.id,
+          url: saved.url,
+          mime: saved.mime,
+        });
+      });
       if (parsed?.receipt_id) {
         setAttachedReceipt({
           id: parsed.receipt_id,
           url: parsed.receipt_url,
-          mime: payload.mime_type,
+          mime: "image/jpeg",
         });
       }
       if (localPreview?.url) URL.revokeObjectURL(localPreview.url);
-      setLocalPreview({ url: previewUrl, name: payload.name });
+      setLocalPreview({ url: previewUrl, name: read.previewName });
       setForm((prev) => ({
         ...prev,
         ...next,

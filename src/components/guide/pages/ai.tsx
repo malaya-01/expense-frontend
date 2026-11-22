@@ -65,10 +65,13 @@ export function AiGuide() {
       <DocH2>How it works</DocH2>
       <DocP>
         You bring your own API key. {APP_NAME} encrypts credentials on the
-        server and sends only the prompt context needed for the reply. OpenRouter
-        is recommended: one key unlocks many models. Free-tier limits are handled
-        with a clear banner and retry — switch models or wait for reset if you
-        hit the daily cap.
+        server and sends only the prompt context needed for the reply. On the
+        phone, a receipt photo is read by Mirage on the device. The app asks
+        once, after an update, to download that reader (about 22 MB). A clear
+        scan then stays on the phone instead of waiting on a vision API.
+        OpenRouter is recommended: one key unlocks many models. Free-tier limits
+        are handled with a clear banner and retry — switch models or wait for
+        reset if you hit the daily cap.
       </DocP>
 
       <Callout tone="tip" title="Recommended: OpenRouter">

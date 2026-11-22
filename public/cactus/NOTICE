@@ -1,0 +1,7 @@
+Cactus Compute runtime (cactus.js, cactus.wasm)
+Copyright Cactus Compute contributors
+Licensed under the Apache License, Version 2.0
+https://www.apache.org/licenses/LICENSE-2.0
+
+Mirage weights are not included. The phone downloads mirage.cact
+from https://huggingface.co/Cactus-Compute/mirage on request.
