@@ -658,8 +658,6 @@ export async function parseReceipt(
     name: string;
     mime_type: string;
     data_base64: string;
-    /** Store the image and skip vision. The phone already read it. */
-    store_only?: boolean;
   },
   options?: {
     signal?: AbortSignal;
